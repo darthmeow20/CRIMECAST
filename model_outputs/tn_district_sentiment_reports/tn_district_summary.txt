@@ -1,0 +1,24 @@
+================================================================================
+TAMIL NADU DISTRICT-WISE SENTIMENT ANALYSIS
+================================================================================
+
+Total Records Analyzed: 4 (from 1 districts)
+
+
+CHENNAI
+--------------------------------------------------------------------------------
+  Total Records: 4
+  Sentiment Distribution:
+    Negative: 2 (50.0%)
+    Positive: 2 (50.0%)
+  Average Polarity: 0.001
+  Average Subjectivity: 0.5
+  Average Crime Intensity: 7.25
+  Records with Crime Keywords: 3/4
+
+================================================================================
+
+KEY INSIGHTS:
+  Highest Concern (Most Negative): Chennai
+  Safest Feeling (Most Positive): Chennai
+  Highest Crime Intensity: Chennai

@@ -1,0 +1,28 @@
+======================================================================
+SENTIMENT ANALYSIS: MUMBAI
+======================================================================
+
+Total Records: 2
+
+SENTIMENT DISTRIBUTION:
+  Positive: 2 (100.0%)
+
+DETAILED METRICS:
+  Average Polarity: 0.999
+  Average Subjectivity: 0.500
+  Average Confidence: 0.999
+  Average Crime Intensity: 2.50
+  Max Crime Intensity: 5
+
+SOURCE DISTRIBUTION:
+  news: 1 (50.0%)
+  complaint: 1 (50.0%)
+
+TOP CRIME TYPES:
+  fraud: 1
+
+SENTIMENT BY SOURCE:
+  news: {'positive': 1} | Avg Intensity: 0.00
+  complaint: {'positive': 1} | Avg Intensity: 5.00
+
+======================================================================

@@ -1,0 +1,47 @@
+[
+  {
+    "target": "complaints_total_complaints",
+    "target_label": "Total complaints",
+    "model_name": "random_forest_log",
+    "rows": 99,
+    "feature_count": 49,
+    "cv_mae": 10574.102335569754,
+    "cv_rmse": 28605.05581668452,
+    "cv_r2": 0.47212891518209543,
+    "test_mae": 4685.702340536853,
+    "test_rmse": 7233.807539443291,
+    "test_r2": 0.8785471182860971,
+    "is_best": true,
+    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\complaints_total_complaints_random_forest_log.joblib"
+  },
+  {
+    "target": "murder_homicide_murder_incidence",
+    "target_label": "Murder incidence",
+    "model_name": "gradient_boosting_log",
+    "rows": 99,
+    "feature_count": 62,
+    "cv_mae": 9.215518822522732,
+    "cv_rmse": 12.56793004647713,
+    "cv_r2": 0.6324324443562764,
+    "test_mae": 7.601429251679976,
+    "test_rmse": 9.644556944412965,
+    "test_r2": 0.7169516286554705,
+    "is_best": true,
+    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\murder_homicide_murder_incidence_gradient_boosting_log.joblib"
+  },
+  {
+    "target": "women_crimes_rape_sec_376_i",
+    "target_label": "Rape incidents",
+    "model_name": "random_forest_log",
+    "rows": 99,
+    "feature_count": 35,
+    "cv_mae": 3.386785767625377,
+    "cv_rmse": 4.988064457607218,
+    "cv_r2": 0.3126540568441617,
+    "test_mae": 3.2975056461929,
+    "test_rmse": 4.954087234832276,
+    "test_r2": 0.33895413560492627,
+    "is_best": true,
+    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\women_crimes_rape_sec_376_i_random_forest_log.joblib"
+  }
+]

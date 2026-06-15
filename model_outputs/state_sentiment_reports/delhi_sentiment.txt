@@ -1,0 +1,30 @@
+======================================================================
+SENTIMENT ANALYSIS: DELHI
+======================================================================
+
+Total Records: 2
+
+SENTIMENT DISTRIBUTION:
+  Negative: 1 (50.0%)
+  Positive: 1 (50.0%)
+
+DETAILED METRICS:
+  Average Polarity: 0.001
+  Average Subjectivity: 0.500
+  Average Confidence: 1.000
+  Average Crime Intensity: 8.50
+  Max Crime Intensity: 9
+
+SOURCE DISTRIBUTION:
+  social_media: 1 (50.0%)
+  news: 1 (50.0%)
+
+TOP CRIME TYPES:
+  assault; harassment: 1
+  assault; violence: 1
+
+SENTIMENT BY SOURCE:
+  social_media: {'negative': 1} | Avg Intensity: 8.00
+  news: {'positive': 1} | Avg Intensity: 9.00
+
+======================================================================

@@ -1,0 +1,50 @@
+year,district_city,area_type,murder_incidence,murder_victims,murder_rate,culpable_homicide_incidence,culpable_homicide_victims,culpable_homicides_rate,causing_death_by_negligence_incidence,causing_death_by_negligence_victims,causing_death_by_negligence_rate
+2022,Avadi,city,63,64,15.0,0,0,0.0,372,381,88.8
+2022,Chennai,city,101,103,1.7,2,3,0.0,585,594,9.7
+2022,Coimbatore City,city,31,31,2.8,0,0,0.0,275,291,24.6
+2022,Madurai City,city,35,35,3.2,0,0,0.0,192,234,17.7
+2022,Salem City,city,16,19,1.8,0,0,0.0,228,229,25.9
+2022,Tambaram,city,62,66,7.8,2,2,0.3,485,527,60.9
+2022,Thirunelveli City,city,18,18,3.6,0,0,0.0,89,89,17.7
+2022,Tiruppur City,city,23,23,4.9,0,0,0.0,158,170,33.5
+2022,Trichy City,city,22,22,2.4,2,2,0.2,151,152,16.8
+2022,Ariyalur,district,19,20,2.4,0,0,0.0,174,187,21.7
+2022,Chengalpattu,district,32,32,1.3,1,1,0.0,404,460,16.7
+2022,Coimbatore,district,39,39,1.5,6,6,0.2,794,827,31.0
+2022,Cuddalore,district,43,43,1.6,0,0,0.0,459,459,16.6
+2022,Dharmapuri,district,33,34,2.1,1,1,0.1,380,393,23.7
+2022,Dindigul,district,71,74,3.1,5,5,0.2,639,889,27.8
+2022,Erode,district,25,38,1.0,3,3,0.1,635,638,26.5
+2022,Kallakurichi,district,24,24,1.6,3,3,0.2,271,284,18.3
+2022,Kanchipuram,district,18,19,1.9,0,0,0.0,289,303,29.9
+2022,Kanyakumari,district,36,38,1.8,6,6,0.3,284,340,14.3
+2022,Karur,district,14,14,1.2,0,0,0.0,376,386,33.2
+2022,Krishnagiri,district,53,54,2.7,4,4,0.2,627,658,31.4
+2022,Madurai,district,65,68,3.0,1,1,0.0,588,689,27.4
+2022,Nagapattinam,district,41,43,2.4,1,1,0.1,273,306,15.9
+2022,Namakkal,district,29,29,1.6,1,1,0.1,520,531,28.3
+2022,Nilgiris,district,7,8,0.9,0,0,0.0,40,42,5.1
+2022,Perambalur,district,14,14,2.3,0,0,0.0,214,228,35.6
+2022,Pudukottai,district,34,36,2.0,1,3,0.1,474,485,27.5
+2022,Ramnathapuram,district,38,38,2.6,6,6,0.4,345,345,24.0
+2022,Ranipet,district,25,27,2.0,0,0,0.0,259,269,20.3
+2022,Salem,district,39,39,1.4,1,1,0.0,570,570,20.2
+2022,Sivagangai,district,39,40,2.7,6,6,0.4,379,427,26.6
+2022,Tenkasi,district,41,43,2.7,4,4,0.3,262,262,17.3
+2022,Thanjavur,district,68,71,2.7,0,0,0.0,532,549,20.8
+2022,Theni,district,53,54,4.0,6,6,0.5,312,338,23.5
+2022,Thirunelveli,district,46,49,3.7,1,2,0.1,301,325,24.0
+2022,Thiruvallur,district,19,19,0.8,1,1,0.0,335,335,13.3
+2022,Thiruvannamalai,district,42,49,1.6,2,3,0.1,535,611,20.4
+2022,Thiruvarur,district,21,23,1.6,1,1,0.1,205,265,15.3
+2022,Thoothukudi,district,84,86,4.5,8,8,0.4,432,719,23.2
+2022,Tiruppattur,district,22,22,1.8,1,1,0.1,198,415,15.8
+2022,Tiruppur,district,36,36,1.7,2,2,0.1,704,706,32.5
+2022,Trichy,district,37,37,1.9,0,0,0.0,540,562,27.1
+2022,Vellore,district,24,24,1.5,0,0,0.0,307,321,18.5
+2022,Villupuram,district,23,23,1.0,6,6,0.3,548,572,25.0
+2022,Virudhunagar,district,58,61,2.8,2,2,0.1,485,485,23.5
+2022,Cyber Cell,special_unit,0,0,,0,0,,0,0,
+2022,Other Units,special_unit,0,0,,0,0,,0,0,
+2022,Railway Chennai,special_unit,6,6,,0,0,,0,0,
+2022,Railway Trichy,special_unit,1,1,,0,0,,0,0,

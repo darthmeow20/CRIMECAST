@@ -1,0 +1,5 @@
+State/District,Total Records,Positive %,Negative %,Neutral %,Avg Polarity,Avg Intensity,Max Intensity
+Bangalore,2,0.0,100.0,0.0,-0.998,7.0,7
+Chennai,4,50.0,50.0,0.0,0.001,7.25,10
+Delhi,2,50.0,50.0,0.0,0.001,8.5,9
+Mumbai,2,100.0,0.0,0.0,0.999,2.5,5

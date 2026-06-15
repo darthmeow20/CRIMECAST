@@ -1,0 +1,36 @@
+======================================================================
+TAMIL NADU - CHENNAI
+======================================================================
+
+Total Records: 4
+Year Range: 2023-2023
+
+SENTIMENT DISTRIBUTION:
+  Negative: 2 (50.0%)
+  Positive: 2 (50.0%)
+
+SENTIMENT METRICS:
+  Average Polarity: 0.001
+  Average Subjectivity: 0.500
+  Average Confidence: 0.996
+  Average Crime Intensity: 7.25
+  Max Crime Intensity: 10
+
+SOURCE DISTRIBUTION:
+  complaint: 2 (50.0%)
+  news: 1 (25.0%)
+  social_media: 1 (25.0%)
+
+CRIME TYPES DETECTED:
+  murder: 2
+  violence: 1
+
+SENTIMENT BY SOURCE:
+  complaint: {'negative': 1, 'positive': 1} | Avg Intensity: 9.50
+  news: {'positive': 1} | Avg Intensity: 10.00
+  social_media: {'negative': 1} | Avg Intensity: 0.00
+
+SENTIMENT STATUS:
+  [MIXED] Balanced sentiment
+
+======================================================================
