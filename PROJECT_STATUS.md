@@ -47,6 +47,8 @@ Your CRIMECAST project is **working well** with all major components functional 
 | `model_outputs/sentiment_scores.csv` | ✅ Generated | Sentiment results |
 | `model_outputs/crime_predictions.csv` | ✅ Generated | ML predictions |
 
+**Data span note**: Only 2022–2023. More years (2023/2024 district tables from opencity.in or NCRB) would greatly improve rate forecasting reliability. See PROJECT_GUIDE.md for sources.
+
 ### 4. **Documentation** ✅
 | Document | Status | Size | Purpose |
 |----------|--------|------|---------|

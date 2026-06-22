@@ -1,0 +1,55 @@
+flowchart LR
+    subgraph Inputs
+        R1[Raw TN Crime CSVs<br/>2022/2023<br/>complaints, women_crimes, murder]
+        R2[Sentiment Text Template<br/>or Auto-Generated Text]
+    end
+
+    subgraph Processing
+        C1[Cleaning & Normalization<br/>clean_data.py]
+        C2[ML Feature Engineering<br/>year_centered, population, ratios]
+        S1[DistilBERT Sentiment Scoring<br/>+ Crime Lexicon Intensity]
+        S2[Aggregate Sentiment per District-Year<br/>polarity, negative_share, intensity]
+    end
+
+    subgraph Fusion & Storage
+        M1[Merge Sentiment into ML Data<br/>Optional Features]
+        DB1[(crimecast_ml_ready.csv)]
+        DB2[(sentiment_scores.csv)]
+        DB3[(best_models.json + .joblib Models)]
+    end
+
+    subgraph Outputs
+        P1[Predictions + Risk Index<br/>crime_predictions.csv]
+        P2[2026 Forecasts<br/>rape_predictions_2026_all_districts.csv]
+        V1[Charts & Visuals<br/>model_outputs/figures/*.png]
+        R1[Reports<br/>training_report.md<br/>sentiment_report.txt<br/>*_2026_report.txt]
+    end
+
+    R1 --> C1
+    R2 --> S1
+    C1 --> C2
+    C2 --> M1
+    S1 --> S2
+    S2 --> M1
+
+    M1 --> DB1
+    S2 --> DB2
+    C2 --> DB3
+
+    DB1 --> P1
+    DB1 --> P2
+    DB2 --> P1
+    DB2 --> P2
+    DB3 --> P1
+    DB3 --> P2
+
+    P1 --> V1
+    P2 --> V1
+    P1 --> R1
+    P2 --> R1
+    S2 --> R1
+
+    style Inputs fill:#e3f2fd
+    style Processing fill:#e8f5e9
+    style Fusion_Storage fill:#fff3e0
+    style Outputs fill:#f3e5f5

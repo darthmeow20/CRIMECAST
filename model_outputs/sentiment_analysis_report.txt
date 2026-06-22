@@ -1,0 +1,16 @@
+CRIMECAST SENTIMENT ANALYSIS REPORT
+=============================================
+Records scored: 10
+Method: DistilBERT (transformer) + crime lexicon
+Average polarity: 0.0004
+Average confidence: 0.9977
+Average crime intensity: 1.3000
+
+Sentiment distribution:
+- negative: 5 (50.0%)
+- positive: 5 (50.0%)
+
+Supervised model evaluation:
+- Accuracy: 0.9000
+- Macro F1: 0.8990
+- Cross-validation folds: 5

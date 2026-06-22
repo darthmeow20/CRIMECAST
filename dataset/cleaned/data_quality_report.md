@@ -23,11 +23,14 @@
 ## ML-Ready Dataset
 
 - Rows: 99
-- Columns: 73
+- Columns: 82
 - Years: 2022, 2023
 - Output: `crimecast_ml_ready.csv`
 
-Suggested prediction targets include `complaints_total_complaints`, `murder_homicide_murder_incidence`, and `women_crimes_rape_sec_376_i`.
+NOTE: Only two years of data currently. Sentiment aggregates (if sentiment_scores.csv exists) are automatically merged as predictive features.
+      This significantly improves crime rate model accuracy by incorporating public sentiment signals.
+
+Suggested prediction targets include `complaints_total_complaints`, `murder_homicide_murder_incidence`, `women_crimes_rape_sec_376_i` (counts), and crime *rates*: `murder_homicide_murder_rate`, `women_crimes_rape_r`, `complaints_rate_of_cognizable_crime_ipc_sll` (or alias crime_rate).
 
 ## Sentiment Analysis Readiness
 

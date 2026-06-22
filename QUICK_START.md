@@ -164,8 +164,9 @@ A: Fixed! All Unicode removed. Should work on Windows console now.
 1. **Just starting?** → Run `python app.py` → Select option 4
 2. **Want TN analysis?** → `python app.py --tn-district`
 3. **Need full pipeline?** → `python app.py` → Select option 1
-4. **Want to understand?** → Read `PROJECT_GUIDE.md`
-5. **Need deep dive?** → Read `DISTILBERT_GUIDE.md` or `SENTIMENT_TN_DISTRICTS.md`
+4. **Try the new interactive Dashboard** → `streamlit run dashboard.py` (after `pip install -r requirements.txt`)
+5. **Want to understand?** → Read `PROJECT_GUIDE.md`
+6. **Need deep dive?** → Read `DISTILBERT_GUIDE.md` or `SENTIMENT_TN_DISTRICTS.md`
 
 ---
 

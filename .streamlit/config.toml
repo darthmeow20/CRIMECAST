@@ -1,0 +1,22 @@
+[theme]
+
+# Light professional theme for CRIMECAST (crime analytics)
+base = "light"
+
+# Main accent color (red for danger/alert)
+primaryColor = "#ef4444"
+
+# Main background
+backgroundColor = "#ffffff"
+
+# Sidebar and card backgrounds (light gray)
+secondaryBackgroundColor = "#f8fafc"
+
+# Text color (dark slate)
+textColor = "#0f172a"
+
+# Font
+font = "sans serif"
+
+[theme.sidebar]
+backgroundColor = "#f1f5f9"

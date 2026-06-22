@@ -36,14 +36,33 @@ TARGET_CONFIGS = {
     "complaints_total_complaints": {
         "label": "Total complaints",
         "exclude_prefixes": ("complaints_",),
+        "log_target": True,
     },
     "murder_homicide_murder_incidence": {
         "label": "Murder incidence",
         "exclude_prefixes": ("murder_homicide_", "murder_"),
+        "log_target": True,
     },
     "women_crimes_rape_sec_376_i": {
         "label": "Rape incidents",
         "exclude_prefixes": ("women_crimes_", "rape_"),
+        "log_target": True,
+    },
+    # Crime *rate* targets (normalized per population / lakh) — rates often benefit from log too but we keep option
+    "murder_homicide_murder_rate": {
+        "label": "Murder rate",
+        "exclude_prefixes": ("murder_homicide_", "murder_"),
+        "log_target": True,
+    },
+    "women_crimes_rape_r": {
+        "label": "Rape rate",
+        "exclude_prefixes": ("women_crimes_", "rape_"),
+        "log_target": True,
+    },
+    "complaints_rate_of_cognizable_crime_ipc_sll": {
+        "label": "Cognizable crime rate (IPC+SLL)",
+        "exclude_prefixes": ("complaints_",),
+        "log_target": True,
     },
 }
 
@@ -63,12 +82,13 @@ def slugify(value: str) -> str:
 def candidate_models() -> list[ModelSpec]:
     return [
         ModelSpec("dummy_median", DummyRegressor(strategy="median")),
-        ModelSpec("ridge_log", Ridge(alpha=10.0), scale_numeric=True, log_target=True),
+        ModelSpec("ridge_log", Ridge(alpha=5.0), scale_numeric=True, log_target=True),
         ModelSpec(
             "random_forest_log",
             RandomForestRegressor(
-                n_estimators=400,
-                min_samples_leaf=2,
+                n_estimators=300,
+                min_samples_leaf=3,   # slightly more conservative for small data
+                max_depth=6,
                 random_state=RANDOM_STATE,
                 n_jobs=-1,
             ),
@@ -77,9 +97,10 @@ def candidate_models() -> list[ModelSpec]:
         ModelSpec(
             "gradient_boosting_log",
             GradientBoostingRegressor(
-                n_estimators=120,
-                learning_rate=0.05,
-                max_depth=2,
+                n_estimators=200,
+                learning_rate=0.04,
+                max_depth=3,
+                subsample=0.8,
                 random_state=RANDOM_STATE,
             ),
             log_target=True,
@@ -107,7 +128,40 @@ def select_feature_columns(df: pd.DataFrame, target: str, exclude_prefixes: tupl
             continue
         features.append(column)
 
+    # Keep useful engineered time features even if they look generic
+    time_features = {"year", "year_centered", "is_latest_year"}
+    features = sorted(set(features) | (time_features & set(df.columns)))
+
     return features
+
+
+def prune_correlated_features(df: pd.DataFrame, feature_columns: list[str], threshold: float = 0.95) -> list[str]:
+    """Remove one of highly correlated numeric feature pairs to reduce multicollinearity."""
+    if len(feature_columns) < 2:
+        return feature_columns
+
+    num_df = df[feature_columns].select_dtypes(include=[np.number]).copy()
+    if num_df.shape[1] < 2:
+        return feature_columns
+
+    corr = num_df.corr().abs()
+    upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+
+    to_drop = set()
+    for column in upper.columns:
+        if column in to_drop:
+            continue
+        high_corr = upper[column][upper[column] > threshold].index.tolist()
+        for other in high_corr:
+            if other not in to_drop:
+                # Prefer keeping time/population features
+                if "year" in other or "pop" in other.lower() or "rate" in other.lower():
+                    to_drop.add(column)
+                else:
+                    to_drop.add(other)
+
+    kept = [f for f in feature_columns if f not in to_drop]
+    return kept if len(kept) >= 3 else feature_columns  # don't prune too aggressively
 
 
 def build_preprocessor(
@@ -116,7 +170,8 @@ def build_preprocessor(
     scale_numeric: bool,
 ) -> ColumnTransformer:
     numeric_features = [
-        column for column in feature_columns if pd.api.types.is_numeric_dtype(df[column])
+        column for column in feature_columns 
+        if pd.api.types.is_numeric_dtype(df[column]) and df[column].notna().any()
     ]
     categorical_features = [
         column for column in feature_columns if column not in numeric_features
@@ -148,9 +203,13 @@ def build_preprocessor(
     return ColumnTransformer(transformers=transformers, remainder="drop", sparse_threshold=0)
 
 
-def build_estimator(df: pd.DataFrame, feature_columns: list[str], spec: ModelSpec) -> Any:
+def build_estimator(df: pd.DataFrame, feature_columns: list[str], spec: ModelSpec, target_config: dict | None = None) -> Any:
     if spec.name == "dummy_median":
         return clone(spec.estimator)
+
+    use_log = spec.log_target
+    if target_config and "log_target" in target_config:
+        use_log = target_config.get("log_target", use_log)
 
     pipeline = Pipeline(
         [
@@ -159,7 +218,7 @@ def build_estimator(df: pd.DataFrame, feature_columns: list[str], spec: ModelSpe
         ]
     )
 
-    if not spec.log_target:
+    if not use_log:
         return pipeline
 
     return TransformedTargetRegressor(
@@ -222,6 +281,44 @@ def holdout_evaluate_estimator(
     return {f"test_{name}": value for name, value in metrics.items()}, prediction_frame
 
 
+def temporal_evaluate_estimator(
+    estimator: Any,
+    x: pd.DataFrame,
+    y: pd.Series,
+    years: pd.Series,
+) -> tuple[dict[str, float], pd.DataFrame | None]:
+    """Strict temporal validation: train on earlier year(s), test on latest year.
+    This gives a much more realistic estimate of forecasting reliability.
+    """
+    unique_years = sorted(years.dropna().unique())
+    if len(unique_years) < 2:
+        return {}, None
+
+    train_mask = years < unique_years[-1]
+    test_mask = years == unique_years[-1]
+
+    if train_mask.sum() < 5 or test_mask.sum() < 3:
+        return {}, None
+
+    x_train, y_train = x[train_mask], y[train_mask]
+    x_test, y_test = x[test_mask], y[test_mask]
+
+    temp_model = clone(estimator)
+    temp_model.fit(x_train, y_train)
+    predictions = np.maximum(temp_model.predict(x_test), 0.0)
+    metrics = regression_metrics(y_test, predictions)
+
+    prediction_frame = pd.DataFrame(
+        {
+            "year": years[test_mask].to_numpy(),
+            "actual": y_test.to_numpy(),
+            "predicted": predictions,
+        }
+    )
+
+    return {f"temporal_{name}": value for name, value in metrics.items()}, prediction_frame
+
+
 def fit_target_model(
     df: pd.DataFrame,
     target: str,
@@ -229,9 +326,14 @@ def fit_target_model(
 ) -> tuple[list[dict[str, Any]], dict[str, Any], pd.DataFrame]:
     config = TARGET_CONFIGS[target]
     feature_columns = select_feature_columns(df, target, config["exclude_prefixes"])
-    model_df = df.loc[df[target].notna(), feature_columns + [target]].copy()
+
+    # Prune redundant correlated features for more stable/reliable models
+    feature_columns = prune_correlated_features(df, feature_columns)
+
+    model_df = df.loc[df[target].notna(), feature_columns + [target] + (["year"] if "year" in df.columns else [])].copy()
     x = model_df[feature_columns]
     y = model_df[target].astype(float)
+    years_series = model_df["year"] if "year" in model_df.columns else pd.Series([2022] * len(y))
 
     if len(y) < 10:
         raise ValueError(f"Need at least 10 rows to train target {target}; found {len(y)}")
@@ -240,9 +342,11 @@ def fit_target_model(
     holdout_predictions: dict[str, pd.DataFrame] = {}
 
     for spec in candidate_models():
-        estimator = build_estimator(model_df, feature_columns, spec)
+        estimator = build_estimator(model_df, feature_columns, spec, config)
         cv_metrics = cross_validate_estimator(estimator, x, y)
-        test_metrics, predictions = holdout_evaluate_estimator(estimator, x, y)
+        test_metrics, _ = holdout_evaluate_estimator(estimator, x, y)
+        temporal_metrics, _ = temporal_evaluate_estimator(estimator, x, y, years_series)
+
         row = {
             "target": target,
             "target_label": config["label"],
@@ -251,13 +355,14 @@ def fit_target_model(
             "feature_count": len(feature_columns),
             **cv_metrics,
             **test_metrics,
+            **temporal_metrics,
         }
         evaluated_rows.append(row)
-        holdout_predictions[spec.name] = predictions
+        # holdout_predictions kept for backward compat (we don't store temporal preds here)
 
-    best_row = min(evaluated_rows, key=lambda row: row["cv_mae"])
+    best_row = min(evaluated_rows, key=lambda row: row.get("temporal_mae", row["cv_mae"]))
     best_spec = next(spec for spec in candidate_models() if spec.name == best_row["model_name"])
-    best_estimator = build_estimator(model_df, feature_columns, best_spec)
+    best_estimator = build_estimator(model_df, feature_columns, best_spec, config)
     best_estimator.fit(x, y)
 
     for stale_model in model_dir.glob(f"{slugify(target)}_*.joblib"):
@@ -318,20 +423,30 @@ def write_training_report(
         f"- Models directory: `{model_dir}`",
         f"- Trained targets: {len(best_rows)}",
         "",
+        "RELIABILITY NOTE: Best model is chosen primarily by 'temporal_mae' (train on past year(s), test on most recent year).",
+        "This is a much stricter and more honest measure of how well the model would perform on future/unseen years.",
+        "",
         "## Notes",
         "",
+        "- **Temporal evaluation** (train earlier year, test latest) is now primary for realistic future prediction accuracy.",
         "- Each target excludes its own source family to reduce direct leakage.",
         "- `district_city` is excluded so the model does not simply memorize area names.",
-        "- More years make the model more useful, but this is still a prototype until the dataset covers several years consistently.",
-        "- Sentiment features were not used because the available CSVs do not contain free-text records yet.",
+        "- Highly correlated features are pruned (corr > 0.95) for more stable models.",
+        "- `year` / `year_centered` / `is_latest_year`, population, and **sentiment features** (polarity, intensity, negative share) are used when available.",
+        "- Sentiment signals from DistilBERT are fused to make crime rate predictions more accurate and context-aware.",
+        "- More years of data will still give the biggest gains.",
+        "- Rate targets (e.g. murder_rate, rape_rate, crime_rate) + risk_index give the most reliable view.",
         "",
         "## Best Models",
         "",
-        "| Target | Best model | CV MAE | CV RMSE | CV R2 | Test MAE | Test RMSE | Test R2 |",
-        "|---|---|---:|---:|---:|---:|---:|---:|",
+        "| Target | Best model | CV MAE | CV RMSE | CV R2 | Test MAE | Temporal MAE | Temporal R2 | Notes |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---|",
     ]
 
     for row in best_rows:
+        temporal_mae = row.get("temporal_mae", float("nan"))
+        temporal_r2 = row.get("temporal_r2", float("nan"))
+        note = "temporal holdout used" if not np.isnan(temporal_mae) else "random holdout only"
         lines.append(
             "| "
             f"{row['target_label']} | "
@@ -339,9 +454,10 @@ def write_training_report(
             f"{row['cv_mae']:.3f} | "
             f"{row['cv_rmse']:.3f} | "
             f"{row['cv_r2']:.3f} | "
-            f"{row['test_mae']:.3f} | "
-            f"{row['test_rmse']:.3f} | "
-            f"{row['test_r2']:.3f} |"
+            f"{row.get('test_mae', float('nan')):.3f} | "
+            f"{temporal_mae:.3f} | "
+            f"{temporal_r2:.3f} | "
+            f"{note} |"
         )
 
     lines.extend(

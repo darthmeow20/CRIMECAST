@@ -55,3 +55,5 @@ textblob==0.17.1
 nltk==3.8.1
 transformers==4.40.0
 torch==2.1.0
+streamlit==1.35.0
+plotly==5.22.0

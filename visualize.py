@@ -99,6 +99,41 @@ def save_actual_vs_predicted(predictions: pd.DataFrame, output_file: Path) -> Pa
     return output_file
 
 
+def save_sentiment_vs_prediction(ml_df: pd.DataFrame, predictions: pd.DataFrame, output_file: Path) -> Path | None:
+    """If sentiment features present, plot relationship with predicted crime (helps show fusion value)."""
+    sent_cols = [c for c in ml_df.columns if c.startswith("sentiment_")]
+    if not sent_cols or "predicted" not in predictions.columns:
+        return None
+
+    try:
+        merged = ml_df[["district_city", "year"] + sent_cols].merge(
+            predictions[["district_city", "year", "target", "predicted"]],
+            on=["district_city", "year"], how="inner"
+        )
+        if merged.empty or "sentiment_avg_sentiment_polarity" not in merged.columns:
+            return None
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.scatterplot(
+            data=merged,
+            x="sentiment_avg_sentiment_polarity",
+            y="predicted",
+            hue="target",
+            alpha=0.7,
+            ax=ax
+        )
+        ax.axvline(0, color="gray", linestyle="--")
+        ax.set_title("Sentiment Polarity vs Predicted Crime (higher negative sentiment → higher predictions expected)")
+        ax.set_xlabel("Avg Sentiment Polarity (negative left)")
+        ax.set_ylabel("Predicted Value")
+        fig.tight_layout()
+        fig.savefig(output_file, dpi=160)
+        plt.close(fig)
+        return output_file
+    except Exception:
+        return None
+
+
 def write_visual_report(created_files: list[Path], output_dir: Path) -> Path:
     report_file = output_dir / "visual_report.md"
     lines = [
@@ -145,6 +180,10 @@ def create_visualizations(
         save_share_chart(df, output_dir / "complaint_mode_share.png"),
         save_actual_vs_predicted(predictions, output_dir / "actual_vs_predicted.png"),
     ]
+
+    risk_fig = save_sentiment_vs_prediction(df, predictions, output_dir / "sentiment_vs_prediction.png")
+    if risk_fig:
+        created_files.append(risk_fig)
     report_file = write_visual_report(created_files, output_dir)
 
     return {

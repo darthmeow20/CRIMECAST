@@ -9,8 +9,8 @@ BANGALORE
   Sentiment Distribution:
     Negative: 2 (100.0%)
   Average Polarity: -0.998
-  Average Subjectivity: 0.5
-  Average Crime Intensity: 7.0
+  Average Subjectivity: 0.583
+  Average Crime Intensity: 1.5
   Records with Crime: 2/2
 
 CHENNAI
@@ -19,10 +19,10 @@ CHENNAI
   Sentiment Distribution:
     Negative: 2 (50.0%)
     Positive: 2 (50.0%)
-  Average Polarity: 0.001
-  Average Subjectivity: 0.5
-  Average Crime Intensity: 7.25
-  Records with Crime: 3/4
+  Average Polarity: 0.0
+  Average Subjectivity: 0.704
+  Average Crime Intensity: 1.25
+  Records with Crime: 4/4
 
 DELHI
 --------------------------------------------------------------------------------
@@ -30,9 +30,9 @@ DELHI
   Sentiment Distribution:
     Negative: 1 (50.0%)
     Positive: 1 (50.0%)
-  Average Polarity: 0.001
-  Average Subjectivity: 0.5
-  Average Crime Intensity: 8.5
+  Average Polarity: 0.0
+  Average Subjectivity: 0.548
+  Average Crime Intensity: 2.0
   Records with Crime: 2/2
 
 MUMBAI
@@ -41,8 +41,8 @@ MUMBAI
   Sentiment Distribution:
     Positive: 2 (100.0%)
   Average Polarity: 0.999
-  Average Subjectivity: 0.5
-  Average Crime Intensity: 2.5
+  Average Subjectivity: 0.567
+  Average Crime Intensity: 0.5
   Records with Crime: 1/2
 
 ================================================================================

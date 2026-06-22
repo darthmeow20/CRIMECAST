@@ -11,10 +11,10 @@ CHENNAI
   Sentiment Distribution:
     Negative: 2 (50.0%)
     Positive: 2 (50.0%)
-  Average Polarity: 0.001
-  Average Subjectivity: 0.5
-  Average Crime Intensity: 7.25
-  Records with Crime Keywords: 3/4
+  Average Polarity: 0.0
+  Average Subjectivity: 0.704
+  Average Crime Intensity: 1.25
+  Records with Crime Keywords: 4/4
 
 ================================================================================
 

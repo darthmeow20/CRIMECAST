@@ -200,17 +200,17 @@ def get_tn_district_comparison() -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    print("🔍 Analyzing Tamil Nadu district-wise sentiment...\n")
+    print("[INFO] Analyzing Tamil Nadu district-wise sentiment...\n")
     
     try:
         results = analyze_tn_sentiment_by_district()
-        print(f"✓ Analyzed {len(results)} Tamil Nadu districts\n")
+        print(f"[OK] Analyzed {len(results)} Tamil Nadu districts\n")
         
-        print("📊 Generating comparison table...\n")
+        print("[INFO] Generating comparison table...\n")
         comparison = get_tn_district_comparison()
         print(comparison.to_string(index=False))
         
-        print(f"\n✓ Reports saved to: {TN_REPORT_DIR}")
+        print(f"\n[OK] Reports saved to: {TN_REPORT_DIR}")
         print(f"  - tn_district_summary.txt (overall summary)")
         print(f"  - tn_district_comparison.csv (excel-ready comparison)")
         print(f"  - tn_{{district}}_sentiment.txt (individual district reports)")

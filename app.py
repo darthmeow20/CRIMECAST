@@ -30,18 +30,53 @@ def print_areas() -> None:
         print(area)
 
 
-def run_full_pipeline() -> None:
-    cleaning_outputs = run_cleaning()
-    training_outputs = train_models(data_path=cleaning_outputs["ml_ready"])
-    visual_outputs = create_visualizations()
-    sentiment_outputs = analyze_sentiment()
+def run_prediction(area: str, targets: list[str] | None = None, overrides: list[str] | None = None, year: int | None = None) -> None:
+    """Wrapper for interactive / CLI prediction with nice output and risk support."""
+    try:
+        parsed_overrides = parse_overrides(overrides) if overrides else None
+        predictions = predict_many(
+            area=area,
+            targets=targets,
+            year=year,
+            overrides=parsed_overrides,
+        )
 
+        # Show relevant columns, preferring risk if present
+        display_cols = ["area", "year", "target_label", "prediction"]
+        if "risk_index" in predictions.columns:
+            display_cols = ["area", "year", "target_label", "prediction", "risk_index", "risk_label"]
+
+        print("\nPredictions:")
+        print(predictions[display_cols].to_string(index=False))
+        print(f"\nSaved to: model_outputs/crime_predictions.csv")
+    except Exception as e:
+        print(f"[ERROR] Prediction failed: {e}")
+        print("Tip: Run option 1 first to ensure models and sentiment data exist.")
+
+
+def run_full_pipeline() -> None:
+    print("[1/5] Running sentiment analysis first (DistilBERT) so it can enrich ML features...")
+    try:
+        sentiment_outputs = analyze_sentiment()
+    except Exception as e:
+        sentiment_outputs = {"output_file": "N/A", "rows": 0, "message": str(e)}
+
+    print("[2/5] Cleaning data (sentiment aggregates will be merged if available)...")
+    cleaning_outputs = run_cleaning()
+
+    print("[3/5] Training ML models (now with sentiment features when available)...")
+    training_outputs = train_models(data_path=cleaning_outputs["ml_ready"])
+
+    print("[4/5] Generating visualizations...")
+    visual_outputs = create_visualizations()
+
+    print("[5/5] Done.")
     print("Pipeline completed.")
     print(f"Cleaned data: {cleaning_outputs['output_dir']}")
     print(f"ML-ready file: {cleaning_outputs['ml_ready']}")
+    print(f"Sentiment rows: {sentiment_outputs.get('rows', 0)} | output: {sentiment_outputs.get('output_file')}")
     print(f"Training report: {training_outputs['report']}")
     print(f"Charts: {visual_outputs['figure_dir']}")
-    print(f"Sentiment output: {sentiment_outputs['output_file']}")
 
 
 def run_2026_rape_prediction() -> None:
@@ -76,7 +111,7 @@ def interactive_menu() -> None:
         print("=" * 40)
         print()
         print("ANALYSIS & PREDICTION")
-        print("  1. Run full clean + train + chart pipeline")
+        print("  1. Run full pipeline (sentiment → clean + fusion → train → charts) [recommended]")
         print("  2. Predict for an area")
         print("  3. Create charts")
         print()
@@ -87,10 +122,12 @@ def interactive_menu() -> None:
         print()
         print("CRIME FORECASTING")
         print("  7. 2026 rape crime prediction (all districts) [NEW]")
+        print("     (also supports predicting rates: use murder_rate / rape_rate)")
         print()
         print("DATA & INFO")
         print("  8. List areas")
-        print("  9. List targets")
+        print("  9. List targets (incl. crime rates: murder_rate, rape_rate, crime_rate)")
+        print("  c. Quick combined crime + sentiment risk (Chennai example)")
         print()
         print("  0. Exit")
         print()
@@ -100,7 +137,7 @@ def interactive_menu() -> None:
             run_full_pipeline()
         elif choice == "2":
             area = input("Area name, for example Chennai: ").strip() or "Chennai"
-            target = input("Target, or leave blank for all: ").strip()
+            target = input("Target (e.g. rape_rate, crime_rate), or leave blank for all: ").strip()
             targets = [target] if target else None
             year_value = input("Year, or leave blank for latest: ").strip()
             year = int(year_value) if year_value else None
@@ -157,16 +194,28 @@ def interactive_menu() -> None:
             print_areas()
         elif choice == "9":
             print_targets()
+        elif choice == "c":
+            print("\n[COMBINED] Quick Crime + Sentiment Risk Summary (uses latest outputs)")
+            try:
+                from predict import predict_many
+                preds = predict_many("Chennai", targets=None)
+                cols = ["area", "target_label", "prediction"]
+                if "risk_index" in preds.columns:
+                    cols += ["risk_index", "risk_label"]
+                print(preds[cols].head(6).to_string(index=False))
+            except Exception as e:
+                print(f"Run full pipeline first. Error: {e}")
+            print("Tip: Use --year 2026 and rate targets for best combined forecasts.")
         elif choice == "0":
             print("\n[OK] Goodbye!\n")
             return
         else:
-            print("[ERROR] Choose a number from the menu.")
+            print("[ERROR] Invalid choice. Use 0-9, c, or 0 to exit.")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CRIMECAST project console app.")
-    parser.add_argument("--full", action="store_true", help="Run clean, train, chart, and sentiment steps.")
+    parser.add_argument("--full", action="store_true", help="Run full pipeline: sentiment (DistilBERT) → clean (with fusion) → train → charts.")
     parser.add_argument("--charts", action="store_true", help="Create analysis charts.")
     parser.add_argument("--sentiment", action="store_true", help="Run sentiment scoring.")
     parser.add_argument("--predict", action="store_true", help="Predict crime target(s) for an area.")

@@ -1,298 +1,529 @@
 district_city,year,area_type,target,target_label,actual,predicted,model_name
-Avadi,2022,city,complaints_total_complaints,Total complaints,10271.0,10093.909985053688,random_forest_log
-Chennai,2022,city,complaints_total_complaints,Total complaints,39138.0,23050.27336491015,random_forest_log
-Coimbatore City,2022,city,complaints_total_complaints,Total complaints,9250.0,8758.208358553142,random_forest_log
-Madurai City,2022,city,complaints_total_complaints,Total complaints,12289.0,11890.59745007528,random_forest_log
-Salem City,2022,city,complaints_total_complaints,Total complaints,7901.0,6130.312015732844,random_forest_log
-Tambaram,2022,city,complaints_total_complaints,Total complaints,10235.0,10303.058586957737,random_forest_log
-Thirunelveli City,2022,city,complaints_total_complaints,Total complaints,3307.0,3711.6335035542043,random_forest_log
-Tiruppur City,2022,city,complaints_total_complaints,Total complaints,6375.0,6079.731452362575,random_forest_log
-Trichy City,2022,city,complaints_total_complaints,Total complaints,17954.0,11116.100596654951,random_forest_log
-Ariyalur,2022,district,complaints_total_complaints,Total complaints,4326.0,5027.216756022252,random_forest_log
-Chengalpattu,2022,district,complaints_total_complaints,Total complaints,7754.0,8555.657655486511,random_forest_log
-Coimbatore,2022,district,complaints_total_complaints,Total complaints,15039.0,12453.532839234882,random_forest_log
-Cuddalore,2022,district,complaints_total_complaints,Total complaints,26361.0,15137.85388834651,random_forest_log
-Dharmapuri,2022,district,complaints_total_complaints,Total complaints,9110.0,9248.984957400657,random_forest_log
-Dindigul,2022,district,complaints_total_complaints,Total complaints,11470.0,11884.328905203618,random_forest_log
-Erode,2022,district,complaints_total_complaints,Total complaints,10450.0,10614.56141415329,random_forest_log
-Kallakurichi,2022,district,complaints_total_complaints,Total complaints,6582.0,7735.700082486229,random_forest_log
-Kanchipuram,2022,district,complaints_total_complaints,Total complaints,4786.0,5384.537040758105,random_forest_log
-Kanyakumari,2022,district,complaints_total_complaints,Total complaints,9110.0,9257.497495684056,random_forest_log
-Karur,2022,district,complaints_total_complaints,Total complaints,7035.0,5721.886539871498,random_forest_log
-Krishnagiri,2022,district,complaints_total_complaints,Total complaints,9979.0,10047.899601053541,random_forest_log
-Madurai,2022,district,complaints_total_complaints,Total complaints,10598.0,10713.510770994753,random_forest_log
-Nagapattinam,2022,district,complaints_total_complaints,Total complaints,13585.0,11827.956615125351,random_forest_log
-Namakkal,2022,district,complaints_total_complaints,Total complaints,7877.0,8605.817970169091,random_forest_log
-Nilgiris,2022,district,complaints_total_complaints,Total complaints,2862.0,2722.8374594613592,random_forest_log
-Perambalur,2022,district,complaints_total_complaints,Total complaints,3495.0,4620.214634457006,random_forest_log
-Pudukottai,2022,district,complaints_total_complaints,Total complaints,10713.0,10035.338591141272,random_forest_log
-Ramnathapuram,2022,district,complaints_total_complaints,Total complaints,10391.0,9946.828928550092,random_forest_log
-Ranipet,2022,district,complaints_total_complaints,Total complaints,5956.0,6041.646114641721,random_forest_log
-Salem,2022,district,complaints_total_complaints,Total complaints,13620.0,13974.244086794894,random_forest_log
-Sivagangai,2022,district,complaints_total_complaints,Total complaints,7630.0,8817.13941242887,random_forest_log
-Tenkasi,2022,district,complaints_total_complaints,Total complaints,7870.0,9030.234231256594,random_forest_log
-Thanjavur,2022,district,complaints_total_complaints,Total complaints,21106.0,15631.222906616047,random_forest_log
-Theni,2022,district,complaints_total_complaints,Total complaints,10242.0,9522.853979326046,random_forest_log
-Thirunelveli,2022,district,complaints_total_complaints,Total complaints,7420.0,10127.29841448927,random_forest_log
-Thiruvallur,2022,district,complaints_total_complaints,Total complaints,6801.0,6638.761610389534,random_forest_log
-Thiruvannamalai,2022,district,complaints_total_complaints,Total complaints,13937.0,13004.651850647087,random_forest_log
-Thiruvarur,2022,district,complaints_total_complaints,Total complaints,9222.0,8464.131410546386,random_forest_log
-Thoothukudi,2022,district,complaints_total_complaints,Total complaints,12444.0,12283.493344437868,random_forest_log
-Tiruppattur,2022,district,complaints_total_complaints,Total complaints,4880.0,6531.826482796933,random_forest_log
-Tiruppur,2022,district,complaints_total_complaints,Total complaints,10795.0,11170.910809646643,random_forest_log
-Trichy,2022,district,complaints_total_complaints,Total complaints,9565.0,10203.415585745814,random_forest_log
-Vellore,2022,district,complaints_total_complaints,Total complaints,6706.0,6767.882511159233,random_forest_log
-Villupuram,2022,district,complaints_total_complaints,Total complaints,11790.0,10488.926018033493,random_forest_log
-Virudhunagar,2022,district,complaints_total_complaints,Total complaints,11266.0,10891.720305156825,random_forest_log
-Cyber Cell,2022,special_unit,complaints_total_complaints,Total complaints,3.0,47.303420480185,random_forest_log
-Other Units,2022,special_unit,complaints_total_complaints,Total complaints,515.0,47.303420480185,random_forest_log
-Railway Chennai,2022,special_unit,complaints_total_complaints,Total complaints,2266.0,1681.0419548337713,random_forest_log
-Railway Trichy,2022,special_unit,complaints_total_complaints,Total complaints,1179.0,807.497313154936,random_forest_log
-Avadi,2023,city,complaints_total_complaints,Total complaints,104623.0,82690.4154110013,random_forest_log
-Chennai,2023,city,complaints_total_complaints,Total complaints,319666.0,124197.19473541083,random_forest_log
-Coimbatore City,2023,city,complaints_total_complaints,Total complaints,74352.0,55819.13479164807,random_forest_log
-Madurai City,2023,city,complaints_total_complaints,Total complaints,71880.0,62827.31769339036,random_forest_log
-Salem City,2023,city,complaints_total_complaints,Total complaints,37273.0,40858.061667082526,random_forest_log
-Tambaram,2023,city,complaints_total_complaints,Total complaints,106672.0,89646.46710333395,random_forest_log
-Thirunelveli City,2023,city,complaints_total_complaints,Total complaints,22966.0,23463.579200065597,random_forest_log
-Tiruppur City,2023,city,complaints_total_complaints,Total complaints,29600.0,30768.301385491097,random_forest_log
-Trichy City,2023,city,complaints_total_complaints,Total complaints,41759.0,34556.28369084031,random_forest_log
-Ariyalur,2023,district,complaints_total_complaints,Total complaints,34462.0,30347.570445537775,random_forest_log
-Chengalpattu,2023,district,complaints_total_complaints,Total complaints,46320.0,53058.38547145137,random_forest_log
-Coimbatore,2023,district,complaints_total_complaints,Total complaints,65803.0,67403.89685562845,random_forest_log
-Cuddalore,2023,district,complaints_total_complaints,Total complaints,35616.0,47878.67810264299,random_forest_log
-Dharmapuri,2023,district,complaints_total_complaints,Total complaints,46222.0,46728.8802809873,random_forest_log
-Dindigul,2023,district,complaints_total_complaints,Total complaints,110170.0,103286.44050318662,random_forest_log
-Erode,2023,district,complaints_total_complaints,Total complaints,41192.0,42747.98466140058,random_forest_log
-Kallakurichi,2023,district,complaints_total_complaints,Total complaints,44994.0,46032.07737171308,random_forest_log
-Kanchipuram,2023,district,complaints_total_complaints,Total complaints,46626.0,42843.7044550327,random_forest_log
-Kanyakumari,2023,district,complaints_total_complaints,Total complaints,87270.0,68042.31245245329,random_forest_log
-Karur,2023,district,complaints_total_complaints,Total complaints,31625.0,32944.995944423965,random_forest_log
-Krishnagiri,2023,district,complaints_total_complaints,Total complaints,51029.0,58066.637154948,random_forest_log
-Madurai,2023,district,complaints_total_complaints,Total complaints,72267.0,70607.98543504206,random_forest_log
-Mayiladuthurai,2023,district,complaints_total_complaints,Total complaints,38216.0,28059.78177232984,random_forest_log
-Nagapattinam,2023,district,complaints_total_complaints,Total complaints,22462.0,25529.802833445327,random_forest_log
-Namakkal,2023,district,complaints_total_complaints,Total complaints,35435.0,40849.12855462731,random_forest_log
-Nilgiris,2023,district,complaints_total_complaints,Total complaints,17148.0,12635.404214854698,random_forest_log
-Perambalur,2023,district,complaints_total_complaints,Total complaints,12216.0,19812.56560793915,random_forest_log
-Pudukottai,2023,district,complaints_total_complaints,Total complaints,43911.0,45479.24107674128,random_forest_log
-Ramnathapuram,2023,district,complaints_total_complaints,Total complaints,54296.0,54514.91216386604,random_forest_log
-Ranipet,2023,district,complaints_total_complaints,Total complaints,26462.0,31866.028329921697,random_forest_log
-Salem,2023,district,complaints_total_complaints,Total complaints,49091.0,50789.40479725018,random_forest_log
-Sivagangai,2023,district,complaints_total_complaints,Total complaints,36371.0,42048.44260234328,random_forest_log
-Tenkasi,2023,district,complaints_total_complaints,Total complaints,46017.0,47418.34180538458,random_forest_log
-Thanjavur,2023,district,complaints_total_complaints,Total complaints,76520.0,65529.256682924155,random_forest_log
-Theni,2023,district,complaints_total_complaints,Total complaints,52052.0,55349.8289859054,random_forest_log
-Thirunelveli,2023,district,complaints_total_complaints,Total complaints,54900.0,54765.72693481204,random_forest_log
-Thiruvallur,2023,district,complaints_total_complaints,Total complaints,57507.0,55430.87614250312,random_forest_log
-Thiruvannamalai,2023,district,complaints_total_complaints,Total complaints,69305.0,66459.18225370775,random_forest_log
-Thiruvarur,2023,district,complaints_total_complaints,Total complaints,43733.0,42298.27922846767,random_forest_log
-Thoothukudi,2023,district,complaints_total_complaints,Total complaints,79235.0,89126.13662313223,random_forest_log
-Tiruppattur,2023,district,complaints_total_complaints,Total complaints,35332.0,37462.80624018178,random_forest_log
-Tiruppur,2023,district,complaints_total_complaints,Total complaints,30386.0,36207.0269483375,random_forest_log
-Trichy,2023,district,complaints_total_complaints,Total complaints,40788.0,45773.6261200535,random_forest_log
-Vellore,2023,district,complaints_total_complaints,Total complaints,56009.0,59459.56980043041,random_forest_log
-Villupuram,2023,district,complaints_total_complaints,Total complaints,78467.0,68470.21373565747,random_forest_log
-Virudhunagar,2023,district,complaints_total_complaints,Total complaints,64208.0,68173.95620818458,random_forest_log
-Cyber Cell,2023,special_unit,complaints_total_complaints,Total complaints,1.0,47.453369161663495,random_forest_log
-Other Units,2023,special_unit,complaints_total_complaints,Total complaints,381.0,47.453369161663495,random_forest_log
-Railway Chennai,2023,special_unit,complaints_total_complaints,Total complaints,8796.0,5612.377525161199,random_forest_log
-Railway Trichy,2023,special_unit,complaints_total_complaints,Total complaints,1533.0,733.6159830094642,random_forest_log
-Avadi,2022,city,murder_homicide_murder_incidence,Murder incidence,63.0,54.069768126236404,gradient_boosting_log
-Chennai,2022,city,murder_homicide_murder_incidence,Murder incidence,101.0,89.13054502302774,gradient_boosting_log
-Coimbatore City,2022,city,murder_homicide_murder_incidence,Murder incidence,31.0,27.824878228736274,gradient_boosting_log
-Madurai City,2022,city,murder_homicide_murder_incidence,Murder incidence,35.0,41.38075551898386,gradient_boosting_log
-Salem City,2022,city,murder_homicide_murder_incidence,Murder incidence,16.0,22.025712889704526,gradient_boosting_log
-Tambaram,2022,city,murder_homicide_murder_incidence,Murder incidence,62.0,48.09426247058219,gradient_boosting_log
-Thirunelveli City,2022,city,murder_homicide_murder_incidence,Murder incidence,18.0,17.034798488488747,gradient_boosting_log
-Tiruppur City,2022,city,murder_homicide_murder_incidence,Murder incidence,23.0,20.062234152522198,gradient_boosting_log
-Trichy City,2022,city,murder_homicide_murder_incidence,Murder incidence,22.0,28.796610176432306,gradient_boosting_log
-Ariyalur,2022,district,murder_homicide_murder_incidence,Murder incidence,19.0,17.899619456768967,gradient_boosting_log
-Chengalpattu,2022,district,murder_homicide_murder_incidence,Murder incidence,32.0,30.061068286737722,gradient_boosting_log
-Coimbatore,2022,district,murder_homicide_murder_incidence,Murder incidence,39.0,37.49776283150786,gradient_boosting_log
-Cuddalore,2022,district,murder_homicide_murder_incidence,Murder incidence,43.0,46.792527989167816,gradient_boosting_log
-Dharmapuri,2022,district,murder_homicide_murder_incidence,Murder incidence,33.0,29.075621188445837,gradient_boosting_log
-Dindigul,2022,district,murder_homicide_murder_incidence,Murder incidence,71.0,55.141580070413475,gradient_boosting_log
-Erode,2022,district,murder_homicide_murder_incidence,Murder incidence,25.0,34.43085569895398,gradient_boosting_log
-Kallakurichi,2022,district,murder_homicide_murder_incidence,Murder incidence,24.0,25.69058159453955,gradient_boosting_log
-Kanchipuram,2022,district,murder_homicide_murder_incidence,Murder incidence,18.0,18.862278044194703,gradient_boosting_log
-Kanyakumari,2022,district,murder_homicide_murder_incidence,Murder incidence,36.0,33.29922906662367,gradient_boosting_log
-Karur,2022,district,murder_homicide_murder_incidence,Murder incidence,14.0,18.955179761749886,gradient_boosting_log
-Krishnagiri,2022,district,murder_homicide_murder_incidence,Murder incidence,53.0,36.58553444197125,gradient_boosting_log
-Madurai,2022,district,murder_homicide_murder_incidence,Murder incidence,65.0,47.09973007099213,gradient_boosting_log
-Nagapattinam,2022,district,murder_homicide_murder_incidence,Murder incidence,41.0,47.347782785399986,gradient_boosting_log
-Namakkal,2022,district,murder_homicide_murder_incidence,Murder incidence,29.0,28.684490017762656,gradient_boosting_log
-Nilgiris,2022,district,murder_homicide_murder_incidence,Murder incidence,7.0,8.244554641342672,gradient_boosting_log
-Perambalur,2022,district,murder_homicide_murder_incidence,Murder incidence,14.0,15.412601436547845,gradient_boosting_log
-Pudukottai,2022,district,murder_homicide_murder_incidence,Murder incidence,34.0,36.39875751938402,gradient_boosting_log
-Ramnathapuram,2022,district,murder_homicide_murder_incidence,Murder incidence,38.0,36.167130514379224,gradient_boosting_log
-Ranipet,2022,district,murder_homicide_murder_incidence,Murder incidence,25.0,21.757367936897193,gradient_boosting_log
-Salem,2022,district,murder_homicide_murder_incidence,Murder incidence,39.0,38.19607125118144,gradient_boosting_log
-Sivagangai,2022,district,murder_homicide_murder_incidence,Murder incidence,39.0,32.1974071345142,gradient_boosting_log
-Tenkasi,2022,district,murder_homicide_murder_incidence,Murder incidence,41.0,44.88184313669166,gradient_boosting_log
-Thanjavur,2022,district,murder_homicide_murder_incidence,Murder incidence,68.0,55.208066029585936,gradient_boosting_log
-Theni,2022,district,murder_homicide_murder_incidence,Murder incidence,53.0,46.81359936614881,gradient_boosting_log
-Thirunelveli,2022,district,murder_homicide_murder_incidence,Murder incidence,46.0,45.466468760671205,gradient_boosting_log
-Thiruvallur,2022,district,murder_homicide_murder_incidence,Murder incidence,19.0,23.099442148421577,gradient_boosting_log
-Thiruvannamalai,2022,district,murder_homicide_murder_incidence,Murder incidence,42.0,41.18986785437785,gradient_boosting_log
-Thiruvarur,2022,district,murder_homicide_murder_incidence,Murder incidence,21.0,29.313272940746575,gradient_boosting_log
-Thoothukudi,2022,district,murder_homicide_murder_incidence,Murder incidence,84.0,62.956167055534586,gradient_boosting_log
-Tiruppattur,2022,district,murder_homicide_murder_incidence,Murder incidence,22.0,20.91601704396022,gradient_boosting_log
-Tiruppur,2022,district,murder_homicide_murder_incidence,Murder incidence,36.0,38.297574271032964,gradient_boosting_log
-Trichy,2022,district,murder_homicide_murder_incidence,Murder incidence,37.0,41.438918046347915,gradient_boosting_log
-Vellore,2022,district,murder_homicide_murder_incidence,Murder incidence,24.0,21.757367936897193,gradient_boosting_log
-Villupuram,2022,district,murder_homicide_murder_incidence,Murder incidence,23.0,32.683485182302014,gradient_boosting_log
-Virudhunagar,2022,district,murder_homicide_murder_incidence,Murder incidence,58.0,58.09793003695748,gradient_boosting_log
-Cyber Cell,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.17145050395808162,gradient_boosting_log
-Other Units,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.17145050395808162,gradient_boosting_log
-Railway Chennai,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,6.0,4.95386314290151,gradient_boosting_log
-Railway Trichy,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,1.0,1.0465942005420428,gradient_boosting_log
-Avadi,2023,city,murder_homicide_murder_incidence,Murder incidence,57.0,54.40651186850289,gradient_boosting_log
-Chennai,2023,city,murder_homicide_murder_incidence,Murder incidence,105.0,93.54699595100806,gradient_boosting_log
-Coimbatore City,2023,city,murder_homicide_murder_incidence,Murder incidence,22.0,26.75367101524963,gradient_boosting_log
-Madurai City,2023,city,murder_homicide_murder_incidence,Murder incidence,37.0,43.27582866899237,gradient_boosting_log
-Salem City,2023,city,murder_homicide_murder_incidence,Murder incidence,26.0,23.35969510078447,gradient_boosting_log
-Tambaram,2023,city,murder_homicide_murder_incidence,Murder incidence,50.0,46.604122100160076,gradient_boosting_log
-Thirunelveli City,2023,city,murder_homicide_murder_incidence,Murder incidence,17.0,16.32102323398133,gradient_boosting_log
-Tiruppur City,2023,city,murder_homicide_murder_incidence,Murder incidence,24.0,23.568695578677595,gradient_boosting_log
-Trichy City,2023,city,murder_homicide_murder_incidence,Murder incidence,19.0,23.576629808269704,gradient_boosting_log
-Ariyalur,2023,district,murder_homicide_murder_incidence,Murder incidence,16.0,18.572674139975266,gradient_boosting_log
-Chengalpattu,2023,district,murder_homicide_murder_incidence,Murder incidence,31.0,28.97415671337083,gradient_boosting_log
-Coimbatore,2023,district,murder_homicide_murder_incidence,Murder incidence,52.0,39.86308395470926,gradient_boosting_log
-Cuddalore,2023,district,murder_homicide_murder_incidence,Murder incidence,52.0,45.03440676213808,gradient_boosting_log
-Dharmapuri,2023,district,murder_homicide_murder_incidence,Murder incidence,23.0,32.454013077904754,gradient_boosting_log
-Dindigul,2023,district,murder_homicide_murder_incidence,Murder incidence,62.0,52.20717373484022,gradient_boosting_log
-Erode,2023,district,murder_homicide_murder_incidence,Murder incidence,37.0,30.940961412303622,gradient_boosting_log
-Kallakurichi,2023,district,murder_homicide_murder_incidence,Murder incidence,23.0,25.410854997344043,gradient_boosting_log
-Kanchipuram,2023,district,murder_homicide_murder_incidence,Murder incidence,36.0,28.108948871261756,gradient_boosting_log
-Kanyakumari,2023,district,murder_homicide_murder_incidence,Murder incidence,31.0,30.34798731941807,gradient_boosting_log
-Karur,2023,district,murder_homicide_murder_incidence,Murder incidence,18.0,17.94239256507209,gradient_boosting_log
-Krishnagiri,2023,district,murder_homicide_murder_incidence,Murder incidence,59.0,39.05804472513253,gradient_boosting_log
-Madurai,2023,district,murder_homicide_murder_incidence,Murder incidence,63.0,64.04334337375163,gradient_boosting_log
-Mayiladuthurai,2023,district,murder_homicide_murder_incidence,Murder incidence,10.0,14.499236720628916,gradient_boosting_log
-Nagapattinam,2023,district,murder_homicide_murder_incidence,Murder incidence,15.0,15.807747414891313,gradient_boosting_log
-Namakkal,2023,district,murder_homicide_murder_incidence,Murder incidence,35.0,32.65244855853482,gradient_boosting_log
-Nilgiris,2023,district,murder_homicide_murder_incidence,Murder incidence,10.0,12.83510572074622,gradient_boosting_log
-Perambalur,2023,district,murder_homicide_murder_incidence,Murder incidence,12.0,12.292310981503757,gradient_boosting_log
-Pudukottai,2023,district,murder_homicide_murder_incidence,Murder incidence,29.0,29.30867390222429,gradient_boosting_log
-Ramnathapuram,2023,district,murder_homicide_murder_incidence,Murder incidence,36.0,34.72978529879753,gradient_boosting_log
-Ranipet,2023,district,murder_homicide_murder_incidence,Murder incidence,22.0,21.48098404139887,gradient_boosting_log
-Salem,2023,district,murder_homicide_murder_incidence,Murder incidence,46.0,44.04870944129897,gradient_boosting_log
-Sivagangai,2023,district,murder_homicide_murder_incidence,Murder incidence,42.0,36.12666687140964,gradient_boosting_log
-Tenkasi,2023,district,murder_homicide_murder_incidence,Murder incidence,39.0,41.97682625352798,gradient_boosting_log
-Thanjavur,2023,district,murder_homicide_murder_incidence,Murder incidence,51.0,44.57691290243127,gradient_boosting_log
-Theni,2023,district,murder_homicide_murder_incidence,Murder incidence,46.0,44.246933563196826,gradient_boosting_log
-Thirunelveli,2023,district,murder_homicide_murder_incidence,Murder incidence,47.0,43.64456952512022,gradient_boosting_log
-Thiruvallur,2023,district,murder_homicide_murder_incidence,Murder incidence,30.0,35.38399471379115,gradient_boosting_log
-Thiruvannamalai,2023,district,murder_homicide_murder_incidence,Murder incidence,35.0,39.22598286502881,gradient_boosting_log
-Thiruvarur,2023,district,murder_homicide_murder_incidence,Murder incidence,18.0,26.20853607499038,gradient_boosting_log
-Thoothukudi,2023,district,murder_homicide_murder_incidence,Murder incidence,74.0,60.61526030414551,gradient_boosting_log
-Tiruppattur,2023,district,murder_homicide_murder_incidence,Murder incidence,19.0,18.49175754803535,gradient_boosting_log
-Tiruppur,2023,district,murder_homicide_murder_incidence,Murder incidence,31.0,24.554872119809374,gradient_boosting_log
-Trichy,2023,district,murder_homicide_murder_incidence,Murder incidence,45.0,42.59087831666777,gradient_boosting_log
-Vellore,2023,district,murder_homicide_murder_incidence,Murder incidence,24.0,31.281584977681227,gradient_boosting_log
-Villupuram,2023,district,murder_homicide_murder_incidence,Murder incidence,35.0,36.982458727195755,gradient_boosting_log
-Virudhunagar,2023,district,murder_homicide_murder_incidence,Murder incidence,61.0,58.89932959388727,gradient_boosting_log
-Cyber Cell,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.10370199780862915,gradient_boosting_log
-Other Units,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.10370199780862915,gradient_boosting_log
-Railway Chennai,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,8.0,8.3193292957162,gradient_boosting_log
-Railway Trichy,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,1.0,0.927398706593872,gradient_boosting_log
-Avadi,2022,city,women_crimes_rape_sec_376_i,Rape incidents,10.0,10.931438581169362,random_forest_log
-Chennai,2022,city,women_crimes_rape_sec_376_i,Rape incidents,36.0,21.752614947074534,random_forest_log
-Coimbatore City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,7.0,6.835138276875049,random_forest_log
-Madurai City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,13.0,10.286979309507116,random_forest_log
-Salem City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.9208016601925664,random_forest_log
-Tambaram,2022,city,women_crimes_rape_sec_376_i,Rape incidents,17.0,13.761750927437689,random_forest_log
-Thirunelveli City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,1.0,1.4489130716354062,random_forest_log
-Tiruppur City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.381846242333476,random_forest_log
-Trichy City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,5.0,3.55038832378452,random_forest_log
-Ariyalur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,4.588439460992596,random_forest_log
-Chengalpattu,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,8.499668071328099,random_forest_log
-Coimbatore,2022,district,women_crimes_rape_sec_376_i,Rape incidents,13.0,9.505158242008708,random_forest_log
-Cuddalore,2022,district,women_crimes_rape_sec_376_i,Rape incidents,26.0,17.017716061375243,random_forest_log
-Dharmapuri,2022,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,7.450351783762194,random_forest_log
-Dindigul,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,8.064129950345349,random_forest_log
-Erode,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,5.495549838287314,random_forest_log
-Kallakurichi,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,6.242533871670599,random_forest_log
-Kanchipuram,2022,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,3.527414206649734,random_forest_log
-Kanyakumari,2022,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,5.744962801700403,random_forest_log
-Karur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,5.142815557272782,random_forest_log
-Krishnagiri,2022,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,5.587491210205777,random_forest_log
-Madurai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,20.0,14.240635120021812,random_forest_log
-Nagapattinam,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,8.855694537888192,random_forest_log
-Namakkal,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,6.280137986582685,random_forest_log
-Nilgiris,2022,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,1.6933692343863318,random_forest_log
-Perambalur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,4.110169227769284,random_forest_log
-Pudukottai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,6.825121744574143,random_forest_log
-Ramnathapuram,2022,district,women_crimes_rape_sec_376_i,Rape incidents,15.0,12.058318014819816,random_forest_log
-Ranipet,2022,district,women_crimes_rape_sec_376_i,Rape incidents,0.0,1.537216072156998,random_forest_log
-Salem,2022,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,7.733064500417939,random_forest_log
-Sivagangai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,9.798957757292865,random_forest_log
-Tenkasi,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.208451474866502,random_forest_log
-Thanjavur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,11.71127375749316,random_forest_log
-Theni,2022,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,10.935659492882161,random_forest_log
-Thirunelveli,2022,district,women_crimes_rape_sec_376_i,Rape incidents,15.0,11.873861787997745,random_forest_log
-Thiruvallur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,11.0,9.756307099315565,random_forest_log
-Thiruvannamalai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,9.648143113579192,random_forest_log
-Thiruvarur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,7.974629586896004,random_forest_log
-Thoothukudi,2022,district,women_crimes_rape_sec_376_i,Rape incidents,14.0,13.002044210555585,random_forest_log
-Tiruppattur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,3.42541135287777,random_forest_log
-Tiruppur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.958002083861391,random_forest_log
-Trichy,2022,district,women_crimes_rape_sec_376_i,Rape incidents,16.0,11.554447972052355,random_forest_log
-Vellore,2022,district,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.9091726498491792,random_forest_log
-Villupuram,2022,district,women_crimes_rape_sec_376_i,Rape incidents,22.0,13.218094679188866,random_forest_log
-Virudhunagar,2022,district,women_crimes_rape_sec_376_i,Rape incidents,17.0,14.121712615545048,random_forest_log
-Cyber Cell,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.04380088068433505,random_forest_log
-Other Units,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.04380088068433505,random_forest_log
-Railway Chennai,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.1924287054677226,random_forest_log
-Railway Trichy,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.10880153554423752,random_forest_log
-Avadi,2023,city,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.765539423502466,random_forest_log
-Chennai,2023,city,women_crimes_rape_sec_376_i,Rape incidents,20.0,16.047620163292535,random_forest_log
-Coimbatore City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,6.0,6.137721660704482,random_forest_log
-Madurai City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,14.0,11.147551346038894,random_forest_log
-Salem City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,7.0,6.362617213067618,random_forest_log
-Tambaram,2023,city,women_crimes_rape_sec_376_i,Rape incidents,11.0,10.197339527229726,random_forest_log
-Thirunelveli City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,3.0,2.329374187731699,random_forest_log
-Tiruppur City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.1469742478618232,random_forest_log
-Trichy City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.4976901298713585,random_forest_log
-Ariyalur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,7.832227841652861,random_forest_log
-Chengalpattu,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,5.625226670471137,random_forest_log
-Coimbatore,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,6.2640681485303125,random_forest_log
-Cuddalore,2023,district,women_crimes_rape_sec_376_i,Rape incidents,13.0,10.85800034579556,random_forest_log
-Dharmapuri,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,8.491709306148454,random_forest_log
-Dindigul,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,8.550825837273727,random_forest_log
-Erode,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,4.898045355186859,random_forest_log
-Kallakurichi,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,7.939432490379852,random_forest_log
-Kanchipuram,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,6.119358087379665,random_forest_log
-Kanyakumari,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,4.960459101731899,random_forest_log
-Karur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,4.776376271632693,random_forest_log
-Krishnagiri,2023,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,7.106981097763438,random_forest_log
-Madurai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,14.0,12.869218130254122,random_forest_log
-Mayiladuthurai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,2.872533129619,random_forest_log
-Nagapattinam,2023,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,5.448302417012358,random_forest_log
-Namakkal,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,4.2387146798551125,random_forest_log
-Nilgiris,2023,district,women_crimes_rape_sec_376_i,Rape incidents,0.0,1.019488830260018,random_forest_log
-Perambalur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,5.000394127917529,random_forest_log
-Pudukottai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.537565744505919,random_forest_log
-Ramnathapuram,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,8.292436052563767,random_forest_log
-Ranipet,2023,district,women_crimes_rape_sec_376_i,Rape incidents,2.0,3.404679260976474,random_forest_log
-Salem,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.812900532518999,random_forest_log
-Sivagangai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.491134392579925,random_forest_log
-Tenkasi,2023,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,8.079632301449413,random_forest_log
-Thanjavur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,10.701733995231814,random_forest_log
-Theni,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,9.896731114904208,random_forest_log
-Thirunelveli,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.376336064673605,random_forest_log
-Thiruvallur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.261371673500452,random_forest_log
-Thiruvannamalai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,16.0,12.00524023099937,random_forest_log
-Thiruvarur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,6.756301253141618,random_forest_log
-Thoothukudi,2023,district,women_crimes_rape_sec_376_i,Rape incidents,11.0,11.701784617738673,random_forest_log
-Tiruppattur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,4.715796738546627,random_forest_log
-Tiruppur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,5.3200234665578785,random_forest_log
-Trichy,2023,district,women_crimes_rape_sec_376_i,Rape incidents,13.0,11.097538203172888,random_forest_log
-Vellore,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,5.513644009100156,random_forest_log
-Villupuram,2023,district,women_crimes_rape_sec_376_i,Rape incidents,14.0,12.124581410299772,random_forest_log
-Virudhunagar,2023,district,women_crimes_rape_sec_376_i,Rape incidents,15.0,13.62567811590648,random_forest_log
-Cyber Cell,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.12180614466879955,random_forest_log
-Other Units,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.1200579605164697,random_forest_log
-Railway Chennai,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.35493164385041126,random_forest_log
-Railway Trichy,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,1.0,0.36534239420260506,random_forest_log
+Avadi,2022,city,complaints_total_complaints,Total complaints,10271.0,9869.325081780473,gradient_boosting_log
+Chennai,2022,city,complaints_total_complaints,Total complaints,39138.0,39142.55753392742,gradient_boosting_log
+Coimbatore City,2022,city,complaints_total_complaints,Total complaints,9250.0,9319.7736978004,gradient_boosting_log
+Madurai City,2022,city,complaints_total_complaints,Total complaints,12289.0,12166.197816535803,gradient_boosting_log
+Salem City,2022,city,complaints_total_complaints,Total complaints,7901.0,7241.627591154867,gradient_boosting_log
+Tambaram,2022,city,complaints_total_complaints,Total complaints,10235.0,10972.931021344983,gradient_boosting_log
+Thirunelveli City,2022,city,complaints_total_complaints,Total complaints,3307.0,3483.977947655515,gradient_boosting_log
+Tiruppur City,2022,city,complaints_total_complaints,Total complaints,6375.0,6454.9732975611905,gradient_boosting_log
+Trichy City,2022,city,complaints_total_complaints,Total complaints,17954.0,15839.072269902419,gradient_boosting_log
+Ariyalur,2022,district,complaints_total_complaints,Total complaints,4326.0,4516.927042338618,gradient_boosting_log
+Chengalpattu,2022,district,complaints_total_complaints,Total complaints,7754.0,8232.484706207188,gradient_boosting_log
+Coimbatore,2022,district,complaints_total_complaints,Total complaints,15039.0,14380.44667270619,gradient_boosting_log
+Cuddalore,2022,district,complaints_total_complaints,Total complaints,26361.0,23783.57476439704,gradient_boosting_log
+Dharmapuri,2022,district,complaints_total_complaints,Total complaints,9110.0,9338.07430464257,gradient_boosting_log
+Dindigul,2022,district,complaints_total_complaints,Total complaints,11470.0,11395.374412267513,gradient_boosting_log
+Erode,2022,district,complaints_total_complaints,Total complaints,10450.0,10709.212679845195,gradient_boosting_log
+Kallakurichi,2022,district,complaints_total_complaints,Total complaints,6582.0,8319.288591197292,gradient_boosting_log
+Kanchipuram,2022,district,complaints_total_complaints,Total complaints,4786.0,5033.875455809621,gradient_boosting_log
+Kanyakumari,2022,district,complaints_total_complaints,Total complaints,9110.0,9792.735108202494,gradient_boosting_log
+Karur,2022,district,complaints_total_complaints,Total complaints,7035.0,5791.443531004322,gradient_boosting_log
+Krishnagiri,2022,district,complaints_total_complaints,Total complaints,9979.0,10527.707201294344,gradient_boosting_log
+Madurai,2022,district,complaints_total_complaints,Total complaints,10598.0,10789.69531116994,gradient_boosting_log
+Nagapattinam,2022,district,complaints_total_complaints,Total complaints,13585.0,12069.22961364276,gradient_boosting_log
+Namakkal,2022,district,complaints_total_complaints,Total complaints,7877.0,8747.3685668819,gradient_boosting_log
+Nilgiris,2022,district,complaints_total_complaints,Total complaints,2862.0,3017.027408775498,gradient_boosting_log
+Perambalur,2022,district,complaints_total_complaints,Total complaints,3495.0,3700.7657616838824,gradient_boosting_log
+Pudukottai,2022,district,complaints_total_complaints,Total complaints,10713.0,10308.739493910116,gradient_boosting_log
+Ramnathapuram,2022,district,complaints_total_complaints,Total complaints,10391.0,10336.68422146102,gradient_boosting_log
+Ranipet,2022,district,complaints_total_complaints,Total complaints,5956.0,6264.827558089952,gradient_boosting_log
+Salem,2022,district,complaints_total_complaints,Total complaints,13620.0,13079.304902721626,gradient_boosting_log
+Sivagangai,2022,district,complaints_total_complaints,Total complaints,7630.0,9264.648488548386,gradient_boosting_log
+Tenkasi,2022,district,complaints_total_complaints,Total complaints,7870.0,8923.66415194498,gradient_boosting_log
+Thanjavur,2022,district,complaints_total_complaints,Total complaints,21106.0,18511.033600545627,gradient_boosting_log
+Theni,2022,district,complaints_total_complaints,Total complaints,10242.0,9828.581197022373,gradient_boosting_log
+Thirunelveli,2022,district,complaints_total_complaints,Total complaints,7420.0,8260.432491817353,gradient_boosting_log
+Thiruvallur,2022,district,complaints_total_complaints,Total complaints,6801.0,7239.466475588386,gradient_boosting_log
+Thiruvannamalai,2022,district,complaints_total_complaints,Total complaints,13937.0,13768.34541378632,gradient_boosting_log
+Thiruvarur,2022,district,complaints_total_complaints,Total complaints,9222.0,7869.285490640028,gradient_boosting_log
+Thoothukudi,2022,district,complaints_total_complaints,Total complaints,12444.0,13071.037181117868,gradient_boosting_log
+Tiruppattur,2022,district,complaints_total_complaints,Total complaints,4880.0,6177.217616371955,gradient_boosting_log
+Tiruppur,2022,district,complaints_total_complaints,Total complaints,10795.0,10378.400920818804,gradient_boosting_log
+Trichy,2022,district,complaints_total_complaints,Total complaints,9565.0,10281.455937868148,gradient_boosting_log
+Vellore,2022,district,complaints_total_complaints,Total complaints,6706.0,7266.646116700558,gradient_boosting_log
+Villupuram,2022,district,complaints_total_complaints,Total complaints,11790.0,10659.227969804693,gradient_boosting_log
+Virudhunagar,2022,district,complaints_total_complaints,Total complaints,11266.0,11367.93251788844,gradient_boosting_log
+Cyber Cell,2022,special_unit,complaints_total_complaints,Total complaints,3.0,63.90909976445374,gradient_boosting_log
+Other Units,2022,special_unit,complaints_total_complaints,Total complaints,515.0,63.90909976445374,gradient_boosting_log
+Railway Chennai,2022,special_unit,complaints_total_complaints,Total complaints,2266.0,2112.0971747122567,gradient_boosting_log
+Railway Trichy,2022,special_unit,complaints_total_complaints,Total complaints,1179.0,1193.138619452036,gradient_boosting_log
+Avadi,2023,city,complaints_total_complaints,Total complaints,104623.0,97447.49585283085,gradient_boosting_log
+Chennai,2023,city,complaints_total_complaints,Total complaints,319666.0,316941.3838626217,gradient_boosting_log
+Coimbatore City,2023,city,complaints_total_complaints,Total complaints,74352.0,53984.894078936784,gradient_boosting_log
+Madurai City,2023,city,complaints_total_complaints,Total complaints,71880.0,68171.61954162698,gradient_boosting_log
+Salem City,2023,city,complaints_total_complaints,Total complaints,37273.0,38657.21016101379,gradient_boosting_log
+Tambaram,2023,city,complaints_total_complaints,Total complaints,106672.0,101225.62898748206,gradient_boosting_log
+Thirunelveli City,2023,city,complaints_total_complaints,Total complaints,22966.0,24385.798556290316,gradient_boosting_log
+Tiruppur City,2023,city,complaints_total_complaints,Total complaints,29600.0,33299.9631006748,gradient_boosting_log
+Trichy City,2023,city,complaints_total_complaints,Total complaints,41759.0,37153.80400291441,gradient_boosting_log
+Ariyalur,2023,district,complaints_total_complaints,Total complaints,34462.0,31106.82962131526,gradient_boosting_log
+Chengalpattu,2023,district,complaints_total_complaints,Total complaints,46320.0,52650.68486996323,gradient_boosting_log
+Coimbatore,2023,district,complaints_total_complaints,Total complaints,65803.0,62248.48867509325,gradient_boosting_log
+Cuddalore,2023,district,complaints_total_complaints,Total complaints,35616.0,41224.41912779853,gradient_boosting_log
+Dharmapuri,2023,district,complaints_total_complaints,Total complaints,46222.0,45469.89067483855,gradient_boosting_log
+Dindigul,2023,district,complaints_total_complaints,Total complaints,110170.0,102468.19091858121,gradient_boosting_log
+Erode,2023,district,complaints_total_complaints,Total complaints,41192.0,40572.03886159535,gradient_boosting_log
+Kallakurichi,2023,district,complaints_total_complaints,Total complaints,44994.0,46837.69113863393,gradient_boosting_log
+Kanchipuram,2023,district,complaints_total_complaints,Total complaints,46626.0,42533.27666424011,gradient_boosting_log
+Kanyakumari,2023,district,complaints_total_complaints,Total complaints,87270.0,70216.52374503268,gradient_boosting_log
+Karur,2023,district,complaints_total_complaints,Total complaints,31625.0,31163.97930880204,gradient_boosting_log
+Krishnagiri,2023,district,complaints_total_complaints,Total complaints,51029.0,49373.338232507966,gradient_boosting_log
+Madurai,2023,district,complaints_total_complaints,Total complaints,72267.0,62142.33137880793,gradient_boosting_log
+Mayiladuthurai,2023,district,complaints_total_complaints,Total complaints,38216.0,34928.92280546102,gradient_boosting_log
+Nagapattinam,2023,district,complaints_total_complaints,Total complaints,22462.0,23860.9142098354,gradient_boosting_log
+Namakkal,2023,district,complaints_total_complaints,Total complaints,35435.0,38929.77345394018,gradient_boosting_log
+Nilgiris,2023,district,complaints_total_complaints,Total complaints,17148.0,16318.10547206997,gradient_boosting_log
+Perambalur,2023,district,complaints_total_complaints,Total complaints,12216.0,14304.433140049909,gradient_boosting_log
+Pudukottai,2023,district,complaints_total_complaints,Total complaints,43911.0,42275.74713299382,gradient_boosting_log
+Ramnathapuram,2023,district,complaints_total_complaints,Total complaints,54296.0,52301.18595150842,gradient_boosting_log
+Ranipet,2023,district,complaints_total_complaints,Total complaints,26462.0,29618.631775452206,gradient_boosting_log
+Salem,2023,district,complaints_total_complaints,Total complaints,49091.0,52167.42172536091,gradient_boosting_log
+Sivagangai,2023,district,complaints_total_complaints,Total complaints,36371.0,41952.09711614489,gradient_boosting_log
+Tenkasi,2023,district,complaints_total_complaints,Total complaints,46017.0,46011.93743859194,gradient_boosting_log
+Thanjavur,2023,district,complaints_total_complaints,Total complaints,76520.0,70434.50710579683,gradient_boosting_log
+Theni,2023,district,complaints_total_complaints,Total complaints,52052.0,51361.48359797253,gradient_boosting_log
+Thirunelveli,2023,district,complaints_total_complaints,Total complaints,54900.0,51854.84548152451,gradient_boosting_log
+Thiruvallur,2023,district,complaints_total_complaints,Total complaints,57507.0,53730.367124479126,gradient_boosting_log
+Thiruvannamalai,2023,district,complaints_total_complaints,Total complaints,69305.0,63377.982703511225,gradient_boosting_log
+Thiruvarur,2023,district,complaints_total_complaints,Total complaints,43733.0,40998.20921563772,gradient_boosting_log
+Thoothukudi,2023,district,complaints_total_complaints,Total complaints,79235.0,84398.38216385925,gradient_boosting_log
+Tiruppattur,2023,district,complaints_total_complaints,Total complaints,35332.0,36067.77995476519,gradient_boosting_log
+Tiruppur,2023,district,complaints_total_complaints,Total complaints,30386.0,34909.818581169726,gradient_boosting_log
+Trichy,2023,district,complaints_total_complaints,Total complaints,40788.0,43988.23095399708,gradient_boosting_log
+Vellore,2023,district,complaints_total_complaints,Total complaints,56009.0,65410.62525160858,gradient_boosting_log
+Villupuram,2023,district,complaints_total_complaints,Total complaints,78467.0,64213.763951794856,gradient_boosting_log
+Virudhunagar,2023,district,complaints_total_complaints,Total complaints,64208.0,59760.59401926622,gradient_boosting_log
+Cyber Cell,2023,special_unit,complaints_total_complaints,Total complaints,1.0,20.161627565098577,gradient_boosting_log
+Other Units,2023,special_unit,complaints_total_complaints,Total complaints,381.0,20.161627565098577,gradient_boosting_log
+Railway Chennai,2023,special_unit,complaints_total_complaints,Total complaints,8796.0,9685.147968717914,gradient_boosting_log
+Railway Trichy,2023,special_unit,complaints_total_complaints,Total complaints,1533.0,1355.482349283903,gradient_boosting_log
+Avadi,2022,city,murder_homicide_murder_incidence,Murder incidence,63.0,60.96481789456866,gradient_boosting_log
+Chennai,2022,city,murder_homicide_murder_incidence,Murder incidence,101.0,98.9234068454024,gradient_boosting_log
+Coimbatore City,2022,city,murder_homicide_murder_incidence,Murder incidence,31.0,27.408836695025517,gradient_boosting_log
+Madurai City,2022,city,murder_homicide_murder_incidence,Murder incidence,35.0,37.3777037566952,gradient_boosting_log
+Salem City,2022,city,murder_homicide_murder_incidence,Murder incidence,16.0,18.09437532222963,gradient_boosting_log
+Tambaram,2022,city,murder_homicide_murder_incidence,Murder incidence,62.0,56.92129030253402,gradient_boosting_log
+Thirunelveli City,2022,city,murder_homicide_murder_incidence,Murder incidence,18.0,17.810068047139783,gradient_boosting_log
+Tiruppur City,2022,city,murder_homicide_murder_incidence,Murder incidence,23.0,22.49498993084711,gradient_boosting_log
+Trichy City,2022,city,murder_homicide_murder_incidence,Murder incidence,22.0,24.10041289184908,gradient_boosting_log
+Ariyalur,2022,district,murder_homicide_murder_incidence,Murder incidence,19.0,17.792239793118164,gradient_boosting_log
+Chengalpattu,2022,district,murder_homicide_murder_incidence,Murder incidence,32.0,30.870156537890114,gradient_boosting_log
+Coimbatore,2022,district,murder_homicide_murder_incidence,Murder incidence,39.0,36.569339914757165,gradient_boosting_log
+Cuddalore,2022,district,murder_homicide_murder_incidence,Murder incidence,43.0,40.770953968511996,gradient_boosting_log
+Dharmapuri,2022,district,murder_homicide_murder_incidence,Murder incidence,33.0,30.429698535076493,gradient_boosting_log
+Dindigul,2022,district,murder_homicide_murder_incidence,Murder incidence,71.0,67.04570019986157,gradient_boosting_log
+Erode,2022,district,murder_homicide_murder_incidence,Murder incidence,25.0,29.112945323620718,gradient_boosting_log
+Kallakurichi,2022,district,murder_homicide_murder_incidence,Murder incidence,24.0,24.741916035914908,gradient_boosting_log
+Kanchipuram,2022,district,murder_homicide_murder_incidence,Murder incidence,18.0,19.359980501112222,gradient_boosting_log
+Kanyakumari,2022,district,murder_homicide_murder_incidence,Murder incidence,36.0,34.87769861059904,gradient_boosting_log
+Karur,2022,district,murder_homicide_murder_incidence,Murder incidence,14.0,16.034779781422113,gradient_boosting_log
+Krishnagiri,2022,district,murder_homicide_murder_incidence,Murder incidence,53.0,46.44396771925843,gradient_boosting_log
+Madurai,2022,district,murder_homicide_murder_incidence,Murder incidence,65.0,59.80217841910065,gradient_boosting_log
+Nagapattinam,2022,district,murder_homicide_murder_incidence,Murder incidence,41.0,44.80221147470017,gradient_boosting_log
+Namakkal,2022,district,murder_homicide_murder_incidence,Murder incidence,29.0,28.918065263278397,gradient_boosting_log
+Nilgiris,2022,district,murder_homicide_murder_incidence,Murder incidence,7.0,7.829415779185101,gradient_boosting_log
+Perambalur,2022,district,murder_homicide_murder_incidence,Murder incidence,14.0,14.693949257091258,gradient_boosting_log
+Pudukottai,2022,district,murder_homicide_murder_incidence,Murder incidence,34.0,34.80099576394154,gradient_boosting_log
+Ramnathapuram,2022,district,murder_homicide_murder_incidence,Murder incidence,38.0,36.5935623059208,gradient_boosting_log
+Ranipet,2022,district,murder_homicide_murder_incidence,Murder incidence,25.0,23.643742834706437,gradient_boosting_log
+Salem,2022,district,murder_homicide_murder_incidence,Murder incidence,39.0,39.139496757816254,gradient_boosting_log
+Sivagangai,2022,district,murder_homicide_murder_incidence,Murder incidence,39.0,34.55562913183497,gradient_boosting_log
+Tenkasi,2022,district,murder_homicide_murder_incidence,Murder incidence,41.0,41.69866943660767,gradient_boosting_log
+Thanjavur,2022,district,murder_homicide_murder_incidence,Murder incidence,68.0,63.14099717807099,gradient_boosting_log
+Theni,2022,district,murder_homicide_murder_incidence,Murder incidence,53.0,50.80401236897481,gradient_boosting_log
+Thirunelveli,2022,district,murder_homicide_murder_incidence,Murder incidence,46.0,43.64611951684408,gradient_boosting_log
+Thiruvallur,2022,district,murder_homicide_murder_incidence,Murder incidence,19.0,20.285446238084297,gradient_boosting_log
+Thiruvannamalai,2022,district,murder_homicide_murder_incidence,Murder incidence,42.0,41.24252506574175,gradient_boosting_log
+Thiruvarur,2022,district,murder_homicide_murder_incidence,Murder incidence,21.0,24.908301406632134,gradient_boosting_log
+Thoothukudi,2022,district,murder_homicide_murder_incidence,Murder incidence,84.0,73.34608094848542,gradient_boosting_log
+Tiruppattur,2022,district,murder_homicide_murder_incidence,Murder incidence,22.0,20.454761605143837,gradient_boosting_log
+Tiruppur,2022,district,murder_homicide_murder_incidence,Murder incidence,36.0,36.410166174750884,gradient_boosting_log
+Trichy,2022,district,murder_homicide_murder_incidence,Murder incidence,37.0,42.92989019510494,gradient_boosting_log
+Vellore,2022,district,murder_homicide_murder_incidence,Murder incidence,24.0,24.922968279731542,gradient_boosting_log
+Villupuram,2022,district,murder_homicide_murder_incidence,Murder incidence,23.0,25.755340058367935,gradient_boosting_log
+Virudhunagar,2022,district,murder_homicide_murder_incidence,Murder incidence,58.0,62.53876067931847,gradient_boosting_log
+Cyber Cell,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.07235863966722078,gradient_boosting_log
+Other Units,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.06627231964546446,gradient_boosting_log
+Railway Chennai,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,6.0,5.0016446884543,gradient_boosting_log
+Railway Trichy,2022,special_unit,murder_homicide_murder_incidence,Murder incidence,1.0,1.0062033241015649,gradient_boosting_log
+Avadi,2023,city,murder_homicide_murder_incidence,Murder incidence,57.0,55.956525157426064,gradient_boosting_log
+Chennai,2023,city,murder_homicide_murder_incidence,Murder incidence,105.0,102.5609231926838,gradient_boosting_log
+Coimbatore City,2023,city,murder_homicide_murder_incidence,Murder incidence,22.0,24.905294532258903,gradient_boosting_log
+Madurai City,2023,city,murder_homicide_murder_incidence,Murder incidence,37.0,40.24548422367994,gradient_boosting_log
+Salem City,2023,city,murder_homicide_murder_incidence,Murder incidence,26.0,23.96820650161994,gradient_boosting_log
+Tambaram,2023,city,murder_homicide_murder_incidence,Murder incidence,50.0,48.45780685566685,gradient_boosting_log
+Thirunelveli City,2023,city,murder_homicide_murder_incidence,Murder incidence,17.0,16.673196192408206,gradient_boosting_log
+Tiruppur City,2023,city,murder_homicide_murder_incidence,Murder incidence,24.0,22.90951831953994,gradient_boosting_log
+Trichy City,2023,city,murder_homicide_murder_incidence,Murder incidence,19.0,20.839146500612124,gradient_boosting_log
+Ariyalur,2023,district,murder_homicide_murder_incidence,Murder incidence,16.0,16.62821904913881,gradient_boosting_log
+Chengalpattu,2023,district,murder_homicide_murder_incidence,Murder incidence,31.0,30.190595533664244,gradient_boosting_log
+Coimbatore,2023,district,murder_homicide_murder_incidence,Murder incidence,52.0,46.7019890819388,gradient_boosting_log
+Cuddalore,2023,district,murder_homicide_murder_incidence,Murder incidence,52.0,48.76108646287105,gradient_boosting_log
+Dharmapuri,2023,district,murder_homicide_murder_incidence,Murder incidence,23.0,27.24453366878998,gradient_boosting_log
+Dindigul,2023,district,murder_homicide_murder_incidence,Murder incidence,62.0,59.582052686127795,gradient_boosting_log
+Erode,2023,district,murder_homicide_murder_incidence,Murder incidence,37.0,34.673619803875745,gradient_boosting_log
+Kallakurichi,2023,district,murder_homicide_murder_incidence,Murder incidence,23.0,24.237703423533173,gradient_boosting_log
+Kanchipuram,2023,district,murder_homicide_murder_incidence,Murder incidence,36.0,33.1767903046445,gradient_boosting_log
+Kanyakumari,2023,district,murder_homicide_murder_incidence,Murder incidence,31.0,31.498466082550266,gradient_boosting_log
+Karur,2023,district,murder_homicide_murder_incidence,Murder incidence,18.0,18.89681304679663,gradient_boosting_log
+Krishnagiri,2023,district,murder_homicide_murder_incidence,Murder incidence,59.0,51.39906074482205,gradient_boosting_log
+Madurai,2023,district,murder_homicide_murder_incidence,Murder incidence,63.0,64.93329646956722,gradient_boosting_log
+Mayiladuthurai,2023,district,murder_homicide_murder_incidence,Murder incidence,10.0,11.001909758530275,gradient_boosting_log
+Nagapattinam,2023,district,murder_homicide_murder_incidence,Murder incidence,15.0,14.998697799490266,gradient_boosting_log
+Namakkal,2023,district,murder_homicide_murder_incidence,Murder incidence,35.0,32.61173051122345,gradient_boosting_log
+Nilgiris,2023,district,murder_homicide_murder_incidence,Murder incidence,10.0,10.850530443750168,gradient_boosting_log
+Perambalur,2023,district,murder_homicide_murder_incidence,Murder incidence,12.0,11.92584455479053,gradient_boosting_log
+Pudukottai,2023,district,murder_homicide_murder_incidence,Murder incidence,29.0,28.727423122949144,gradient_boosting_log
+Ramnathapuram,2023,district,murder_homicide_murder_incidence,Murder incidence,36.0,35.40940043565558,gradient_boosting_log
+Ranipet,2023,district,murder_homicide_murder_incidence,Murder incidence,22.0,21.588499569860446,gradient_boosting_log
+Salem,2023,district,murder_homicide_murder_incidence,Murder incidence,46.0,46.354724324759474,gradient_boosting_log
+Sivagangai,2023,district,murder_homicide_murder_incidence,Murder incidence,42.0,38.609681184222794,gradient_boosting_log
+Tenkasi,2023,district,murder_homicide_murder_incidence,Murder incidence,39.0,40.04455246649676,gradient_boosting_log
+Thanjavur,2023,district,murder_homicide_murder_incidence,Murder incidence,51.0,49.03839171797454,gradient_boosting_log
+Theni,2023,district,murder_homicide_murder_incidence,Murder incidence,46.0,46.994425185930645,gradient_boosting_log
+Thirunelveli,2023,district,murder_homicide_murder_incidence,Murder incidence,47.0,46.20037402283325,gradient_boosting_log
+Thiruvallur,2023,district,murder_homicide_murder_incidence,Murder incidence,30.0,32.31729012907776,gradient_boosting_log
+Thiruvannamalai,2023,district,murder_homicide_murder_incidence,Murder incidence,35.0,36.05619630460612,gradient_boosting_log
+Thiruvarur,2023,district,murder_homicide_murder_incidence,Murder incidence,18.0,20.342573653202685,gradient_boosting_log
+Thoothukudi,2023,district,murder_homicide_murder_incidence,Murder incidence,74.0,67.74310806215739,gradient_boosting_log
+Tiruppattur,2023,district,murder_homicide_murder_incidence,Murder incidence,19.0,18.6908044215364,gradient_boosting_log
+Tiruppur,2023,district,murder_homicide_murder_incidence,Murder incidence,31.0,27.71023962516953,gradient_boosting_log
+Trichy,2023,district,murder_homicide_murder_incidence,Murder incidence,45.0,44.68628455276469,gradient_boosting_log
+Vellore,2023,district,murder_homicide_murder_incidence,Murder incidence,24.0,25.919896067780517,gradient_boosting_log
+Villupuram,2023,district,murder_homicide_murder_incidence,Murder incidence,35.0,37.356461859984776,gradient_boosting_log
+Virudhunagar,2023,district,murder_homicide_murder_incidence,Murder incidence,61.0,61.16597292546487,gradient_boosting_log
+Cyber Cell,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.030567213099747453,gradient_boosting_log
+Other Units,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,0.0,0.030557187478281587,gradient_boosting_log
+Railway Chennai,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,8.0,8.174519759052918,gradient_boosting_log
+Railway Trichy,2023,special_unit,murder_homicide_murder_incidence,Murder incidence,1.0,0.937702691245162,gradient_boosting_log
+Avadi,2022,city,women_crimes_rape_sec_376_i,Rape incidents,10.0,10.286746377186166,random_forest_log
+Chennai,2022,city,women_crimes_rape_sec_376_i,Rape incidents,36.0,18.35043324452877,random_forest_log
+Coimbatore City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,7.0,7.193129006799552,random_forest_log
+Madurai City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,13.0,9.630133289748084,random_forest_log
+Salem City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,3.924425718323721,random_forest_log
+Tambaram,2022,city,women_crimes_rape_sec_376_i,Rape incidents,17.0,11.869141269892259,random_forest_log
+Thirunelveli City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,1.0,1.4689374627117342,random_forest_log
+Tiruppur City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.6938094236374637,random_forest_log
+Trichy City,2022,city,women_crimes_rape_sec_376_i,Rape incidents,5.0,3.3525969138223006,random_forest_log
+Ariyalur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,4.156513267057174,random_forest_log
+Chengalpattu,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.644776619978797,random_forest_log
+Coimbatore,2022,district,women_crimes_rape_sec_376_i,Rape incidents,13.0,9.636346370240872,random_forest_log
+Cuddalore,2022,district,women_crimes_rape_sec_376_i,Rape incidents,26.0,14.662306397426223,random_forest_log
+Dharmapuri,2022,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,7.751756249745503,random_forest_log
+Dindigul,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,8.907948521624473,random_forest_log
+Erode,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,5.931111391055452,random_forest_log
+Kallakurichi,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,6.5028823925354216,random_forest_log
+Kanchipuram,2022,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,3.0941090461362517,random_forest_log
+Kanyakumari,2022,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,6.99134020961804,random_forest_log
+Karur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,4.947076122121597,random_forest_log
+Krishnagiri,2022,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,5.999394957276624,random_forest_log
+Madurai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,20.0,12.99806886843428,random_forest_log
+Nagapattinam,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,9.43377471179835,random_forest_log
+Namakkal,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,6.538834917982074,random_forest_log
+Nilgiris,2022,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,1.2706298543071743,random_forest_log
+Perambalur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,4.359666544731776,random_forest_log
+Pudukottai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,7.592013100217381,random_forest_log
+Ramnathapuram,2022,district,women_crimes_rape_sec_376_i,Rape incidents,15.0,10.678606908782559,random_forest_log
+Ranipet,2022,district,women_crimes_rape_sec_376_i,Rape incidents,0.0,1.9363359864862053,random_forest_log
+Salem,2022,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,7.9333868708175626,random_forest_log
+Sivagangai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,9.037356169814268,random_forest_log
+Tenkasi,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.163203868203494,random_forest_log
+Thanjavur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,12.949902948464056,random_forest_log
+Theni,2022,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,11.162012855197148,random_forest_log
+Thirunelveli,2022,district,women_crimes_rape_sec_376_i,Rape incidents,15.0,10.350319362798855,random_forest_log
+Thiruvallur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,11.0,7.882574679200744,random_forest_log
+Thiruvannamalai,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,9.363069189517425,random_forest_log
+Thiruvarur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,7.9177062700688605,random_forest_log
+Thoothukudi,2022,district,women_crimes_rape_sec_376_i,Rape incidents,14.0,13.28004832603187,random_forest_log
+Tiruppattur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,4.24198618289344,random_forest_log
+Tiruppur,2022,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,8.051424663724006,random_forest_log
+Trichy,2022,district,women_crimes_rape_sec_376_i,Rape incidents,16.0,10.073495006738462,random_forest_log
+Vellore,2022,district,women_crimes_rape_sec_376_i,Rape incidents,2.0,3.1165964394281556,random_forest_log
+Villupuram,2022,district,women_crimes_rape_sec_376_i,Rape incidents,22.0,12.088730063498797,random_forest_log
+Virudhunagar,2022,district,women_crimes_rape_sec_376_i,Rape incidents,17.0,12.105156040425816,random_forest_log
+Cyber Cell,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.11040789348051679,random_forest_log
+Other Units,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.11040789348051679,random_forest_log
+Railway Chennai,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.23572218709174406,random_forest_log
+Railway Trichy,2022,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.15611305558690425,random_forest_log
+Avadi,2023,city,women_crimes_rape_sec_376_i,Rape incidents,9.0,10.080258308422385,random_forest_log
+Chennai,2023,city,women_crimes_rape_sec_376_i,Rape incidents,20.0,14.839328669989031,random_forest_log
+Coimbatore City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,6.0,6.422756371896397,random_forest_log
+Madurai City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,14.0,10.900390245064797,random_forest_log
+Salem City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,7.0,6.780022259149053,random_forest_log
+Tambaram,2023,city,women_crimes_rape_sec_376_i,Rape incidents,11.0,10.251679229506983,random_forest_log
+Thirunelveli City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,3.0,2.3169163495034324,random_forest_log
+Tiruppur City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.622843929699848,random_forest_log
+Trichy City,2023,city,women_crimes_rape_sec_376_i,Rape incidents,2.0,2.781961892944948,random_forest_log
+Ariyalur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,7.214306920162793,random_forest_log
+Chengalpattu,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,5.510770058385137,random_forest_log
+Coimbatore,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,6.347948453072671,random_forest_log
+Cuddalore,2023,district,women_crimes_rape_sec_376_i,Rape incidents,13.0,10.211403774473354,random_forest_log
+Dharmapuri,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,8.09766490307539,random_forest_log
+Dindigul,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.153811656286276,random_forest_log
+Erode,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,5.449056288445479,random_forest_log
+Kallakurichi,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,7.468150375262013,random_forest_log
+Kanchipuram,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,6.021198590007997,random_forest_log
+Kanyakumari,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,4.877460902593865,random_forest_log
+Karur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,4.463197559554156,random_forest_log
+Krishnagiri,2023,district,women_crimes_rape_sec_376_i,Rape incidents,6.0,8.40282279372996,random_forest_log
+Madurai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,14.0,12.00255504203132,random_forest_log
+Mayiladuthurai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,2.8633735588296014,random_forest_log
+Nagapattinam,2023,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,6.265598567060921,random_forest_log
+Namakkal,2023,district,women_crimes_rape_sec_376_i,Rape incidents,3.0,5.123582018939674,random_forest_log
+Nilgiris,2023,district,women_crimes_rape_sec_376_i,Rape incidents,0.0,1.0716872164077538,random_forest_log
+Perambalur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,5.391880942535642,random_forest_log
+Pudukottai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,7.629826306021126,random_forest_log
+Ramnathapuram,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,8.295951571022485,random_forest_log
+Ranipet,2023,district,women_crimes_rape_sec_376_i,Rape incidents,2.0,3.5212098666785394,random_forest_log
+Salem,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,10.612483373081377,random_forest_log
+Sivagangai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.570392443346197,random_forest_log
+Tenkasi,2023,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,8.707164615370411,random_forest_log
+Thanjavur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,11.156733028374116,random_forest_log
+Theni,2023,district,women_crimes_rape_sec_376_i,Rape incidents,10.0,10.12834744650939,random_forest_log
+Thirunelveli,2023,district,women_crimes_rape_sec_376_i,Rape incidents,9.0,9.732733928197156,random_forest_log
+Thiruvallur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,8.0,6.150907571600253,random_forest_log
+Thiruvannamalai,2023,district,women_crimes_rape_sec_376_i,Rape incidents,16.0,9.437804192654069,random_forest_log
+Thiruvarur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,7.0,6.924215780794761,random_forest_log
+Thoothukudi,2023,district,women_crimes_rape_sec_376_i,Rape incidents,11.0,11.94675185229196,random_forest_log
+Tiruppattur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,4.0,4.489642907794412,random_forest_log
+Tiruppur,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,5.139986573572736,random_forest_log
+Trichy,2023,district,women_crimes_rape_sec_376_i,Rape incidents,13.0,10.970861111806492,random_forest_log
+Vellore,2023,district,women_crimes_rape_sec_376_i,Rape incidents,5.0,6.057864813958487,random_forest_log
+Villupuram,2023,district,women_crimes_rape_sec_376_i,Rape incidents,14.0,11.191648124636776,random_forest_log
+Virudhunagar,2023,district,women_crimes_rape_sec_376_i,Rape incidents,15.0,13.163017513834783,random_forest_log
+Cyber Cell,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.1630955184781216,random_forest_log
+Other Units,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.16278203991603357,random_forest_log
+Railway Chennai,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,0.0,0.44904158876890626,random_forest_log
+Railway Trichy,2023,special_unit,women_crimes_rape_sec_376_i,Rape incidents,1.0,0.2967064063975382,random_forest_log
+Avadi,2022,city,murder_homicide_murder_rate,Murder rate,15.0,15.10244997659128,gradient_boosting_log
+Chennai,2022,city,murder_homicide_murder_rate,Murder rate,1.7,1.7695947331047535,gradient_boosting_log
+Coimbatore City,2022,city,murder_homicide_murder_rate,Murder rate,2.8,2.6359755023424754,gradient_boosting_log
+Madurai City,2022,city,murder_homicide_murder_rate,Murder rate,3.2,3.2923045297868736,gradient_boosting_log
+Salem City,2022,city,murder_homicide_murder_rate,Murder rate,1.8,2.0380496229336815,gradient_boosting_log
+Tambaram,2022,city,murder_homicide_murder_rate,Murder rate,7.8,7.82726299166654,gradient_boosting_log
+Thirunelveli City,2022,city,murder_homicide_murder_rate,Murder rate,3.6,3.526642241202456,gradient_boosting_log
+Tiruppur City,2022,city,murder_homicide_murder_rate,Murder rate,4.9,4.692945724502715,gradient_boosting_log
+Trichy City,2022,city,murder_homicide_murder_rate,Murder rate,2.4,2.4734085867321802,gradient_boosting_log
+Ariyalur,2022,district,murder_homicide_murder_rate,Murder rate,2.4,2.289457415097067,gradient_boosting_log
+Chengalpattu,2022,district,murder_homicide_murder_rate,Murder rate,1.3,1.2330453450899066,gradient_boosting_log
+Coimbatore,2022,district,murder_homicide_murder_rate,Murder rate,1.5,1.4738792617187246,gradient_boosting_log
+Cuddalore,2022,district,murder_homicide_murder_rate,Murder rate,1.6,1.640878237790572,gradient_boosting_log
+Dharmapuri,2022,district,murder_homicide_murder_rate,Murder rate,2.1,2.1663079813709,gradient_boosting_log
+Dindigul,2022,district,murder_homicide_murder_rate,Murder rate,3.1,2.986249091600632,gradient_boosting_log
+Erode,2022,district,murder_homicide_murder_rate,Murder rate,1.0,1.0736106204742049,gradient_boosting_log
+Kallakurichi,2022,district,murder_homicide_murder_rate,Murder rate,1.6,1.6028898155415647,gradient_boosting_log
+Kanchipuram,2022,district,murder_homicide_murder_rate,Murder rate,1.9,1.9620966024710973,gradient_boosting_log
+Kanyakumari,2022,district,murder_homicide_murder_rate,Murder rate,1.8,1.7294530476187129,gradient_boosting_log
+Karur,2022,district,murder_homicide_murder_rate,Murder rate,1.2,1.3797043275624312,gradient_boosting_log
+Krishnagiri,2022,district,murder_homicide_murder_rate,Murder rate,2.7,2.3979980257041187,gradient_boosting_log
+Madurai,2022,district,murder_homicide_murder_rate,Murder rate,3.0,2.8131873595469274,gradient_boosting_log
+Nagapattinam,2022,district,murder_homicide_murder_rate,Murder rate,2.4,2.4829152850465013,gradient_boosting_log
+Namakkal,2022,district,murder_homicide_murder_rate,Murder rate,1.6,1.6095134736726027,gradient_boosting_log
+Nilgiris,2022,district,murder_homicide_murder_rate,Murder rate,0.9,0.9798457531775953,gradient_boosting_log
+Perambalur,2022,district,murder_homicide_murder_rate,Murder rate,2.3,2.4132327529237516,gradient_boosting_log
+Pudukottai,2022,district,murder_homicide_murder_rate,Murder rate,2.0,1.9454716193388197,gradient_boosting_log
+Ramnathapuram,2022,district,murder_homicide_murder_rate,Murder rate,2.6,2.5767473801458958,gradient_boosting_log
+Ranipet,2022,district,murder_homicide_murder_rate,Murder rate,2.0,1.8991529024313065,gradient_boosting_log
+Salem,2022,district,murder_homicide_murder_rate,Murder rate,1.4,1.498499261014854,gradient_boosting_log
+Sivagangai,2022,district,murder_homicide_murder_rate,Murder rate,2.7,2.5868390902220124,gradient_boosting_log
+Tenkasi,2022,district,murder_homicide_murder_rate,Murder rate,2.7,2.72541522197387,gradient_boosting_log
+Thanjavur,2022,district,murder_homicide_murder_rate,Murder rate,2.7,2.4932719327825583,gradient_boosting_log
+Theni,2022,district,murder_homicide_murder_rate,Murder rate,4.0,3.817218605252516,gradient_boosting_log
+Thirunelveli,2022,district,murder_homicide_murder_rate,Murder rate,3.7,3.6874588059832867,gradient_boosting_log
+Thiruvallur,2022,district,murder_homicide_murder_rate,Murder rate,0.8,0.869888913595489,gradient_boosting_log
+Thiruvannamalai,2022,district,murder_homicide_murder_rate,Murder rate,1.6,1.5625970660117274,gradient_boosting_log
+Thiruvarur,2022,district,murder_homicide_murder_rate,Murder rate,1.6,1.7496652314062016,gradient_boosting_log
+Thoothukudi,2022,district,murder_homicide_murder_rate,Murder rate,4.5,4.120400113918261,gradient_boosting_log
+Tiruppattur,2022,district,murder_homicide_murder_rate,Murder rate,1.8,1.6989508687129842,gradient_boosting_log
+Tiruppur,2022,district,murder_homicide_murder_rate,Murder rate,1.7,1.6351384036500818,gradient_boosting_log
+Trichy,2022,district,murder_homicide_murder_rate,Murder rate,1.9,2.0400104852759835,gradient_boosting_log
+Vellore,2022,district,murder_homicide_murder_rate,Murder rate,1.5,1.5397346882153857,gradient_boosting_log
+Villupuram,2022,district,murder_homicide_murder_rate,Murder rate,1.0,1.1038505124228517,gradient_boosting_log
+Virudhunagar,2022,district,murder_homicide_murder_rate,Murder rate,2.8,2.860886262491842,gradient_boosting_log
+Avadi,2023,city,murder_homicide_murder_rate,Murder rate,13.6,12.995973561998627,gradient_boosting_log
+Chennai,2023,city,murder_homicide_murder_rate,Murder rate,1.7,1.741579818084492,gradient_boosting_log
+Coimbatore City,2023,city,murder_homicide_murder_rate,Murder rate,2.0,2.1395660946342168,gradient_boosting_log
+Madurai City,2023,city,murder_homicide_murder_rate,Murder rate,3.4,3.4320922007398655,gradient_boosting_log
+Salem City,2023,city,murder_homicide_murder_rate,Murder rate,2.9,2.716884945915827,gradient_boosting_log
+Tambaram,2023,city,murder_homicide_murder_rate,Murder rate,6.3,6.23209849598513,gradient_boosting_log
+Thirunelveli City,2023,city,murder_homicide_murder_rate,Murder rate,3.4,3.362160066038385,gradient_boosting_log
+Tiruppur City,2023,city,murder_homicide_murder_rate,Murder rate,5.1,4.774530215298984,gradient_boosting_log
+Trichy City,2023,city,murder_homicide_murder_rate,Murder rate,2.1,2.165889918909027,gradient_boosting_log
+Ariyalur,2023,district,murder_homicide_murder_rate,Murder rate,2.0,2.003760050054141,gradient_boosting_log
+Chengalpattu,2023,district,murder_homicide_murder_rate,Murder rate,1.3,1.3543491008396535,gradient_boosting_log
+Coimbatore,2023,district,murder_homicide_murder_rate,Murder rate,2.0,1.8610346814884697,gradient_boosting_log
+Cuddalore,2023,district,murder_homicide_murder_rate,Murder rate,1.9,1.8630831287083094,gradient_boosting_log
+Dharmapuri,2023,district,murder_homicide_murder_rate,Murder rate,1.4,1.548347668312883,gradient_boosting_log
+Dindigul,2023,district,murder_homicide_murder_rate,Murder rate,2.7,2.705236051633332,gradient_boosting_log
+Erode,2023,district,murder_homicide_murder_rate,Murder rate,1.5,1.4725990786937033,gradient_boosting_log
+Kallakurichi,2023,district,murder_homicide_murder_rate,Murder rate,1.5,1.5753190887696826,gradient_boosting_log
+Kanchipuram,2023,district,murder_homicide_murder_rate,Murder rate,3.7,3.4718681904445887,gradient_boosting_log
+Kanyakumari,2023,district,murder_homicide_murder_rate,Murder rate,1.6,1.553378657980819,gradient_boosting_log
+Karur,2023,district,murder_homicide_murder_rate,Murder rate,1.6,1.656406304401453,gradient_boosting_log
+Krishnagiri,2023,district,murder_homicide_murder_rate,Murder rate,2.9,2.5916661403541643,gradient_boosting_log
+Madurai,2023,district,murder_homicide_murder_rate,Murder rate,2.9,2.9040304326773976,gradient_boosting_log
+Mayiladuthurai,2023,district,murder_homicide_murder_rate,Murder rate,1.0,1.0851417737250584,gradient_boosting_log
+Nagapattinam,2023,district,murder_homicide_murder_rate,Murder rate,2.0,2.0793025713153135,gradient_boosting_log
+Namakkal,2023,district,murder_homicide_murder_rate,Murder rate,1.9,1.9352801112114335,gradient_boosting_log
+Nilgiris,2023,district,murder_homicide_murder_rate,Murder rate,1.3,1.4053089171093194,gradient_boosting_log
+Perambalur,2023,district,murder_homicide_murder_rate,Murder rate,2.0,1.9762501628613607,gradient_boosting_log
+Pudukottai,2023,district,murder_homicide_murder_rate,Murder rate,1.7,1.7164509596333515,gradient_boosting_log
+Ramnathapuram,2023,district,murder_homicide_murder_rate,Murder rate,2.5,2.3707203741303156,gradient_boosting_log
+Ranipet,2023,district,murder_homicide_murder_rate,Murder rate,1.7,1.6617483327627514,gradient_boosting_log
+Salem,2023,district,murder_homicide_murder_rate,Murder rate,1.6,1.6697280809178188,gradient_boosting_log
+Sivagangai,2023,district,murder_homicide_murder_rate,Murder rate,2.9,2.717261446573873,gradient_boosting_log
+Tenkasi,2023,district,murder_homicide_murder_rate,Murder rate,2.6,2.668142345252603,gradient_boosting_log
+Thanjavur,2023,district,murder_homicide_murder_rate,Murder rate,2.0,1.9990142702566254,gradient_boosting_log
+Theni,2023,district,murder_homicide_murder_rate,Murder rate,3.5,3.5161774291366346,gradient_boosting_log
+Thirunelveli,2023,district,murder_homicide_murder_rate,Murder rate,3.7,3.5870049418324976,gradient_boosting_log
+Thiruvallur,2023,district,murder_homicide_murder_rate,Murder rate,1.2,1.296444160470989,gradient_boosting_log
+Thiruvannamalai,2023,district,murder_homicide_murder_rate,Murder rate,1.3,1.3540991978231203,gradient_boosting_log
+Thiruvarur,2023,district,murder_homicide_murder_rate,Murder rate,1.3,1.4396260226848763,gradient_boosting_log
+Thoothukudi,2023,district,murder_homicide_murder_rate,Murder rate,4.0,3.7326845309765924,gradient_boosting_log
+Tiruppattur,2023,district,murder_homicide_murder_rate,Murder rate,1.5,1.5340457581095475,gradient_boosting_log
+Tiruppur,2023,district,murder_homicide_murder_rate,Murder rate,1.4,1.4173860877693665,gradient_boosting_log
+Trichy,2023,district,murder_homicide_murder_rate,Murder rate,2.3,2.26407895073835,gradient_boosting_log
+Vellore,2023,district,murder_homicide_murder_rate,Murder rate,1.4,1.439907955625222,gradient_boosting_log
+Villupuram,2023,district,murder_homicide_murder_rate,Murder rate,1.6,1.6914070858627284,gradient_boosting_log
+Virudhunagar,2023,district,murder_homicide_murder_rate,Murder rate,2.9,2.9442020772442365,gradient_boosting_log
+Avadi,2022,city,women_crimes_rape_r,Rape rate,4.8,4.577618925866557,gradient_boosting_log
+Chennai,2022,city,women_crimes_rape_r,Rape rate,1.2,1.0943030798242481,gradient_boosting_log
+Coimbatore City,2022,city,women_crimes_rape_r,Rape rate,1.3,1.407623463042428,gradient_boosting_log
+Madurai City,2022,city,women_crimes_rape_r,Rape rate,2.4,2.2623775382726987,gradient_boosting_log
+Salem City,2022,city,women_crimes_rape_r,Rape rate,0.5,0.6311730699750209,gradient_boosting_log
+Tambaram,2022,city,women_crimes_rape_r,Rape rate,4.3,4.089436745961619,gradient_boosting_log
+Thirunelveli City,2022,city,women_crimes_rape_r,Rape rate,0.4,0.47066040989986213,gradient_boosting_log
+Tiruppur City,2022,city,women_crimes_rape_r,Rape rate,0.8,0.9039076243308595,gradient_boosting_log
+Trichy City,2022,city,women_crimes_rape_r,Rape rate,1.1,1.1025927265011846,gradient_boosting_log
+Ariyalur,2022,district,women_crimes_rape_r,Rape rate,1.7,1.5977694239244964,gradient_boosting_log
+Chengalpattu,2022,district,women_crimes_rape_r,Rape rate,0.7,0.7628971807502147,gradient_boosting_log
+Coimbatore,2022,district,women_crimes_rape_r,Rape rate,1.0,0.8873286001978355,gradient_boosting_log
+Cuddalore,2022,district,women_crimes_rape_r,Rape rate,1.9,1.7613227317389284,gradient_boosting_log
+Dharmapuri,2022,district,women_crimes_rape_r,Rape rate,0.9,1.047581730657075,gradient_boosting_log
+Dindigul,2022,district,women_crimes_rape_r,Rape rate,0.5,0.5835303944410293,gradient_boosting_log
+Erode,2022,district,women_crimes_rape_r,Rape rate,0.5,0.4621636273524597,gradient_boosting_log
+Kallakurichi,2022,district,women_crimes_rape_r,Rape rate,1.1,0.9794035930883578,gradient_boosting_log
+Kanchipuram,2022,district,women_crimes_rape_r,Rape rate,0.6,0.5924657749288578,gradient_boosting_log
+Kanyakumari,2022,district,women_crimes_rape_r,Rape rate,0.4,0.4813199246798964,gradient_boosting_log
+Karur,2022,district,women_crimes_rape_r,Rape rate,0.9,0.9043410056015073,gradient_boosting_log
+Krishnagiri,2022,district,women_crimes_rape_r,Rape rate,0.3,0.4221999884430513,gradient_boosting_log
+Madurai,2022,district,women_crimes_rape_r,Rape rate,1.9,1.7453139848813501,gradient_boosting_log
+Nagapattinam,2022,district,women_crimes_rape_r,Rape rate,0.9,0.9434959865090913,gradient_boosting_log
+Namakkal,2022,district,women_crimes_rape_r,Rape rate,0.7,0.7405141835046598,gradient_boosting_log
+Nilgiris,2022,district,women_crimes_rape_r,Rape rate,1.0,0.8737478064361579,gradient_boosting_log
+Perambalur,2022,district,women_crimes_rape_r,Rape rate,2.0,1.8969363509766803,gradient_boosting_log
+Pudukottai,2022,district,women_crimes_rape_r,Rape rate,0.7,0.8118035201368579,gradient_boosting_log
+Ramnathapuram,2022,district,women_crimes_rape_r,Rape rate,2.1,1.7909849342985322,gradient_boosting_log
+Ranipet,2022,district,women_crimes_rape_r,Rape rate,0.0,0.039355380578434886,gradient_boosting_log
+Salem,2022,district,women_crimes_rape_r,Rape rate,0.4,0.5215856663712242,gradient_boosting_log
+Sivagangai,2022,district,women_crimes_rape_r,Rape rate,1.4,1.4563228658914453,gradient_boosting_log
+Tenkasi,2022,district,women_crimes_rape_r,Rape rate,1.1,1.1080116779384888,gradient_boosting_log
+Thanjavur,2022,district,women_crimes_rape_r,Rape rate,0.6,0.7352561934897022,gradient_boosting_log
+Theni,2022,district,women_crimes_rape_r,Rape rate,1.5,1.6215503304568153,gradient_boosting_log
+Thirunelveli,2022,district,women_crimes_rape_r,Rape rate,2.4,2.0961239587214995,gradient_boosting_log
+Thiruvallur,2022,district,women_crimes_rape_r,Rape rate,0.9,0.8964275292721993,gradient_boosting_log
+Thiruvannamalai,2022,district,women_crimes_rape_r,Rape rate,0.6,0.6334534861125645,gradient_boosting_log
+Thiruvarur,2022,district,women_crimes_rape_r,Rape rate,1.3,1.2245826094254335,gradient_boosting_log
+Thoothukudi,2022,district,women_crimes_rape_r,Rape rate,1.5,1.3899272252133366,gradient_boosting_log
+Tiruppattur,2022,district,women_crimes_rape_r,Rape rate,0.6,0.6244343428624652,gradient_boosting_log
+Tiruppur,2022,district,women_crimes_rape_r,Rape rate,0.7,0.7220235746667618,gradient_boosting_log
+Trichy,2022,district,women_crimes_rape_r,Rape rate,1.6,1.3621476324157857,gradient_boosting_log
+Vellore,2022,district,women_crimes_rape_r,Rape rate,0.2,0.23611359966438347,gradient_boosting_log
+Villupuram,2022,district,women_crimes_rape_r,Rape rate,2.0,1.8684707957424673,gradient_boosting_log
+Virudhunagar,2022,district,women_crimes_rape_r,Rape rate,1.6,1.3585645630219445,gradient_boosting_log
+Avadi,2023,city,women_crimes_rape_r,Rape rate,4.3,4.131547755050327,gradient_boosting_log
+Chennai,2023,city,women_crimes_rape_r,Rape rate,0.7,0.709051796849214,gradient_boosting_log
+Coimbatore City,2023,city,women_crimes_rape_r,Rape rate,1.1,1.0220674608355327,gradient_boosting_log
+Madurai City,2023,city,women_crimes_rape_r,Rape rate,2.6,2.4225950276843893,gradient_boosting_log
+Salem City,2023,city,women_crimes_rape_r,Rape rate,1.6,1.4932211648214158,gradient_boosting_log
+Tambaram,2023,city,women_crimes_rape_r,Rape rate,2.7,2.6584961152056588,gradient_boosting_log
+Thirunelveli City,2023,city,women_crimes_rape_r,Rape rate,1.2,1.1638883063140981,gradient_boosting_log
+Tiruppur City,2023,city,women_crimes_rape_r,Rape rate,0.8,0.8282807436066011,gradient_boosting_log
+Trichy City,2023,city,women_crimes_rape_r,Rape rate,0.4,0.4524438737659168,gradient_boosting_log
+Ariyalur,2023,district,women_crimes_rape_r,Rape rate,2.5,2.314967376075781,gradient_boosting_log
+Chengalpattu,2023,district,women_crimes_rape_r,Rape rate,0.4,0.4570051197026996,gradient_boosting_log
+Coimbatore,2023,district,women_crimes_rape_r,Rape rate,0.4,0.44570095061582965,gradient_boosting_log
+Cuddalore,2023,district,women_crimes_rape_r,Rape rate,0.9,0.7811027223207381,gradient_boosting_log
+Dharmapuri,2023,district,women_crimes_rape_r,Rape rate,1.2,1.101271883493323,gradient_boosting_log
+Dindigul,2023,district,women_crimes_rape_r,Rape rate,0.8,0.7805274201654584,gradient_boosting_log
+Erode,2023,district,women_crimes_rape_r,Rape rate,0.2,0.3106817718009786,gradient_boosting_log
+Kallakurichi,2023,district,women_crimes_rape_r,Rape rate,1.3,1.1685460225218112,gradient_boosting_log
+Kanchipuram,2023,district,women_crimes_rape_r,Rape rate,1.0,1.0633292560757859,gradient_boosting_log
+Kanyakumari,2023,district,women_crimes_rape_r,Rape rate,0.3,0.35422975493556313,gradient_boosting_log
+Karur,2023,district,women_crimes_rape_r,Rape rate,0.9,0.7971108744930442,gradient_boosting_log
+Krishnagiri,2023,district,women_crimes_rape_r,Rape rate,0.6,0.7162363271544945,gradient_boosting_log
+Madurai,2023,district,women_crimes_rape_r,Rape rate,1.3,1.3060240903571376,gradient_boosting_log
+Mayiladuthurai,2023,district,women_crimes_rape_r,Rape rate,0.6,0.6411770622088129,gradient_boosting_log
+Nagapattinam,2023,district,women_crimes_rape_r,Rape rate,1.9,1.8072176401019453,gradient_boosting_log
+Namakkal,2023,district,women_crimes_rape_r,Rape rate,0.3,0.37739347890211733,gradient_boosting_log
+Nilgiris,2023,district,women_crimes_rape_r,Rape rate,0.0,0.05923229549308203,gradient_boosting_log
+Perambalur,2023,district,women_crimes_rape_r,Rape rate,2.3,2.278708395463209,gradient_boosting_log
+Pudukottai,2023,district,women_crimes_rape_r,Rape rate,0.9,0.9958234739866403,gradient_boosting_log
+Ramnathapuram,2023,district,women_crimes_rape_r,Rape rate,1.2,1.1814871736830952,gradient_boosting_log
+Ranipet,2023,district,women_crimes_rape_r,Rape rate,0.3,0.303534208889478,gradient_boosting_log
+Salem,2023,district,women_crimes_rape_r,Rape rate,0.6,0.682340528559553,gradient_boosting_log
+Sivagangai,2023,district,women_crimes_rape_r,Rape rate,1.3,1.3282495489155712,gradient_boosting_log
+Tenkasi,2023,district,women_crimes_rape_r,Rape rate,1.0,0.9876676475010382,gradient_boosting_log
+Thanjavur,2023,district,women_crimes_rape_r,Rape rate,0.8,0.8871578197003511,gradient_boosting_log
+Theni,2023,district,women_crimes_rape_r,Rape rate,1.5,1.5610137829750643,gradient_boosting_log
+Thirunelveli,2023,district,women_crimes_rape_r,Rape rate,1.4,1.5216254308271995,gradient_boosting_log
+Thiruvallur,2023,district,women_crimes_rape_r,Rape rate,0.6,0.5815014176594195,gradient_boosting_log
+Thiruvannamalai,2023,district,women_crimes_rape_r,Rape rate,1.2,0.9831459283106239,gradient_boosting_log
+Thiruvarur,2023,district,women_crimes_rape_r,Rape rate,1.0,0.9774504220571683,gradient_boosting_log
+Thoothukudi,2023,district,women_crimes_rape_r,Rape rate,1.2,1.2893568997471911,gradient_boosting_log
+Tiruppattur,2023,district,women_crimes_rape_r,Rape rate,0.6,0.6831959994128678,gradient_boosting_log
+Tiruppur,2023,district,women_crimes_rape_r,Rape rate,0.5,0.5161818963671876,gradient_boosting_log
+Trichy,2023,district,women_crimes_rape_r,Rape rate,1.3,1.257787172752458,gradient_boosting_log
+Vellore,2023,district,women_crimes_rape_r,Rape rate,0.6,0.5841147882324913,gradient_boosting_log
+Villupuram,2023,district,women_crimes_rape_r,Rape rate,1.3,1.2391463784639707,gradient_boosting_log
+Virudhunagar,2023,district,women_crimes_rape_r,Rape rate,1.4,1.3279879185054342,gradient_boosting_log
+Avadi,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),2450.0,2413.0159583655923,gradient_boosting_log
+Chennai,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),648.3,655.6503147288823,gradient_boosting_log
+Coimbatore City,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),828.0,878.1146271667117,gradient_boosting_log
+Madurai City,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),1135.6,1123.5862853587926,gradient_boosting_log
+Salem City,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),896.1,875.4150434064164,gradient_boosting_log
+Tambaram,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),1284.0,1304.5949222197175,gradient_boosting_log
+Thirunelveli City,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),656.7,674.3520535580045,gradient_boosting_log
+Tiruppur City,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),1349.4,1304.773900941765,gradient_boosting_log
+Trichy City,2022,city,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),1992.8,1910.8554526268442,gradient_boosting_log
+Ariyalur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),539.0,559.5591505431165,gradient_boosting_log
+Chengalpattu,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),319.9,332.3779100680661,gradient_boosting_log
+Coimbatore,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),587.6,569.9733226483484,gradient_boosting_log
+Cuddalore,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),951.4,941.9272702985106,gradient_boosting_log
+Dharmapuri,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),568.6,556.5054667272644,gradient_boosting_log
+Dindigul,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),499.5,497.375327569963,gradient_boosting_log
+Erode,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),436.5,454.3205643697896,gradient_boosting_log
+Kallakurichi,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),444.3,454.24816643645534,gradient_boosting_log
+Kanchipuram,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),495.0,485.75199919550454,gradient_boosting_log
+Kanyakumari,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),458.1,460.8378176445612,gradient_boosting_log
+Karur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),621.6,596.8197075113756,gradient_boosting_log
+Krishnagiri,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),499.3,510.78362175112494,gradient_boosting_log
+Madurai,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),493.4,503.49806237222646,gradient_boosting_log
+Nagapattinam,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),790.5,752.4112131868168,gradient_boosting_log
+Namakkal,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),429.1,442.84553268567316,gradient_boosting_log
+Nilgiris,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),366.0,356.20358163294264,gradient_boosting_log
+Perambalur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),581.6,590.7372614964495,gradient_boosting_log
+Pudukottai,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),622.6,612.5753450749506,gradient_boosting_log
+Ramnathapuram,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),722.1,693.9532397619199,gradient_boosting_log
+Ranipet,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),467.0,457.07239108306135,gradient_boosting_log
+Salem,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),482.9,471.03979778045203,gradient_boosting_log
+Sivagangai,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),535.9,552.6055260287925,gradient_boosting_log
+Tenkasi,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),519.1,529.9608047241994,gradient_boosting_log
+Thanjavur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),825.1,794.8645060665568,gradient_boosting_log
+Theni,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),773.2,756.1208407736319,gradient_boosting_log
+Thirunelveli,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),592.7,613.7928712527232,gradient_boosting_log
+Thiruvallur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),270.8,281.08092119019767,gradient_boosting_log
+Thiruvannamalai,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),531.8,532.5142531986803,gradient_boosting_log
+Thiruvarur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),686.1,661.5822901358447,gradient_boosting_log
+Thoothukudi,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),668.7,658.4268754399874,gradient_boosting_log
+Tiruppattur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),388.8,416.03340356728955,gradient_boosting_log
+Tiruppur,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),499.0,495.52569459290294,gradient_boosting_log
+Trichy,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),479.8,475.76025246639483,gradient_boosting_log
+Vellore,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),405.3,411.9081854356705,gradient_boosting_log
+Villupuram,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),536.8,524.9128216928217,gradient_boosting_log
+Virudhunagar,2022,district,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),545.6,539.8356105656219,gradient_boosting_log
+Cyber Cell,2022,special_unit,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),0.0,0.0025193001092709685,gradient_boosting_log
+Other Units,2022,special_unit,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),0.0,0.0025193001092709685,gradient_boosting_log
+Railway Chennai,2022,special_unit,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),0.0,0.03463942093003008,gradient_boosting_log
+Railway Trichy,2022,special_unit,complaints_rate_of_cognizable_crime_ipc_sll,Cognizable crime rate (IPC+SLL),0.0,0.0,gradient_boosting_log

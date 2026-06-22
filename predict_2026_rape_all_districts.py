@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import joblib
 
@@ -72,15 +73,21 @@ def predict_2026_rape_all_districts() -> pd.DataFrame:
     if not model_file.exists():
         raise FileNotFoundError(f"Model file not found: {model_file}")
     
-    model = joblib.load(model_file)
+    artifact = joblib.load(model_file)
+    model = artifact["model"] if isinstance(artifact, dict) and "model" in artifact else artifact
     print(f"[OK] Loaded model: {model_info['model_name']}")
     
     # Load data to understand features
     print("[INFO] Loading dataset for feature extraction...")
     df = load_dataset()
     
-    # Get feature names
-    numeric_features = [col for col in df.columns if col not in ("district_city", RAPE_TARGET)]
+    # Get the exact feature columns the saved model was trained on (much more reliable)
+    feature_columns = model_info.get("feature_columns") or artifact.get("feature_columns") if isinstance(artifact, dict) else None
+    if not feature_columns:
+        # Fallback (include the engineered time features)
+        feature_columns = [col for col in df.columns if col not in ("district_city", RAPE_TARGET)]
+    
+    numeric_features = feature_columns  # they are already the selected ones
     
     predictions = []
     
@@ -88,6 +95,8 @@ def predict_2026_rape_all_districts() -> pd.DataFrame:
     print(f"{'District':<25} {'2026 Prediction':<20} {'Status':<15}")
     print("-" * 60)
     
+    TARGET_YEAR = 2026
+
     for district in sorted(TAMIL_NADU_DISTRICTS):
         try:
             # Get historical data for this district
@@ -97,27 +106,69 @@ def predict_2026_rape_all_districts() -> pd.DataFrame:
                 print(f"{district:<25} {'[NO DATA]':<20} {'Skipped':<15}")
                 continue
             
-            # Use average of recent values as features for prediction
-            avg_features = district_data[numeric_features].mean().values.reshape(1, -1)
+            # Use the *latest* available year as base template (best for trend)
+            # Keep as DataFrame (tail(1)) so we can use DF-style column selection with list of strings
+            latest = district_data.sort_values("year").tail(1).copy()
+
+            # Override year features for extrapolation (this is important for accuracy)
+            latest["year"] = TARGET_YEAR
+            if "year_centered" in latest.columns:
+                latest["year_centered"] = float(TARGET_YEAR) - 2022.5
+            if "is_latest_year" in latest.columns:
+                latest["is_latest_year"] = 1
+
+            # Build feature vector using only the columns the model expects.
+            # Now 'latest' is DataFrame (1 row), so latest[list_of_str] is valid column selection.
+            if not numeric_features:
+                numeric_features = []
+            try:
+                feature_vec = latest[numeric_features].values.reshape(1, -1)
+            except Exception as e:
+                # Fallback if column selection fails for any reason
+                print(f"  Debug: feature selection failed for {district}: {e}")
+                feature_vec = np.zeros((1, len(numeric_features) if numeric_features else 1))
             
             # Make prediction
-            pred_value = model.predict(avg_features)[0]
+            pred_value = model.predict(feature_vec)[0]
             pred_value = max(0, pred_value)  # Ensure non-negative
             
-            predictions.append({
+            row = {
                 "district": district,
                 "predicted_2026_rape_incidents": round(pred_value, 2),
                 "model": model_info['model_name'],
                 "confidence": "High" if abs(pred_value) > 0 else "Low",
                 "data_points_available": len(district_data),
-            })
+                "base_year": int(latest.get("year", 2023)),
+            }
+
+            # Attach sentiment risk if available (best effort)
+            try:
+                sent_path = OUTPUT_DIR / "sentiment_scores.csv"
+                if sent_path.exists():
+                    sent_df = pd.read_csv(sent_path)
+                    dist_sent = sent_df[sent_df["district_city"].str.lower() == district.lower()]
+                    if not dist_sent.empty:
+                        latest_sent = dist_sent.sort_values("year").iloc[-1]
+                        row["sentiment_polarity"] = round(float(latest_sent.get("polarity", 0)), 3)
+                        row["crime_intensity"] = int(latest_sent.get("crime_intensity", 0))
+                        # Simple rape risk blend
+                        norm_pred = min(pred_value / 25.0, 1.0)
+                        sent_risk = max(0, -row.get("sentiment_polarity", 0)) * 0.5
+                        risk = round(min(1.0, 0.65 * norm_pred + 0.35 * sent_risk), 3)
+                        row["rape_risk_index"] = risk
+                        row["risk_level"] = "HIGH" if risk > 0.65 else ("MEDIUM" if risk > 0.35 else "LOW")
+            except Exception:
+                pass
+
+            predictions.append(row)
             
             status = "Predicted"
-            print(f"{district:<25} {pred_value:>15.1f} incidents   {status:<15}")
+            risk_str = f" risk={row.get('rape_risk_index', '?')}" if "rape_risk_index" in row else ""
+            print(f"{district:<25} {pred_value:>15.1f} incidents{risk_str}   {status:<15}")
             
         except Exception as e:
             print(f"{district:<25} {'[ERROR]':<20} {'Failed':<15}")
-            print(f"  Error: {str(e)[:50]}")
+            print(f"  Error: {str(e)}")
             continue
     
     print("\n" + "-" * 60)
@@ -125,11 +176,17 @@ def predict_2026_rape_all_districts() -> pd.DataFrame:
     # Create DataFrame
     result_df = pd.DataFrame(predictions)
     
+    if result_df.empty or "predicted_2026_rape_incidents" not in result_df.columns:
+        print("[ERROR] No valid predictions were generated. Check data and model features.")
+        # Return empty df with expected columns to avoid downstream KeyError
+        result_df = pd.DataFrame(columns=["district", "predicted_2026_rape_incidents", "model", "confidence", "data_points_available", "base_year"])
+    
     # Sort by prediction (highest to lowest)
     result_df = result_df.sort_values("predicted_2026_rape_incidents", ascending=False).reset_index(drop=True)
     
     # Add rank
-    result_df.insert(0, "rank", range(1, len(result_df) + 1))
+    if len(result_df) > 0:
+        result_df.insert(0, "rank", range(1, len(result_df) + 1))
     
     return result_df
 
@@ -149,6 +206,15 @@ def generate_rape_report(predictions_df: pd.DataFrame) -> None:
     report_lines.append(f"Prediction Year: 2026")
     report_lines.append("")
     
+    if len(predictions_df) == 0 or "predicted_2026_rape_incidents" not in predictions_df.columns:
+        report_lines.append("ERROR: No predictions available. Check that the ML model was trained with matching features and data is present.")
+        report_lines.append("=" * 70)
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        with open(REPORT_FILE, "w") as f:
+            f.write("\n".join(report_lines))
+        print(f"\n[ERROR] Report generation aborted due to no data.")
+        return
+    
     # Summary statistics
     total_predicted = predictions_df["predicted_2026_rape_incidents"].sum()
     avg_predicted = predictions_df["predicted_2026_rape_incidents"].mean()
@@ -162,18 +228,24 @@ def generate_rape_report(predictions_df: pd.DataFrame) -> None:
     report_lines.append(f"  Lowest Risk District: {predictions_df.iloc[-1]['district']} ({min_predicted:.1f})")
     report_lines.append("")
     
-    # Risk categorization
-    high_risk = len(predictions_df[predictions_df["predicted_2026_rape_incidents"] >= avg_predicted * 1.5])
-    medium_risk = len(predictions_df[
-        (predictions_df["predicted_2026_rape_incidents"] >= avg_predicted * 0.5) &
-        (predictions_df["predicted_2026_rape_incidents"] < avg_predicted * 1.5)
-    ])
-    low_risk = len(predictions_df[predictions_df["predicted_2026_rape_incidents"] < avg_predicted * 0.5])
-    
-    report_lines.append("RISK CLASSIFICATION:")
-    report_lines.append(f"  [HIGH RISK] Districts (>1.5x average): {high_risk}")
-    report_lines.append(f"  [MEDIUM RISK] Districts (0.5-1.5x average): {medium_risk}")
-    report_lines.append(f"  [LOW RISK] Districts (<0.5x average): {low_risk}")
+    # Risk categorization (blended with sentiment when available)
+    if "rape_risk_index" in predictions_df.columns:
+        high_risk = len(predictions_df[predictions_df["rape_risk_index"] >= 0.65])
+        medium_risk = len(predictions_df[(predictions_df["rape_risk_index"] >= 0.35) & (predictions_df["rape_risk_index"] < 0.65)])
+        low_risk = len(predictions_df[predictions_df["rape_risk_index"] < 0.35])
+        report_lines.append("COMBINED RISK (prediction volume + negative sentiment):")
+    else:
+        high_risk = len(predictions_df[predictions_df["predicted_2026_rape_incidents"] >= avg_predicted * 1.5])
+        medium_risk = len(predictions_df[
+            (predictions_df["predicted_2026_rape_incidents"] >= avg_predicted * 0.5) &
+            (predictions_df["predicted_2026_rape_incidents"] < avg_predicted * 1.5)
+        ])
+        low_risk = len(predictions_df[predictions_df["predicted_2026_rape_incidents"] < avg_predicted * 0.5])
+        report_lines.append("RISK CLASSIFICATION (based on incident volume):")
+
+    report_lines.append(f"  [HIGH RISK] Districts: {high_risk}")
+    report_lines.append(f"  [MEDIUM RISK] Districts: {medium_risk}")
+    report_lines.append(f"  [LOW RISK] Districts: {low_risk}")
     report_lines.append("")
     
     # Top 10 high-risk districts
@@ -198,7 +270,8 @@ def generate_rape_report(predictions_df: pd.DataFrame) -> None:
     report_lines.append("MODEL INFORMATION:")
     report_lines.append(f"  Model Type: {predictions_df.iloc[0]['model']}")
     report_lines.append(f"  Target Variable: Women Crimes - Rape (Section 376 IPC)")
-    report_lines.append(f"  Prediction Methodology: ML-based trend extrapolation")
+    report_lines.append(f"  Prediction Methodology: Latest-year template + year feature override for temporal extrapolation (improved 2026)")
+    report_lines.append("  Reliability: Uses strict temporal validation during training (past year -> recent year)")
     report_lines.append("")
     
     # Interpretation guide

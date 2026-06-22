@@ -21,6 +21,12 @@ TARGET_ALIASES = {
     "murder_incidence": "murder_homicide_murder_incidence",
     "rape": "women_crimes_rape_sec_376_i",
     "rape_incidents": "women_crimes_rape_sec_376_i",
+    # Rate aliases for crime rate prediction
+    "murder_rate": "murder_homicide_murder_rate",
+    "rape_rate": "women_crimes_rape_r",
+    "rate": "women_crimes_rape_r",  # default generic rate -> rape rate
+    "crime_rate": "complaints_rate_of_cognizable_crime_ipc_sll",
+    "cognizable_rate": "complaints_rate_of_cognizable_crime_ipc_sll",
 }
 
 
@@ -61,11 +67,30 @@ def resolve_area(df: pd.DataFrame, area: str, year: int | None = None) -> pd.Ser
     if year is not None:
         matches = matches[matches["year"].astype(int) == year]
         if matches.empty:
-            raise ValueError(f"Area '{area}' was found, but not for year {year}")
-    else:
+            # For future years (e.g. 2026), fall back to most recent data as template
+            # We will override the year feature below
+            if year > int(matches["year"].max() if not matches.empty else 0):
+                matches = df[df["district_city"].astype(str).str.casefold() == normalized_area]
+            else:
+                raise ValueError(f"Area '{area}' was found, but not for year {year}")
+
+    if year is None or year <= int(df["year"].max()):
         matches = matches[matches["year"] == matches["year"].max()]
 
-    return matches.sort_values("year").iloc[-1].copy()
+    row = matches.sort_values("year").iloc[-1].copy()
+
+    # --- Key accuracy fix for forecasting ---
+    # Always set the year features to the requested year so models that learned
+    # time trends (year_centered, is_latest_year) can extrapolate to future.
+    if year is not None:
+        row["year"] = int(year)
+        if "year_centered" in row.index:
+            row["year_centered"] = float(year) - 2022.5
+        if "is_latest_year" in row.index:
+            # When predicting future, treat as "latest" in spirit for the model
+            row["is_latest_year"] = 1
+
+    return row
 
 
 def parse_overrides(values: list[str] | None) -> dict[str, str]:
@@ -145,6 +170,38 @@ def predict_for_area(
     }
 
 
+def compute_risk_index(prediction_row: dict, sentiment_polarity: float | None = None, crime_intensity: float | None = None) -> dict:
+    """Compute a blended risk index from predicted crime value + negative sentiment.
+    Higher = worse (more crime + more negative public feeling).
+    """
+    pred = max(prediction_row.get("prediction", 0), 0)
+    target = prediction_row.get("target", "")
+
+    # Normalize roughly by rough scale (crude but useful for ranking)
+    if "rape" in target or "women" in target:
+        norm_pred = min(pred / 30.0, 1.0)   # rough max seen
+    elif "murder" in target:
+        norm_pred = min(pred / 100.0, 1.0)
+    else:
+        norm_pred = min(pred / 100000.0, 1.0)
+
+    sent_component = 0.0
+    if sentiment_polarity is not None:
+        sent_component = max(0.0, -sentiment_polarity) * 0.5   # negative polarity increases risk
+    if crime_intensity is not None:
+        sent_component = max(sent_component, min(crime_intensity / 10.0, 1.0) * 0.4)
+
+    risk = min(1.0, 0.6 * norm_pred + 0.4 * sent_component)
+    risk_label = "HIGH" if risk > 0.7 else ("MEDIUM" if risk > 0.4 else "LOW")
+
+    return {
+        **prediction_row,
+        "risk_index": round(risk, 3),
+        "risk_label": risk_label,
+        "sentiment_polarity_used": sentiment_polarity,
+    }
+
+
 def predict_many(
     area: str,
     targets: list[str] | None = None,
@@ -167,6 +224,27 @@ def predict_many(
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     predictions = pd.DataFrame(rows)
+
+    # Try to enrich with risk using latest sentiment if available
+    try:
+        sent_path = Path("model_outputs/sentiment_scores.csv")
+        if sent_path.exists():
+            sent_df = pd.read_csv(sent_path)
+            sent_latest = (
+                sent_df.sort_values("year")
+                .groupby("district_city")
+                .tail(1)[["district_city", "polarity", "crime_intensity"]]
+                .rename(columns={"polarity": "sentiment_polarity", "crime_intensity": "crime_intensity"})
+            )
+            predictions = predictions.merge(sent_latest, left_on="area", right_on="district_city", how="left")
+            risk_rows = []
+            for _, r in predictions.iterrows():
+                risk_rows.append(compute_risk_index(r.to_dict(), r.get("sentiment_polarity"), r.get("crime_intensity")))
+            if risk_rows:
+                predictions = pd.DataFrame(risk_rows)
+    except Exception:
+        pass
+
     predictions.to_csv(output_file, index=False)
     return predictions
 
@@ -183,11 +261,11 @@ def parse_args() -> argparse.Namespace:
         "--target",
         nargs="+",
         default=None,
-        help="Target(s) to predict. Use complaints, murder, rape, or exact target column names.",
+        help="Target(s) to predict. Use complaints, murder, rape, murder_rate, rape_rate, crime_rate, or exact target column names.",
     )
     parser.add_argument("--data-path", type=Path, default=ML_READY_FILE)
     parser.add_argument("--output-file", type=Path, default=PREDICTION_OUTPUT_FILE)
-    parser.add_argument("--year", type=int, default=None, help="Prediction template year. Defaults to latest available.")
+    parser.add_argument("--year", type=int, default=None, help="Template year or target future year (e.g. 2026). Year features will be adjusted for extrapolation.")
     parser.add_argument(
         "--set",
         dest="overrides",
@@ -223,8 +301,16 @@ def main() -> None:
         overrides=parse_overrides(args.overrides),
     )
 
-    print(predictions[["area", "year", "target_label", "model_name", "prediction", "actual"]].to_string(index=False))
+    cols = ["area", "year", "target_label", "model_name", "prediction", "actual"]
+    if "risk_index" in predictions.columns:
+        cols = ["area", "year", "target_label", "prediction", "risk_index", "risk_label"]
+    print(predictions[cols].to_string(index=False))
     print(f"Saved predictions: {args.output_file}")
+
+    # Helpful note for users doing future forecasts
+    if args.year and args.year > 2023:
+        print("\n[INFO] Future-year prediction: year features were overridden for extrapolation.")
+        print("       For crime *rates*, try --target crime_rate or rape_rate for often more stable results.")
 
 
 if __name__ == "__main__":

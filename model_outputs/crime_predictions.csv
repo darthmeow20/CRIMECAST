@@ -1,4 +1,2 @@
-area,year,area_type,target,target_label,model_name,prediction,actual,overrides
-Chennai,2023,city,complaints_total_complaints,Total complaints,random_forest_log,124197.19473541083,319666.0,{}
-Chennai,2023,city,murder_homicide_murder_incidence,Murder incidence,gradient_boosting_log,93.54699595100806,105.0,{}
-Chennai,2023,city,women_crimes_rape_sec_376_i,Rape incidents,random_forest_log,16.047620163292535,20.0,{}
+area,year,area_type,target,target_label,model_name,prediction,actual,overrides,district_city,sentiment_polarity,crime_intensity,risk_index,risk_label,sentiment_polarity_used
+Chennai,2026,city,women_crimes_rape_sec_376_i,Rape incidents,random_forest_log,14.839328669989031,20.0,{},Chennai,-0.9961,1,0.496,MEDIUM,-0.9961

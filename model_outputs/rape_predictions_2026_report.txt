@@ -1,71 +1,10 @@
-========================================================================
-  2026 RAPE CRIME PREDICTION REPORT — TAMIL NADU
-  Section 376 IPC (Sexual Assault) | District-Level Forecast
-========================================================================
+======================================================================
+2026 RAPE CRIME PREDICTION REPORT - TAMIL NADU
+Section 376 IPC (Sexual Assault) Incidents Forecast
+======================================================================
 
-  Prediction Year   : 2026
-  Historical Data   : 2022 – 2023
-  Model             : RandomForest (log-transformed target)
-  Method            : Linear trend extrapolation from fitted values
-  Districts Covered : 46
+Total Districts Analyzed: 0
+Prediction Year: 2026
 
-────────────────────────────────────────────────────────────────────────
-  SUMMARY STATISTICS
-────────────────────────────────────────────────────────────────────────
-  Total Predicted Incidents (all districts) : 307
-  Average per District                      : 6.7
-  Highest Risk District : Thiruvannamalai (19.1 incidents)
-  Lowest Risk District  : Trichy City (0.0 incidents)
-
-────────────────────────────────────────────────────────────────────────
-  RISK CLASSIFICATION
-────────────────────────────────────────────────────────────────────────
-  [HIGH   RISK]  > 10.0 incidents  → 12 districts
-  [MEDIUM RISK]  3.3 – 10.0  → 16 districts
-  [LOW    RISK]  < 3.3 incidents  → 18 districts
-
-────────────────────────────────────────────────────────────────────────
-  TOP 15 HIGH-RISK DISTRICTS (2026)
-────────────────────────────────────────────────────────────────────────
-   1. Thiruvannamalai        Predicted:   19.1  Risk: High    Trend: ↑
-   2. Ariyalur               Predicted:   17.6  Risk: High    Trend: ↑
-   3. Salem City             Predicted:   16.7  Risk: High    Trend: ↑
-   4. Salem                  Predicted:   16.1  Risk: High    Trend: ↑
-   5. Kanchipuram            Predicted:   13.9  Risk: High    Trend: ↑
-   6. Madurai City           Predicted:   13.7  Risk: High    Trend: ↑
-   7. Vellore                Predicted:   13.3  Risk: High    Trend: ↑
-   8. Kallakurichi           Predicted:   13.0  Risk: High    Trend: ↑
-   9. Virudhunagar           Predicted:   12.1  Risk: High    Trend: ↓
-  10. Krishnagiri            Predicted:   11.7  Risk: High    Trend: ↑
-  11. Dharmapuri             Predicted:   11.6  Risk: High    Trend: ↑
-  12. Tenkasi                Predicted:   10.7  Risk: High    Trend: ↑
-  13. Dindigul               Predicted:   10.0  Risk: Medium  Trend: ↑
-  14. Trichy                 Predicted:    9.7  Risk: Medium  Trend: ↓
-  15. Pudukottai             Predicted:    9.7  Risk: Medium  Trend: ↑
-
-────────────────────────────────────────────────────────────────────────
-  BOTTOM 10 LOWER-RISK DISTRICTS (2026)
-────────────────────────────────────────────────────────────────────────
-  46. Trichy City            Predicted:    0.0  Risk: Low   
-  45. Tiruppur               Predicted:    0.0  Risk: Low   
-  44. Thiruvallur            Predicted:    0.0  Risk: Low   
-  43. Nagapattinam           Predicted:    0.0  Risk: Low   
-  42. Nilgiris               Predicted:    0.0  Risk: Low   
-  41. Namakkal               Predicted:    0.0  Risk: Low   
-  40. Ramnathapuram          Predicted:    0.0  Risk: Low   
-  39. Tambaram               Predicted:    0.0  Risk: Low   
-  38. Coimbatore             Predicted:    0.0  Risk: Low   
-  37. Chennai                Predicted:    0.0  Risk: Low   
-
-────────────────────────────────────────────────────────────────────────
-  RECOMMENDATIONS
-────────────────────────────────────────────────────────────────────────
-  1. Prioritise resource allocation to HIGH RISK districts.
-  2. Strengthen women safety initiatives in MEDIUM RISK areas.
-  3. Coordinate with local law enforcement for rapid response.
-  4. Increase public awareness campaigns in high-incidence areas.
-  5. Re-evaluate this forecast quarterly as new data arrives.
-
-────────────────────────────────────────────────────────────────────────
-  Generated : 2026-06-14 20:48:10
-========================================================================
+ERROR: No predictions available. Check that the ML model was trained with matching features and data is present.
+======================================================================

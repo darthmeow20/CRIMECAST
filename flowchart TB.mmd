@@ -1,0 +1,64 @@
+flowchart TB
+    subgraph User_Interface
+        A[User / CLI / app.py Menu]
+    end
+
+    subgraph Data_Pipeline
+        B[Raw CSVs<br/>dataset/*.csv]
+        C[Data Cleaning<br/>clean_data.py<br/>+ Sentiment Enrichment]
+        D[ML-Ready Dataset<br/>crimecast_ml_ready.csv]
+    end
+
+    subgraph Sentiment_Module
+        E[Sentiment Text Template<br/>or Synthetic Text]
+        F[Sentiment Analysis<br/>sentiment_analysis.py<br/>DistilBERT Primary + Lexicon Fallback]
+        G[Sentiment Scores<br/>+ Crime Intensity]
+    end
+
+    subgraph ML_Core
+        H[Feature Engineering<br/>Time + Sentiment Features]
+        I[Model Training<br/>train_model.py<br/>Temporal Validation + Risk Fusion]
+        J[Trained Models<br/>.joblib + best_models.json]
+    end
+
+    subgraph Prediction_Engine
+        K[Prediction Module<br/>predict.py<br/>+ 2026 Rape Predictor]
+        L[Risk Index Calculation<br/>Crime Volume + Negative Sentiment]
+        M[Batch Forecasts<br/>All Districts 2026]
+    end
+
+    subgraph Output_Layer
+        N[Visualizations<br/>matplotlib/seaborn<br/>model_outputs/figures/]
+        O[Reports<br/>training_report.md<br/>sentiment_report.txt<br/>rape_predictions_2026_report.txt]
+        P[CSV Outputs<br/>crime_predictions.csv<br/>sentiment_scores.csv]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    D --> H
+
+    E --> F
+    F --> G
+    G --> H
+    G --> L
+
+    H --> I
+    I --> J
+    J --> K
+
+    K --> L
+    L --> M
+    M --> N
+    M --> O
+    M --> P
+
+    A --> K
+    A --> F
+    A --> I
+
+    style A fill:#e1f5fe
+    style J fill:#c8e6c9
+    style L fill:#fff9c4
+    style N fill:#f3e5f5
+    style O fill:#f3e5f5
