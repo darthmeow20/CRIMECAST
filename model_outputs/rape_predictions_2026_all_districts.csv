@@ -1,47 +1,51 @@
-rank,district,actual_2022,predicted_2022,actual_2023,predicted_2023,slope_per_year,predicted_2026,confidence,risk
-1,Salem,5.0,7.947675983509086,9.0,10.57839793022544,2.631,18.5,Medium,High
-2,Ariyalur,7.0,4.12508090521529,10.0,7.258654171697955,3.134,16.7,Medium,High
-3,Virudhunagar,17.0,12.03182361587322,15.0,13.145896168384246,1.114,16.5,Medium,High
-4,Krishnagiri,3.0,5.994733569389194,6.0,8.40100309294638,2.406,15.6,Medium,High
-5,Salem City,2.0,3.9404058938620095,7.0,6.808070596853002,2.868,15.4,High,High
-6,Kanchipuram,3.0,3.058192312080055,5.0,6.028277659269215,2.97,14.9,High,High
-7,Vellore,2.0,3.120946498462331,5.0,6.054494745779311,2.934,14.9,High,High
-8,Madurai City,13.0,9.637937551242556,14.0,10.869441414912716,1.232,14.6,Medium,High
-9,Trichy,16.0,9.990632996696208,13.0,10.906771472916091,0.916,13.7,Medium,High
-10,Tenkasi,8.0,7.167278284328564,8.0,8.627796962829223,1.461,13.0,High,High
-11,Sivagangai,10.0,9.041807227311304,9.0,9.615994905584232,0.574,11.3,High,High
-12,Kallakurichi,8.0,6.529315398662659,10.0,7.448580258780673,0.919,10.2,Medium,Medium
-13,Dindigul,6.0,8.886891927201642,9.0,9.13059730903005,0.244,9.9,High,Medium
-14,Thiruvannamalai,8.0,9.298302428131706,16.0,9.409246086813267,0.111,9.7,Medium,Medium
-15,Dharmapuri,7.0,7.747611913373387,10.0,8.169444169002624,0.422,9.4,High,Medium
-16,Avadi,10.0,10.33833888897329,9.0,10.083932898011836,-0.254,9.3,High,Medium
-17,Madurai,20.0,13.0298038180426,14.0,12.033305122517373,-0.996,9.0,Medium,Medium
-18,Perambalur,6.0,4.351753371950418,7.0,5.398124905109658,1.046,8.5,High,Medium
-19,Ranipet,0.0,1.926101127342883,2.0,3.5299602066859244,1.604,8.3,High,Medium
-20,Villupuram,22.0,12.095545123108437,14.0,11.10719178749328,-0.988,8.1,Low,Medium
-21,Thoothukudi,14.0,13.273271159987983,11.0,11.968038773807947,-1.305,8.1,High,Medium
-22,Pudukottai,6.0,7.553691232799816,8.0,7.663755057062847,0.11,8.0,High,Medium
-23,Thirunelveli,15.0,10.337263894391963,9.0,9.760927568296314,-0.576,8.0,Medium,Medium
-24,Theni,10.0,11.233156145860145,10.0,10.13009861901131,-1.103,6.8,High,Medium
-25,Thanjavur,8.0,13.03046694283488,10.0,11.147374961366674,-1.883,5.5,Medium,Medium
-26,Tiruppattur,4.0,4.228476635032227,4.0,4.463185019412003,0.235,5.2,High,Medium
-27,Tambaram,17.0,11.92849425066825,11.0,10.248856881760185,-1.68,5.2,Medium,Medium
-28,Thirunelveli City,1.0,1.4481225445876724,3.0,2.3701613750467896,0.922,5.1,High,Medium
-29,Coimbatore City,7.0,7.139582783897144,6.0,6.423305480395563,-0.716,4.3,High,Medium
-30,Chennai,36.0,18.38888807265497,20.0,14.805603837282996,-3.583,4.1,Low,Medium
-31,Thiruvarur,9.0,7.8795567977858685,7.0,6.943648161441961,-0.936,4.1,High,Medium
-32,Erode,6.0,5.9702496610718665,3.0,5.436999815098672,-0.533,3.8,High,Medium
-33,Karur,5.0,4.947222554515024,5.0,4.479009814088325,-0.468,3.1,High,Low
-34,Mayiladuthurai,,,3.0,2.904868778770433,0.0,2.9,High,Low
-35,Tiruppur City,2.0,2.7218492557404854,2.0,2.622624369800324,-0.099,2.3,High,Low
-36,Ramnathapuram,15.0,10.750527723721149,9.0,8.376683603568038,-2.374,1.3,Medium,Low
-37,Namakkal,6.0,6.530470740473316,3.0,5.184571239867459,-1.346,1.1,High,Low
-38,Trichy City,5.0,3.3309532512669904,2.0,2.7718571651162165,-0.559,1.1,High,Low
-39,Thiruvallur,11.0,7.82709950125493,8.0,6.0884560041274565,-1.739,0.9,Medium,Low
-40,Nilgiris,4.0,1.27727246268602,0.0,1.0958569905008155,-0.181,0.6,High,Low
-41,Chengalpattu,8.0,7.710599428538977,5.0,5.490862412848909,-2.22,0.0,High,Low
-42,Coimbatore,13.0,9.650948524058132,5.0,6.2888493948821695,-3.362,0.0,Medium,Low
-43,Kanyakumari,4.0,6.935333378704144,3.0,4.88053426026443,-2.055,0.0,Medium,Low
-44,Cuddalore,26.0,14.681872177134176,13.0,10.279651009567567,-4.402,0.0,Low,Low
-45,Nagapattinam,8.0,9.39030409440164,7.0,6.231102107849343,-3.159,0.0,High,Low
-46,Tiruppur,8.0,8.09992807345944,5.0,5.185072274259869,-2.915,0.0,High,Low
+district,predicted_2026_rape_incidents,model,confidence,data_points_available,base_year,is_fallback,method,rape_risk_index,risk_level,rank
+Chennai,39.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.7,HIGH,1
+Madurai City,27.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.7,HIGH,2
+Madurai,25.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.7,HIGH,3
+Coimbatore City,12.7,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.356,MEDIUM,4
+Salem,9.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.255,LOW,5
+Thiruvannamalai,8.6,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.241,LOW,6
+Coimbatore,8.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.23,LOW,7
+Salem City,7.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.204,LOW,8
+Ariyalur,5.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.148,LOW,9
+Dharmapuri,5.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.148,LOW,10
+Kallakurichi,5.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.14,LOW,11
+Thanjavur,5.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.14,LOW,12
+Virudhunagar,4.6,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.129,LOW,13
+Theni,4.4,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.123,LOW,14
+Dindigul,4.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.12,LOW,15
+Trichy,3.7,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.104,LOW,16
+Vellore,3.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.09,LOW,17
+Villupuram,3.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.09,LOW,18
+Avadi,3.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.087,LOW,19
+Kanchipuram,3.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.087,LOW,20
+Perambalur,3.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.087,LOW,21
+Sivagangai,3.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.087,LOW,22
+Thoothukudi,3.1,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.087,LOW,23
+Pudukottai,3.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.084,LOW,24
+Krishnagiri,2.7,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.076,LOW,25
+Nagapattinam,2.5,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.07,LOW,26
+Tenkasi,2.4,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.067,LOW,27
+Karur,2.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.062,LOW,28
+Tambaram,2.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.062,LOW,29
+Thirunelveli City,2.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.062,LOW,30
+Thiruvarur,2.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.062,LOW,31
+Ramnathapuram,1.6,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.045,LOW,32
+Thirunelveli,1.6,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.045,LOW,33
+Mayiladuthurai,1.5,trend_extrapolation,High,3,2026,False,Trend (fitted-actual),0.042,LOW,34
+Thiruvallur,1.5,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.042,LOW,35
+Chengalpattu,1.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.036,LOW,36
+Kanyakumari,1.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.036,LOW,37
+Railway Trichy,1.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.036,LOW,38
+Tiruppur,1.3,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.036,LOW,39
+Ranipet,1.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.034,LOW,40
+Tiruppattur,1.2,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.034,LOW,41
+Cuddalore,0.7,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.02,LOW,42
+Erode,0.7,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.02,LOW,43
+Namakkal,0.7,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.02,LOW,44
+Tiruppur City,0.6,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.017,LOW,45
+Cyber Cell,0.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.0,LOW,46
+Nilgiris,0.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.0,LOW,47
+Other Units,0.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.0,LOW,48
+Railway Chennai,0.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.0,LOW,49
+Trichy City,0.0,trend_extrapolation,High,4,2026,False,Trend (fitted-actual),0.0,LOW,50

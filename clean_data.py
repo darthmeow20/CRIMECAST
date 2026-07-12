@@ -194,6 +194,8 @@ def clean_dataset(name: str, source_file: Path, output_dir: Path, year: int) -> 
     df.insert(0, "year", year)
     df.insert(2, "area_type", df["district_city"].map(classify_area))
     df = convert_numeric_columns(df)
+    # One row per year+district+area_type (proxy media files often duplicate districts)
+    df = df.drop_duplicates(subset=["year", "district_city", "area_type"], keep="last")
     df = df.sort_values(["year", "area_type", "district_city"], kind="stable").reset_index(drop=True)
 
     output_file = output_dir / f"{name}_{year}_clean.csv"
@@ -339,23 +341,110 @@ def enrich_with_sentiment(df: pd.DataFrame, sentiment_file: Path | None = None) 
         return df
 
 
+def enrich_with_news_signals(df: pd.DataFrame, news_file: Path | None = None) -> pd.DataFrame:
+    """Merge public news / media signals (volume + sentiment) as additional proxy features.
+    Run acquire_news_signals.py first (or drop news_signals.csv in model_outputs/).
+    This is the practical way to bring in Google News / social discussion volume
+    when official police records are delayed or unavailable.
+    """
+    if news_file is None:
+        candidates = [
+            MODEL_OUTPUTS_DIR / "news_signals.csv",
+            PROJECT_ROOT / "model_outputs" / "news_signals.csv",
+        ]
+        for c in candidates:
+            if c.exists():
+                news_file = c
+                break
+        else:
+            return df
+
+    if not news_file.exists():
+        return df
+
+    try:
+        news = pd.read_csv(news_file)
+        if "district_city" not in news.columns or "year" not in news.columns:
+            # Try the aggregated form produced by acquire script
+            # If raw, the script also writes news_signals.csv as agg
+            pass
+
+        # Support both raw (with polarity) and pre-aggregated
+        if "news_count" not in news.columns:
+            # raw scored headlines → aggregate
+            agg = (
+                news.groupby(["year", "district_city"], dropna=False)
+                .agg(
+                    news_count=("headline", "count") if "headline" in news.columns else ("polarity", "count"),
+                    avg_news_polarity=("polarity", "mean"),
+                    negative_news_share=("sentiment_label", lambda x: (x == "negative").mean()) if "sentiment_label" in news.columns else ("polarity", lambda x: (x < 0).mean()),
+                    avg_news_crime_intensity=("crime_intensity", "mean") if "crime_intensity" in news.columns else ("polarity", "mean"),
+                )
+                .reset_index()
+            )
+        else:
+            agg = news.copy()
+
+        if agg.empty:
+            return df
+
+        # Prefix consistently
+        agg = agg.rename(columns={c: f"news_{c}" if not c.startswith("news_") else c
+                                  for c in agg.columns if c not in ["year", "district_city"]})
+
+        enriched = df.merge(agg, on=["year", "district_city"], how="left")
+
+        for col in enriched.columns:
+            if col.startswith("news_"):
+                enriched[col] = enriched[col].fillna(0)
+
+        return enriched
+    except Exception:
+        return df
+
+
+def dedupe_on_keys(df: pd.DataFrame, keys: list[str] | None = None) -> pd.DataFrame:
+    """Drop duplicate year/district/area_type rows (common after proxy 2024/2025 media fills)."""
+    keys = keys or list(KEY_COLUMNS)
+    present = [k for k in keys if k in df.columns]
+    if not present:
+        return df
+    before = len(df)
+    out = df.drop_duplicates(subset=present, keep="last").reset_index(drop=True)
+    dropped = before - len(out)
+    if dropped > 0:
+        print(f"[WARN] Dropped {dropped} duplicate rows on keys {present}")
+    return out
+
+
 def build_ml_ready_dataset(cleaned_datasets: dict[str, pd.DataFrame]) -> pd.DataFrame:
     merged: pd.DataFrame | None = None
 
     for name, df in cleaned_datasets.items():
+        # Media-proxy files sometimes contain duplicate district rows per year
+        df = dedupe_on_keys(df)
         feature_columns = [column for column in df.columns if column not in KEY_COLUMNS]
         prefixed = df.rename(columns={column: f"{name}_{column}" for column in feature_columns})
 
         if merged is None:
             merged = prefixed
         else:
-            merged = merged.merge(prefixed, on=KEY_COLUMNS, how="outer", validate="one_to_one")
+            # Prefer soft merge: already de-duplicated; avoid hard one_to_one crash on residual dups
+            try:
+                merged = merged.merge(prefixed, on=KEY_COLUMNS, how="outer", validate="one_to_one")
+            except Exception:
+                print(f"[WARN] one_to_one merge failed for '{name}'; de-duping both sides and retrying")
+                merged = dedupe_on_keys(merged)
+                prefixed = dedupe_on_keys(prefixed)
+                merged = merged.merge(prefixed, on=KEY_COLUMNS, how="outer")
 
     if merged is None:
         raise ValueError("No cleaned datasets were available to merge")
 
+    merged = dedupe_on_keys(merged)
     merged = add_ml_features(merged)
     merged = enrich_with_sentiment(merged)
+    merged = enrich_with_news_signals(merged)
     return merged.sort_values(["year", "area_type", "district_city"], kind="stable").reset_index(drop=True)
 
 
@@ -504,6 +593,8 @@ def run_cleaning(
     cleaned_datasets: dict[str, pd.DataFrame] = {}
     for name, frames in cleaned_by_name.items():
         combined = pd.concat(frames, ignore_index=True, sort=False)
+        # Collapse any duplicate year+district rows (e.g. partial proxy CSVs written twice)
+        combined = dedupe_on_keys(combined)
         combined = combined.sort_values(["year", "area_type", "district_city"], kind="stable").reset_index(drop=True)
         combined.to_csv(output_dir / f"{name}_clean.csv", index=False)
         cleaned_datasets[name] = combined

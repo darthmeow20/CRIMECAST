@@ -11,6 +11,28 @@ import pandas as pd
 from train_model import ML_READY_FILE, MODEL_DIR, OUTPUT_DIR, TARGET_CONFIGS, train_models
 
 
+def load_risk_weights() -> dict[str, float]:
+    """Load configurable weights for risk index. Allows tuning volume / sentiment / news importance."""
+    default = {"volume": 0.50, "sentiment": 0.30, "news": 0.20}
+    cfg_path = Path("config/risk_weights.json")
+    if cfg_path.exists():
+        try:
+            with open(cfg_path, encoding="utf-8") as f:
+                user = json.load(f)
+            # Only take numeric keys we care about
+            for k in default:
+                if k in user and isinstance(user[k], (int, float)):
+                    default[k] = float(user[k])
+            # Normalize if they don't sum close to 1
+            total = sum(default.values())
+            if total > 0 and abs(total - 1.0) > 0.05:
+                for k in default:
+                    default[k] /= total
+        except Exception as e:
+            print(f"[WARN] Could not load risk weights: {e}")
+    return default
+
+
 BEST_MODELS_FILE = OUTPUT_DIR / "best_models.json"
 PREDICTION_OUTPUT_FILE = OUTPUT_DIR / "crime_predictions.csv"
 
@@ -137,6 +159,205 @@ def load_model_for_target(target: str, best_models: dict[str, dict[str, Any]]) -
     return joblib.load(model_path)
 
 
+def series_to_feature_frame(source_row: pd.Series, feature_columns: list[str]) -> pd.DataFrame:
+    """Build a 1-row DataFrame for model input. Never use Series[list_of_str] (Pandas 3)."""
+    import numpy as np
+
+    row: dict[str, Any] = {}
+    idx = source_row.index
+    for col in feature_columns:
+        col = str(col)
+        if col not in idx:
+            row[col] = 0.0
+            continue
+        val = source_row.loc[col]
+        # Duplicate index labels → Series; take first scalar
+        if isinstance(val, (pd.Series, pd.DataFrame)):
+            try:
+                val = val.iloc[0] if len(val) else 0.0
+            except Exception:
+                val = 0.0
+        if isinstance(val, (list, tuple, np.ndarray)):
+            val = val[0] if len(val) else 0.0
+        try:
+            if val is None or (isinstance(val, float) and np.isnan(val)) or pd.isna(val):
+                row[col] = 0.0
+            elif isinstance(val, (int, float, np.integer, np.floating)):
+                row[col] = float(val)
+            else:
+                # keep strings for possible categorical features
+                row[col] = val
+        except Exception:
+            row[col] = 0.0
+    return pd.DataFrame([row], columns=[str(c) for c in feature_columns])
+
+
+def _select_columns_as_array(X_df: pd.DataFrame, cols: Any, *, as_numeric: bool = True) -> Any:
+    """Select columns by name/position without sklearn string-index path; return 2D array-like."""
+    import numpy as np
+
+    n = len(X_df)
+    if cols is None or cols == "drop":
+        return np.zeros((n, 0), dtype=float)
+    if isinstance(cols, slice):
+        arr = X_df.iloc[:, cols].to_numpy()
+        return arr.astype(float) if as_numeric else arr
+    if isinstance(cols, str):
+        cols = [cols]
+    if not hasattr(cols, "__iter__"):
+        cols = [cols]
+    cols = list(cols)
+    if not cols:
+        return np.zeros((n, 0), dtype=float)
+    if isinstance(cols[0], (bool, np.bool_)):
+        arr = X_df.loc[:, cols].to_numpy()
+        return arr.astype(float) if as_numeric else arr
+    if isinstance(cols[0], (int, np.integer)):
+        arr = X_df.iloc[:, cols].to_numpy()
+        return arr.astype(float) if as_numeric else arr
+
+    # string column names — select one at a time (DataFrame only)
+    pieces = []
+    for c in cols:
+        c = str(c)
+        if c in X_df.columns:
+            col = X_df[c]
+            if as_numeric:
+                pieces.append(pd.to_numeric(col, errors="coerce").fillna(0.0).to_numpy().reshape(n, 1))
+            else:
+                # categorical: keep as object strings
+                pieces.append(col.astype(object).fillna("unknown").astype(str).to_numpy().reshape(n, 1))
+        else:
+            if as_numeric:
+                pieces.append(np.zeros((n, 1), dtype=float))
+            else:
+                pieces.append(np.full((n, 1), "unknown", dtype=object))
+    if not pieces:
+        return np.zeros((n, 0), dtype=float)
+    return np.hstack(pieces)
+
+
+def _column_transform_manual(col_transformer: Any, X_df: pd.DataFrame) -> Any:
+    """
+    Apply a fitted ColumnTransformer without sklearn string-column indexing.
+    Avoids: ValueError: Specifying the columns using strings is only supported for dataframes.
+    """
+    import numpy as np
+
+    transformers = getattr(col_transformer, "transformers_", None)
+    if not transformers:
+        X_plain = pd.DataFrame(
+            {str(c): X_df[c].to_numpy() for c in X_df.columns},
+            index=range(len(X_df)),
+        )
+        return col_transformer.transform(X_plain)
+
+    parts: list[Any] = []
+    n = len(X_df)
+    for name, trans, cols in transformers:
+        if name == "remainder" and trans == "drop":
+            continue
+        if trans == "drop" or cols == "drop":
+            continue
+
+        # Heuristic: categorical branch names / presence of OneHotEncoder
+        is_categorical = False
+        name_l = str(name).lower()
+        if "cat" in name_l or "categor" in name_l:
+            is_categorical = True
+        else:
+            try:
+                steps = getattr(trans, "named_steps", {}) or {}
+                if "onehot" in steps or any("OneHot" in type(s).__name__ for s in steps.values()):
+                    is_categorical = True
+            except Exception:
+                pass
+
+        if trans == "passthrough":
+            sub = _select_columns_as_array(X_df, cols, as_numeric=not is_categorical)
+            parts.append(np.asarray(sub, dtype=float) if not is_categorical else np.asarray(sub))
+            continue
+
+        sub = _select_columns_as_array(X_df, cols, as_numeric=not is_categorical)
+        if hasattr(trans, "transform"):
+            try:
+                out = trans.transform(sub)
+            except Exception:
+                try:
+                    out = trans.transform(np.asarray(sub, dtype=float))
+                except Exception:
+                    # last resort for categoricals
+                    out = trans.transform(np.asarray(sub, dtype=object))
+            if hasattr(out, "toarray"):
+                out = out.toarray()
+            parts.append(np.asarray(out, dtype=float))
+        else:
+            parts.append(np.asarray(sub, dtype=float))
+
+    if not parts:
+        return np.zeros((n, 0), dtype=float)
+    shaped = []
+    for p in parts:
+        p = np.asarray(p, dtype=float)
+        if p.ndim == 1:
+            p = p.reshape(n, -1)
+        shaped.append(p)
+    return np.hstack(shaped)
+
+
+def predict_with_artifact(model: Any, X_df: pd.DataFrame) -> float:
+    """
+    Robust single-row (or multi-row first) prediction for CRIMECAST artifacts.
+
+    Handles TransformedTargetRegressor + Pipeline(ColumnTransformer, estimator).
+    Bypasses sklearn ColumnTransformer string-column selection which fails when
+    the input is not recognized as a dataframe (Pandas 3 / narwhals edge cases).
+    """
+    import numpy as np
+
+    # Normalize to a plain DataFrame with string column names
+    X = pd.DataFrame(
+        {str(c): X_df[c].to_numpy() if c in X_df.columns else np.zeros(len(X_df)) for c in X_df.columns},
+        index=range(len(X_df)),
+    )
+
+    inv_func = None
+    est = model
+
+    # Fitted TransformedTargetRegressor
+    if hasattr(est, "regressor_"):
+        inv_func = getattr(est, "inverse_func_", None) or getattr(est, "inverse_func", None)
+        est = est.regressor_
+    elif type(est).__name__ == "TransformedTargetRegressor":
+        inv_func = getattr(est, "inverse_func", None)
+        if hasattr(est, "regressor"):
+            est = est.regressor
+
+    pred: Any
+    if hasattr(est, "named_steps") and "preprocess" in getattr(est, "named_steps", {}):
+        pre = est.named_steps["preprocess"]
+        final = est.named_steps.get("model")
+        if final is None:
+            # last step
+            final = est.steps[-1][1]
+        Xt = _column_transform_manual(pre, X)
+        pred = final.predict(Xt)
+    else:
+        try:
+            pred = est.predict(X)
+        except Exception:
+            # last resort: pure numpy
+            try:
+                pred = est.predict(X.to_numpy(dtype=float))
+            except Exception:
+                pred = est.predict(np.nan_to_num(X.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)))
+
+    pred_arr = np.asarray(pred, dtype=float).ravel()
+    if inv_func is not None:
+        pred_arr = np.asarray(inv_func(pred_arr), dtype=float).ravel()
+    return float(pred_arr[0])
+
+
 def predict_for_area(
     target: str,
     area: str,
@@ -151,10 +372,11 @@ def predict_for_area(
     artifact = load_model_for_target(resolved_target, best_models)
 
     source_row = resolve_area(df, area, year)
-    feature_columns = artifact["feature_columns"]
+    feature_columns = [str(c) for c in artifact["feature_columns"]]
     prediction_row = apply_overrides(source_row, overrides or {}, feature_columns)
-    x = pd.DataFrame([prediction_row[feature_columns]], columns=feature_columns)
-    prediction = max(float(artifact["model"].predict(x)[0]), 0.0)
+    x = series_to_feature_frame(prediction_row, feature_columns)
+    raw_model = artifact["model"] if isinstance(artifact, dict) else artifact
+    prediction = max(predict_with_artifact(raw_model, x), 0.0)
 
     actual = source_row.get(resolved_target, pd.NA)
     return {
@@ -170,16 +392,30 @@ def predict_for_area(
     }
 
 
-def compute_risk_index(prediction_row: dict, sentiment_polarity: float | None = None, crime_intensity: float | None = None) -> dict:
-    """Compute a blended risk index from predicted crime value + negative sentiment.
-    Higher = worse (more crime + more negative public feeling).
+def compute_risk_index(
+    prediction_row: dict,
+    sentiment_polarity: float | None = None,
+    crime_intensity: float | None = None,
+    news_negative_share: float | None = None,
+    news_count: float | None = None,
+    news_intensity: float | None = None,
+    weights: dict[str, float] | None = None,
+) -> dict:
+    """Compute a blended risk index from predicted crime volume + negative sentiment + public media/news signals.
+    Higher = worse (more crime + more negative public feeling + media buzz).
+    News signals act as a leading proxy when official data is sparse.
+
+    Weights are configurable via config/risk_weights.json
     """
+    if weights is None:
+        weights = load_risk_weights()
+
     pred = max(prediction_row.get("prediction", 0), 0)
     target = prediction_row.get("target", "")
 
     # Normalize roughly by rough scale (crude but useful for ranking)
     if "rape" in target or "women" in target:
-        norm_pred = min(pred / 30.0, 1.0)   # rough max seen
+        norm_pred = min(pred / 30.0, 1.0)
     elif "murder" in target:
         norm_pred = min(pred / 100.0, 1.0)
     else:
@@ -187,11 +423,24 @@ def compute_risk_index(prediction_row: dict, sentiment_polarity: float | None = 
 
     sent_component = 0.0
     if sentiment_polarity is not None:
-        sent_component = max(0.0, -sentiment_polarity) * 0.5   # negative polarity increases risk
+        sent_component = max(0.0, -sentiment_polarity) * 0.5
     if crime_intensity is not None:
         sent_component = max(sent_component, min(crime_intensity / 10.0, 1.0) * 0.4)
 
-    risk = min(1.0, 0.6 * norm_pred + 0.4 * sent_component)
+    news_component = 0.0
+    if news_negative_share is not None:
+        news_component = max(news_component, news_negative_share * 0.6)
+    if news_count is not None:
+        norm_news_count = min(news_count / 25.0, 1.0)
+        news_component = max(news_component, norm_news_count * 0.35)
+    if news_intensity is not None:
+        news_component = max(news_component, min(news_intensity / 10.0, 1.0) * 0.35)
+
+    w_vol = weights.get("volume", 0.5)
+    w_sent = weights.get("sentiment", 0.3)
+    w_news = weights.get("news", 0.2)
+
+    risk = min(1.0, w_vol * norm_pred + w_sent * sent_component + w_news * news_component)
     risk_label = "HIGH" if risk > 0.7 else ("MEDIUM" if risk > 0.4 else "LOW")
 
     return {
@@ -199,6 +448,8 @@ def compute_risk_index(prediction_row: dict, sentiment_polarity: float | None = 
         "risk_index": round(risk, 3),
         "risk_label": risk_label,
         "sentiment_polarity_used": sentiment_polarity,
+        "news_negative_share_used": news_negative_share,
+        "news_count_used": news_count,
     }
 
 
@@ -225,9 +476,12 @@ def predict_many(
     output_file.parent.mkdir(parents=True, exist_ok=True)
     predictions = pd.DataFrame(rows)
 
-    # Try to enrich with risk using latest sentiment if available
+    # Enrich with risk using latest sentiment + news/media signals (hybrid proxy approach)
     try:
         sent_path = Path("model_outputs/sentiment_scores.csv")
+        news_path = Path("model_outputs/news_signals.csv")
+
+        sent_latest = None
         if sent_path.exists():
             sent_df = pd.read_csv(sent_path)
             sent_latest = (
@@ -237,11 +491,38 @@ def predict_many(
                 .rename(columns={"polarity": "sentiment_polarity", "crime_intensity": "crime_intensity"})
             )
             predictions = predictions.merge(sent_latest, left_on="area", right_on="district_city", how="left")
-            risk_rows = []
-            for _, r in predictions.iterrows():
-                risk_rows.append(compute_risk_index(r.to_dict(), r.get("sentiment_polarity"), r.get("crime_intensity")))
-            if risk_rows:
-                predictions = pd.DataFrame(risk_rows)
+
+        news_latest = None
+        if news_path.exists():
+            news_df = pd.read_csv(news_path)
+            news_latest = (
+                news_df.sort_values("year")
+                .groupby("district_city")
+                .tail(1)[["district_city", "negative_news_share", "news_count", "avg_news_crime_intensity"]]
+                .rename(columns={
+                    "negative_news_share": "news_negative_share",
+                    "news_count": "news_count",
+                    "avg_news_crime_intensity": "news_intensity"
+                })
+            )
+            predictions = predictions.merge(news_latest, left_on="area", right_on="district_city", how="left", suffixes=("", "_news"))
+
+        weights = load_risk_weights()
+        risk_rows = []
+        for _, r in predictions.iterrows():
+            risk_rows.append(
+                compute_risk_index(
+                    r.to_dict(),
+                    r.get("sentiment_polarity"),
+                    r.get("crime_intensity"),
+                    r.get("news_negative_share"),
+                    r.get("news_count"),
+                    r.get("news_intensity"),
+                    weights=weights,
+                )
+            )
+        if risk_rows:
+            predictions = pd.DataFrame(risk_rows)
     except Exception:
         pass
 

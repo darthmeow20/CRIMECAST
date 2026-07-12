@@ -290,6 +290,15 @@ def temporal_evaluate_estimator(
     """Strict temporal validation: train on earlier year(s), test on latest year.
     This gives a much more realistic estimate of forecasting reliability.
     """
+    # Defensive: ensure we have a 1D Series (in case of accidental duplicate column selection upstream)
+    if isinstance(years, pd.DataFrame):
+        years = years.iloc[:, 0]
+    years = pd.Series(years)
+    # Ensure 'years' is always a proper 1-D Series (defensive against duplicate column selection)
+    if isinstance(years, pd.DataFrame):
+        years = years.iloc[:, 0] if years.shape[1] > 0 else pd.Series([np.nan] * len(years), index=years.index)
+    years = pd.Series(years)
+
     unique_years = sorted(years.dropna().unique())
     if len(unique_years) < 2:
         return {}, None
@@ -330,7 +339,11 @@ def fit_target_model(
     # Prune redundant correlated features for more stable/reliable models
     feature_columns = prune_correlated_features(df, feature_columns)
 
-    model_df = df.loc[df[target].notna(), feature_columns + [target] + (["year"] if "year" in df.columns else [])].copy()
+    # Build model_df without duplicating 'year' (it may already be in feature_columns from select_feature_columns)
+    cols = feature_columns + [target]
+    if "year" in df.columns and "year" not in cols:
+        cols = cols + ["year"]
+    model_df = df.loc[df[target].notna(), cols].copy()
     x = model_df[feature_columns]
     y = model_df[target].astype(float)
     years_series = model_df["year"] if "year" in model_df.columns else pd.Series([2022] * len(y))

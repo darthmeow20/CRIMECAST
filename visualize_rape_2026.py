@@ -200,6 +200,10 @@ def main() -> None:
     
     predictions = pd.read_csv(PREDICTION_FILE)
     
+    if predictions.empty or "predicted_2026_rape_incidents" not in predictions.columns:
+        print("[ERROR] No valid 'predicted_2026_rape_incidents' column in the CSV. Run option 7 again after fixing data/model.")
+        return
+    
     print(f"[INFO] Creating visualizations ({len(predictions)} districts)...\n")
     
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)

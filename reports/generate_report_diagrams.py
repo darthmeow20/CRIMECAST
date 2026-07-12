@@ -22,6 +22,7 @@ COLORS = {
     "gray": "#E9EEF2",
     "dark_gray": "#475569",
     "white": "#FFFFFF",
+    "purple": "#7c3aed",
 }
 
 
@@ -187,40 +188,44 @@ def save_figure(fig: plt.Figure, filename: str) -> Path:
 def generate_sfd() -> Path:
     fig, ax = new_canvas("System Flow Diagram (SFD) - CRIMECAST")
 
+    # Top row: Data ingestion + clean + fuse
     top_boxes = [
-        (0.03, "Crime CSVs\n2022-2023", COLORS["blue"]),
-        (0.22, "File Discovery\nand Validation", COLORS["teal"]),
-        (0.41, "Cleaning and\nStandardisation", COLORS["green"]),
-        (0.60, "Multi-Year\nML Dataset", COLORS["orange"]),
-        (0.79, "EDA and Feature\nEngineering", COLORS["blue"]),
+        (0.02, "Raw Crime CSVs\n(2022-2023)", COLORS["blue"]),
+        (0.18, "Clean + Standardize\n+ Time Features", COLORS["teal"]),
+        (0.35, "DistilBERT\nSentiment", COLORS["red"]),
+        (0.52, "Fuse Sentiment\n+ ML-Ready Data", COLORS["green"]),
+        (0.70, "Train Models\n(Temporal + Risk)", COLORS["orange"]),
     ]
     for x, text, color in top_boxes:
-        add_box(ax, x, 0.72, 0.15, 0.12, text, color)
+        add_box(ax, x, 0.72, 0.14, 0.13, text, color)
 
-    for left, right in zip(top_boxes, top_boxes[1:]):
-        add_arrow(ax, (left[0] + 0.15, 0.78), (right[0], 0.78))
+    for i in range(len(top_boxes) - 1):
+        add_arrow(ax, (top_boxes[i][0] + 0.14, 0.78), (top_boxes[i+1][0], 0.78))
 
-    add_box(ax, 0.42, 0.45, 0.16, 0.12, "Model Comparison\nRF, GB, Ridge", COLORS["teal"])
-    add_box(ax, 0.63, 0.45, 0.16, 0.12, "Evaluation and\nSaved Models", COLORS["green"])
-    add_box(ax, 0.82, 0.45, 0.15, 0.12, "Predictions, Charts\nand Reports", COLORS["orange"])
-    add_arrow(ax, (0.865, 0.72), (0.50, 0.57), "numeric features", curve=0.16)
-    add_arrow(ax, (0.58, 0.51), (0.63, 0.51))
-    add_arrow(ax, (0.79, 0.51), (0.82, 0.51))
+    # Prediction / risk row
+    add_box(ax, 0.18, 0.42, 0.16, 0.13, "Predict (any year)\n+ 2026 Batch", COLORS["blue"])
+    add_box(ax, 0.40, 0.42, 0.18, 0.13, "Compute Risk Index\n(Volume + Neg. Sentiment)", COLORS["red"])
+    add_box(ax, 0.64, 0.42, 0.16, 0.13, "Outputs: CSVs,\nFigures, Reports", COLORS["green"])
 
-    add_box(ax, 0.05, 0.16, 0.15, 0.12, "Complaint, News\nand Social Text", COLORS["red"])
-    add_box(ax, 0.27, 0.16, 0.15, 0.12, "Text Cleaning and\nLabel Validation", COLORS["blue"])
-    add_box(ax, 0.49, 0.16, 0.17, 0.12, "TF-IDF and Logistic\nRegression", COLORS["teal"])
-    add_box(ax, 0.73, 0.16, 0.19, 0.12, "State and District\nSentiment Reports", COLORS["green"])
-    add_arrow(ax, (0.20, 0.22), (0.27, 0.22))
-    add_arrow(ax, (0.42, 0.22), (0.49, 0.22))
-    add_arrow(ax, (0.66, 0.22), (0.73, 0.22))
+    add_arrow(ax, (0.59, 0.72), (0.26, 0.55), "fused data + models", curve=0.12)
+    add_arrow(ax, (0.26, 0.55), (0.40, 0.55))
+    add_arrow(ax, (0.49, 0.55), (0.64, 0.55))
 
-    ax.text(0.03, 0.62, "CRIME PREDICTION FLOW", fontsize=11, fontweight="bold", color=COLORS["navy"])
-    ax.text(0.03, 0.34, "SENTIMENT ANALYSIS FLOW", fontsize=11, fontweight="bold", color=COLORS["navy"])
+    # Dashboard + CLI row (bottom)
+    add_box(ax, 0.15, 0.15, 0.22, 0.12, "Primary UI:\nStreamlit Dashboard\n(live predict + sentiment)", "#7c3aed")
+    add_box(ax, 0.45, 0.15, 0.22, 0.12, "CLI: Full Pipeline\n(app.py option 1)\n+ Individual steps", COLORS["teal"])
+    add_box(ax, 0.75, 0.15, 0.18, 0.12, "Interactive\n+ Batch 2026\nForecasts", COLORS["orange"])
+
+    add_arrow(ax, (0.72, 0.55), (0.26, 0.27), curve=-0.18)
+    add_arrow(ax, (0.26, 0.27), (0.45, 0.27))
+    add_arrow(ax, (0.56, 0.27), (0.75, 0.27))
+
+    ax.text(0.03, 0.62, "CORE PIPELINE (sentiment first)", fontsize=11, fontweight="bold", color=COLORS["navy"])
+    ax.text(0.03, 0.32, "PREDICTION + RISK", fontsize=11, fontweight="bold", color=COLORS["navy"])
     ax.text(
         0.5,
-        0.04,
-        "Outputs are accessed through main.py, app.py, prediction utilities, dashboard modules, and generated reports.",
+        0.03,
+        "Primary user interface is the light-theme Streamlit dashboard. Full training via CLI pipeline. Risk blends prediction volume with negative sentiment.",
         ha="center",
         fontsize=9,
         color=COLORS["dark_gray"],
@@ -231,22 +236,22 @@ def generate_sfd() -> Path:
 def generate_dfd_level_0() -> Path:
     fig, ax = new_canvas("Data Flow Diagram - Level 0 (Context Diagram)")
 
-    add_entity(ax, 0.05, 0.65, 0.19, 0.12, "Crime Data Sources")
-    add_entity(ax, 0.05, 0.20, 0.19, 0.12, "Text Data Sources")
-    add_process(ax, 0.37, 0.32, 0.28, 0.34, "0\nCRIMECAST\nSystem", COLORS["navy"])
-    add_entity(ax, 0.77, 0.43, 0.18, 0.14, "User / Analyst")
+    add_entity(ax, 0.04, 0.68, 0.18, 0.11, "Crime Data Sources\n(Raw CSVs)")
+    add_entity(ax, 0.04, 0.18, 0.18, 0.11, "Text Data Sources\n(Complaints/News)")
+    add_process(ax, 0.36, 0.30, 0.28, 0.38, "0\nCRIMECAST\nSystem", COLORS["navy"])
+    add_entity(ax, 0.78, 0.42, 0.18, 0.14, "User / Analyst\n(Dashboard + CLI)")
 
-    add_arrow(ax, (0.24, 0.71), (0.37, 0.58), "crime CSV files", curve=-0.06)
-    add_arrow(ax, (0.24, 0.26), (0.37, 0.40), "labeled text", curve=0.06)
-    add_arrow(ax, (0.77, 0.50), (0.65, 0.54), "analysis request", curve=0.08, label_offset=(0.0, 0.035))
-    add_arrow(ax, (0.65, 0.43), (0.77, 0.47), "predictions and reports", curve=-0.08, label_offset=(0.0, -0.035))
+    add_arrow(ax, (0.22, 0.73), (0.36, 0.58), "Raw Crime Data", curve=-0.05)
+    add_arrow(ax, (0.22, 0.24), (0.36, 0.38), "Unstructured Text", curve=0.05)
+    add_arrow(ax, (0.78, 0.52), (0.64, 0.55), "Requests", curve=0.07, label_offset=(0.0, 0.03))
+    add_arrow(ax, (0.64, 0.42), (0.78, 0.48), "Predictions + Risk,\nSentiment, 2026,\nDashboard UI", curve=-0.07, label_offset=(0.0, -0.03))
 
     ax.text(
         0.5,
-        0.10,
-        "The Level 0 DFD treats CRIMECAST as one process and shows only external data exchange.",
+        0.08,
+        "Level 0: Single process. Inputs = raw CSVs + text. Outputs = predictions/risk, sentiment results, forecasts, interactive dashboard. Must balance at Level 1.",
         ha="center",
-        fontsize=10,
+        fontsize=9,
         color=COLORS["dark_gray"],
     )
     return save_figure(fig, "dfd_level_0.png")
@@ -255,42 +260,73 @@ def generate_dfd_level_0() -> Path:
 def generate_dfd_level_1() -> Path:
     fig, ax = new_canvas("Data Flow Diagram - Level 1")
 
-    add_entity(ax, 0.02, 0.73, 0.14, 0.10, "Crime Data\nSources")
-    add_entity(ax, 0.02, 0.18, 0.14, 0.10, "Text Data\nSources")
-    add_entity(ax, 0.84, 0.42, 0.14, 0.12, "User / Analyst")
+    # External entities
+    add_entity(ax, 0.02, 0.76, 0.12, 0.09, "Crime Data\nSources")
+    add_entity(ax, 0.02, 0.16, 0.12, 0.09, "Text Data\nSources")
+    add_entity(ax, 0.86, 0.45, 0.12, 0.11, "User / Analyst")
 
-    add_process(ax, 0.20, 0.70, 0.14, 0.13, "1.0\nIngest Data", COLORS["blue"])
-    add_process(ax, 0.40, 0.70, 0.15, 0.13, "2.0\nClean and\nIntegrate", COLORS["teal"])
-    add_process(ax, 0.61, 0.70, 0.15, 0.13, "3.0\nTrain and\nEvaluate ML", COLORS["green"])
-    add_process(ax, 0.79, 0.70, 0.16, 0.13, "4.0\nPredict and\nVisualise", COLORS["orange"])
-    add_process(ax, 0.39, 0.16, 0.18, 0.14, "5.0\nAnalyse\nSentiment", COLORS["red"])
+    # Level 1 processes (6 bubbles)
+    add_process(ax, 0.17, 0.72, 0.12, 0.11, "1.0 Ingest\n& Clean", COLORS["blue"])
+    add_process(ax, 0.34, 0.72, 0.12, 0.11, "2.0\nSentiment", COLORS["red"])
+    add_process(ax, 0.51, 0.72, 0.12, 0.11, "3.0 Fuse\n+ ML Data", COLORS["teal"])
+    add_process(ax, 0.68, 0.72, 0.12, 0.11, "4.0 Train\nModels", COLORS["green"])
+    add_process(ax, 0.51, 0.38, 0.12, 0.11, "5.0 Predict\n+ Risk", COLORS["orange"])
+    add_process(ax, 0.68, 0.38, 0.13, 0.11, "6.0 Dashboard\n& Outputs", "#7c3aed")
 
-    add_store(ax, 0.20, 0.46, 0.15, 0.11, "D1  Raw Data")
-    add_store(ax, 0.42, 0.46, 0.16, 0.11, "D2  Cleaned Data")
-    add_store(ax, 0.64, 0.46, 0.15, 0.11, "D3  Model Store")
-    add_store(ax, 0.69, 0.17, 0.16, 0.11, "D4  Results")
+    # Data stores (open rectangles)
+    add_store(ax, 0.17, 0.50, 0.12, 0.09, "D2 ML-Ready")
+    add_store(ax, 0.34, 0.50, 0.12, 0.09, "D3 Sentiment")
+    add_store(ax, 0.51, 0.50, 0.12, 0.09, "D4 Models")
+    add_store(ax, 0.68, 0.20, 0.12, 0.09, "D5 Results")
 
-    add_arrow(ax, (0.16, 0.78), (0.20, 0.77), "CSV files")
-    add_arrow(ax, (0.27, 0.70), (0.27, 0.57), "raw records")
-    add_arrow(ax, (0.35, 0.515), (0.42, 0.515), "validated data")
-    add_arrow(ax, (0.475, 0.70), (0.50, 0.57), "clean rows")
-    add_arrow(ax, (0.58, 0.515), (0.64, 0.515), "features")
-    add_arrow(ax, (0.685, 0.70), (0.715, 0.57), "trained model")
-    add_arrow(ax, (0.79, 0.515), (0.87, 0.70), "model")
-    add_arrow(ax, (0.95, 0.76), (0.98, 0.52), "outputs", curve=0.2)
-    add_arrow(ax, (0.87, 0.70), (0.77, 0.28), "save outputs", curve=0.08, label_offset=(-0.025, -0.01))
-    add_arrow(ax, (0.16, 0.23), (0.39, 0.23), "text records")
-    add_arrow(ax, (0.48, 0.30), (0.50, 0.46), "sentiment data")
-    add_arrow(ax, (0.57, 0.23), (0.69, 0.23), "scores and summaries")
-    add_arrow(ax, (0.91, 0.54), (0.89, 0.70), "request", curve=-0.08, label_offset=(0.025, 0.0))
-    add_arrow(ax, (0.85, 0.23), (0.91, 0.42), "reports")
+    # Flows - crime data path (left to right top)
+    add_arrow(ax, (0.14, 0.80), (0.17, 0.78), "raw CSVs")
+    add_arrow(ax, (0.23, 0.72), (0.23, 0.59), "cleaned")
+    add_arrow(ax, (0.29, 0.72), (0.29, 0.59), "text")
+
+    # Sentiment path
+    add_arrow(ax, (0.40, 0.72), (0.40, 0.59), "scores")
+    add_arrow(ax, (0.40, 0.59), (0.51, 0.59), "agg")
+
+    # Fuse to ML-ready store
+    add_arrow(ax, (0.57, 0.72), (0.57, 0.59), "fused")
+    add_arrow(ax, (0.23, 0.59), (0.23, 0.59))
+    add_arrow(ax, (0.23, 0.50), (0.23, 0.59))  # from cleaned store area
+
+    # To training
+    add_arrow(ax, (0.23, 0.50), (0.51, 0.50), "features", curve=0.0)
+    add_arrow(ax, (0.57, 0.72), (0.68, 0.72), "ml data")
+    add_arrow(ax, (0.74, 0.72), (0.74, 0.59), "models")
+
+    # Connect ML store + models + sentiment to Predict (P5)
+    add_arrow(ax, (0.51, 0.50), (0.51, 0.49), "data")
+    add_arrow(ax, (0.57, 0.50), (0.57, 0.49), "+ models")
+    add_arrow(ax, (0.57, 0.38), (0.57, 0.49))
+
+    # Predict to D5 Results
+    add_arrow(ax, (0.57, 0.38), (0.68, 0.29), "pred + risk")
+
+    # From stores and P5 to P6 (Dashboard)
+    add_arrow(ax, (0.74, 0.59), (0.74, 0.49), "models")
+    add_arrow(ax, (0.74, 0.38), (0.74, 0.29))
+
+    # Output arrows from P6
+    add_arrow(ax, (0.81, 0.38), (0.86, 0.50), "Interactive Dashboard\n+ Reports/CSVs", curve=0.06)
+
+    # Sentiment aggregation and fusion connections
+    add_arrow(ax, (0.40, 0.59), (0.51, 0.59), "sentiment agg")
+    add_arrow(ax, (0.51, 0.72), (0.51, 0.59), "enrich")
+
+    # User requests to P5/P6
+    add_arrow(ax, (0.86, 0.52), (0.81, 0.44), "requests", curve=-0.08)
+    add_arrow(ax, (0.81, 0.44), (0.68, 0.44))
 
     ax.text(
         0.5,
-        0.055,
-        "D1-D4 represent persistent CSV datasets, trained joblib models, predictions, metrics, figures, and reports.",
+        0.03,
+        "Balanced with Level 0. Sentiment (2.0) & cleaning (1.0) feed fusion (3.0). Training (4.0) produces models for prediction+ risk (5.0). P6 serves the interactive dashboard (primary) and static outputs. All external flows match context diagram.",
         ha="center",
-        fontsize=9,
+        fontsize=8,
         color=COLORS["dark_gray"],
     )
     return save_figure(fig, "dfd_level_1.png")

@@ -1,22 +1,18 @@
 [theme]
 
-# Light professional theme for CRIMECAST (crime analytics)
-base = "light"
+# Dark OPS COMMAND theme (matches report_materials/screenshots reference)
+base = "dark"
 
-# Main accent color (red for danger/alert)
-primaryColor = "#ef4444"
+# Crimson accent
+primaryColor = "#dc2626"
 
-# Main background
-backgroundColor = "#ffffff"
+# Pure black main background
+backgroundColor = "#0a0a0c"
 
-# Sidebar and card backgrounds (light gray)
-secondaryBackgroundColor = "#f8fafc"
+# Sidebar / secondary panels
+secondaryBackgroundColor = "#0c0c0f"
 
-# Text color (dark slate)
-textColor = "#0f172a"
+# Light text
+textColor = "#e8e8ed"
 
-# Font
 font = "sans serif"
-
-[theme.sidebar]
-backgroundColor = "#f1f5f9"

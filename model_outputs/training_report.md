@@ -1,8 +1,8 @@
 # Model Training Report
 
 - Dataset: `C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\dataset\cleaned\crimecast_ml_ready.csv`
-- Dataset rows: 99
-- Dataset years: 2022, 2023
+- Dataset rows: 203
+- Dataset years: 2022, 2023, 2024, 2025
 - Models directory: `C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\models`
 - Trained targets: 6
 
@@ -24,12 +24,12 @@ This is a much stricter and more honest measure of how well the model would perf
 
 | Target | Best model | CV MAE | CV RMSE | CV R2 | Test MAE | Temporal MAE | Temporal R2 | Notes |
 |---|---|---:|---:|---:|---:|---:|---:|---|
-| Total complaints | gradient_boosting_log | 9817.298 | 25544.344 | 0.579 | 3130.381 | 44776.511 | -0.872 | temporal holdout used |
-| Murder incidence | gradient_boosting_log | 9.586 | 12.758 | 0.621 | 8.390 | 11.486 | 0.441 | temporal holdout used |
-| Rape incidents | random_forest_log | 3.260 | 4.847 | 0.351 | 3.373 | 3.129 | 0.366 | temporal holdout used |
-| Murder rate | gradient_boosting_log | 0.706 | 1.232 | 0.656 | 0.763 | 0.726 | 0.471 | temporal holdout used |
-| Rape rate | gradient_boosting_log | 0.498 | 0.638 | 0.448 | 0.486 | 0.493 | 0.394 | temporal holdout used |
-| Cognizable crime rate (IPC+SLL) | gradient_boosting_log | 208.365 | 370.690 | 0.255 | 98.301 | nan | nan | random holdout only |
+| Total complaints | gradient_boosting_log | 11366.919 | 25650.227 | 0.435 | 10379.897 | 12406.154 | 0.413 | temporal holdout used |
+| Murder incidence | gradient_boosting_log | 7.055 | 13.623 | 0.645 | 11.250 | 6.293 | 0.516 | temporal holdout used |
+| Rape incidents | gradient_boosting_log | 2.410 | 4.087 | 0.589 | 2.052 | 1.031 | 0.919 | temporal holdout used |
+| Murder rate | gradient_boosting_log | 0.408 | 0.690 | 0.887 | 0.370 | 0.201 | 0.968 | temporal holdout used |
+| Rape rate | gradient_boosting_log | 0.326 | 0.493 | 0.638 | 0.309 | 0.162 | 0.880 | temporal holdout used |
+| Cognizable crime rate (IPC+SLL) | gradient_boosting_log | 205.615 | 361.770 | 0.290 | 105.184 | nan | nan | random holdout only |
 
 ## All Candidate Metrics
 

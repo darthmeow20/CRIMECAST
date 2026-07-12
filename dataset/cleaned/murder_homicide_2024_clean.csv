@@ -1,0 +1,9 @@
+year,district_city,area_type,murder_incidents,murder_victims,murder_rate
+2024,Chennai,city,28,29,1.0
+2024,Ariyalur,district,2,2,0.5
+2024,Coimbatore,district,9,9,0.7
+2024,Madurai,district,11,11,1.3
+2024,Namakkal,district,3,3,0.8
+2024,Salem,district,7,7,0.9
+2024,Tiruchirappalli,district,5,5,0.6
+2024,Tirunelveli,district,4,4,0.5

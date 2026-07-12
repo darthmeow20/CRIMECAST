@@ -1,0 +1,6 @@
+{
+  "volume": 0.50,
+  "sentiment": 0.30,
+  "news": 0.20,
+  "description": "Weights for compute_risk_index. Sum should be ~1.0. Edit and restart to change."
+}

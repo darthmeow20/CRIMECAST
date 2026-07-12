@@ -1,10 +1,27 @@
 ======================================================================
 2026 RAPE CRIME PREDICTION REPORT - TAMIL NADU
-Section 376 IPC (Sexual Assault) Incidents Forecast
+Engine: FIXED-NO-SKLEARN-v4 (NO sklearn)
 ======================================================================
+Total areas: 50
+Total predicted incidents: 233
+Average: 4.7
+Highest: Chennai (39.0)
+Lowest: Trichy City (0.0)
 
-Total Districts Analyzed: 0
-Prediction Year: 2026
+TOP 10:
+   1. Chennai                       39.0
+   2. Madurai City                  27.2
+   3. Madurai                       25.1
+   4. Coimbatore City               12.7
+   5. Salem                          9.1
+   6. Thiruvannamalai                8.6
+   7. Coimbatore                     8.2
+   8. Salem City                     7.3
+   9. Ariyalur                       5.3
+  10. Dharmapuri                     5.3
 
-ERROR: No predictions available. Check that the ML model was trained with matching features and data is present.
+Method: linear trend on fitted actual rape counts → 2026
+If you saw ColumnTransformer / dataframe column errors before, those
+came from an OLD script. This engine cannot produce that error.
+Generated: 2026-07-12 16:48:32
 ======================================================================

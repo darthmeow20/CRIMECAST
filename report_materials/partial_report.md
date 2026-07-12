@@ -11,7 +11,7 @@
 
 ## 1. Executive Summary
 
-CRIMECAST is an end-to-end machine learning system for predicting crime rates (total complaints, murder incidence, rape incidents, and normalized rates) across Tamil Nadu districts using 2022–2023 data. The project integrates **DistilBERT-based sentiment analysis** on crime-related text (complaints, news, social media) to improve prediction reliability and produce a combined **Risk Index**.
+CRIMECAST is an end-to-end machine learning system for predicting crime rates (total complaints, murder incidence, rape incidents, and normalized rates) across Tamil Nadu districts using 2022–2023 official data, with **2024–2025 gap-fill from Tamil Nadu crime news** (internet news, e-papers, local aggregator surfaces such as DailyHunt / Lokal / Public-style feeds — **not social media**). Trends and NLP use a **three-LLM stack** (DistilBERT sentiment + DistilBERT-MNLI crime-type + trend labels). Outputs include a blended **Risk Index**.
 
 **Key Achievements (this iteration):**
 - Implemented temporal-aware model selection and evaluation for more reliable forecasting.
@@ -77,19 +77,25 @@ Predicting future crime rates (especially normalized **crime rates**) is valuabl
 
 **Evaluation metrics:** MAE, RMSE, R² (CV + temporal + holdout).
 
-### 4.3 Sentiment Analysis (sentiment_analysis.py)
-**Primary method:** DistilBERT (`distilbert-base-uncased-finetuned-sst-2-english`)
-- Context-aware, handles negation and nuance.
-- Combined with crime-specific lexicon for intensity and keyword detection.
+### 4.3 NLP & Trends — 3 LLM models (`nlp_pipeline.py` + `sentiment_analysis.py`)
 
-**Outputs:** Polarity, confidence, label, crime_intensity, crime_types.
+| # | Role | Model | Output |
+|---|------|--------|--------|
+| 1 | Sentiment | DistilBERT SST-2 | polarity, positive/negative |
+| 2 | Crime type | DistilBERT-MNLI zero-shot | homicide, rape, theft, cyber, narcotics, … |
+| 3 | Trend | DistilBERT-MNLI zero-shot (trend labels) | rising / stable / isolated / declining |
 
-**Integration:** Aggregated sentiment per district-year is merged into ML features.
+**Text sources:** Google News / e-papers / local news apps (DailyHunt, Lokal, Public — via open web/RSS). **Social media excluded** from primary collection.  
+See `NEWS_SOURCES.md`.
+
+**Integration:** Aggregated sentiment + news volume per district-year fused into ML features and Risk Index.
 
 ### 4.4 Prediction & Risk
 - `predict.py` supports area + target + future year.
-- **Risk Index** (0–1): Blends normalized prediction volume + negative sentiment.
-- 2026 district-level forecasting now uses latest template + year override + sentiment risk.
+- **Risk Index** (0–1): Blends normalized prediction volume + negative sentiment + **public news/media signals** (volume + negativity) as proxy/leading indicator.
+- Configurable weights via `config/risk_weights.json`.
+- 2026 district-level forecasting now uses latest template + year override + sentiment + news proxy risk.
+- New tool: `acquire_news_signals.py` (demo + live Google News RSS fetch + CSV scoring) to supplement limited official data.
 
 ### 4.5 Pipeline
 Full flow: `sentiment` → `clean` (fusion) → `train` → `visualize` → combined reports.
@@ -122,8 +128,9 @@ Full flow: `sentiment` → `clean` (fusion) → `train` → `visualize` → comb
 - New: Combined risk scores now available (incorporating sentiment).
 
 **Risk Index Example** (produced by recent improvements):
-- Blends predicted volume + negative public sentiment.
+- Blends predicted volume + negative public sentiment + news/media buzz (configurable weights).
 - Categories: HIGH / MEDIUM / LOW.
+- Public signals now pulled via `acquire_news_signals.py` (including live RSS).
 
 **Visual evidence**: See `screenshots.md` and figures in `model_outputs/figures/`.
 
@@ -169,10 +176,10 @@ All outputs in `model_outputs/`.
 
 ## 9. Future Work (Post-Submission)
 
-- Incorporate 2023 full district data + any 2024 releases.
-- Add more years → enable proper time-series models (ARIMA, Prophet, LSTM).
-- Expand Risk Index with external indicators (population growth, economic data).
-- Build simple web dashboard.
+- Incorporate 2023+ district data (opencity.in has matching CSVs).
+- Use news/media proxies via acquire_news_signals.py (already implemented + live fetch).
+- Expand with more years + external indicators.
+- Dashboard already shows news buzz visuals + hybrid risk.
 - Fine-tune DistilBERT on domain-specific crime text.
 
 ---

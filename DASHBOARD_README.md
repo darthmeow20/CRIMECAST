@@ -14,6 +14,18 @@ streamlit run dashboard.py
 
 The dashboard will open in your browser (usually at http://localhost:8501).
 
+## UI theme
+Modern **dark navy + crimson** crime-analytics look (glass metric cards, hero banners, gradient sidebar). Config: `.streamlit/config.toml`.
+
+## Reference screenshots
+Put design references / report screenshots in:
+
+```
+reports/screenshots/
+```
+
+Then open the dashboard page **🖼️ UI Reference** to view them inside the app.
+
 ## Features
 
 - **Overview**: Project summary and quick metrics
@@ -21,10 +33,11 @@ The dashboard will open in your browser (usually at http://localhost:8501).
   - Choose any district/city
   - Select target (including new rate targets)
   - Specify future year (e.g. 2026)
-  - See Risk Index (HIGH/MEDIUM/LOW)
+  - See Risk Index (HIGH/MEDIUM/LOW) now blended with news/media signals
 - **Sentiment Analysis**: Real-time text analysis with DistilBERT
   - Paste any crime-related text
   - Get polarity, confidence, crime intensity
+- **Public Media Signals**: News buzz (volume + negativity) shown in Overview + fused into risk (via acquire_news_signals.py)
 - **2026 Forecasts**: Generate and explore district-level 2026 predictions
 - **Visualizations**: View key charts from the project
 - **Data Explorer**: Browse ML-ready data and sentiment scores with interactive plots

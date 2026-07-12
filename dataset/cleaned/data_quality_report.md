@@ -19,12 +19,21 @@
 | 2023_complaints | 51 | 50 | 1 | 19 | 0 | complaints_2023_clean.csv |
 | 2023_women_crimes | 51 | 50 | 1 | 39 | 48 | women_crimes_2023_clean.csv |
 | 2023_murder_homicide | 51 | 50 | 1 | 12 | 12 | murder_homicide_2023_clean.csv |
+| 2024_complaints | 51 | 50 | 1 | 19 | 0 | complaints_2024_clean.csv |
+| 2024_women_crimes | 51 | 50 | 1 | 39 | 48 | women_crimes_2024_clean.csv |
+| 2024_murder_homicide | 51 | 50 | 1 | 12 | 12 | murder_homicide_2024_clean.csv |
+| 2024_murder_homicide | 8 | 8 | 0 | 6 | 0 | murder_homicide_2024_clean.csv |
+| 2024_complaints | 17 | 17 | 0 | 7 | 0 | complaints_2024_clean.csv |
+| 2025_complaints | 51 | 50 | 1 | 19 | 0 | complaints_2025_clean.csv |
+| 2025_women_crimes | 51 | 50 | 1 | 39 | 48 | women_crimes_2025_clean.csv |
+| 2025_murder_homicide | 51 | 50 | 1 | 12 | 12 | murder_homicide_2025_clean.csv |
+| 2025_complaints | 8 | 8 | 0 | 7 | 0 | complaints_2025_clean.csv |
 
 ## ML-Ready Dataset
 
-- Rows: 99
-- Columns: 82
-- Years: 2022, 2023
+- Rows: 203
+- Columns: 90
+- Years: 2022, 2023, 2024, 2025
 - Output: `crimecast_ml_ready.csv`
 
 NOTE: Only two years of data currently. Sentiment aggregates (if sentiment_scores.csv exists) are automatically merged as predictive features.

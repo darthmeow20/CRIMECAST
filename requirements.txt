@@ -57,3 +57,7 @@ transformers==4.40.0
 torch==2.1.0
 streamlit==1.35.0
 plotly==5.22.0
+
+# Optional for enhanced net data pulling (Google News RSS works without it)
+# requests>=2.31.0
+# For full Twitter historical you will need an X API key + tweepy or similar

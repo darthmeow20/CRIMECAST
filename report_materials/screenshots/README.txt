@@ -1,10 +1,8 @@
-Place actual screenshot images here (PNG/JPG).
+Optional archive for report screenshots only (not shown in the live app).
 
-Suggested files to capture from running the app:
-- menu_main.png
-- full_pipeline_output.png
-- prediction_with_risk.png
-- 2026_rape_predictions.png
-- sentiment_analysis.png
+The dashboard no longer displays UI mockup references.
+Live views:
+  streamlit run dashboard.py
+  → Geographic  = Tamil Nadu district map (choropleth heat)
+  → Heat Map    = district × metric heatmap + map
 
-Also copy useful figures from ../model_outputs/figures/ into this folder or reference them directly in your report.

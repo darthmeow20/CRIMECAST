@@ -1,100 +1,202 @@
-year,district_city,area_type,murder_incidence,murder_victims,murder_rate,culpable_homicide_incidence,culpable_homicide_victims,culpable_homicides_rate,causing_death_by_negligence_incidence,causing_death_by_negligence_victims,causing_death_by_negligence_rate
-2022,Avadi,city,63,64,15.0,0,0,0.0,372,381,88.8
-2022,Chennai,city,101,103,1.7,2,3,0.0,585,594,9.7
-2022,Coimbatore City,city,31,31,2.8,0,0,0.0,275,291,24.6
-2022,Madurai City,city,35,35,3.2,0,0,0.0,192,234,17.7
-2022,Salem City,city,16,19,1.8,0,0,0.0,228,229,25.9
-2022,Tambaram,city,62,66,7.8,2,2,0.3,485,527,60.9
-2022,Thirunelveli City,city,18,18,3.6,0,0,0.0,89,89,17.7
-2022,Tiruppur City,city,23,23,4.9,0,0,0.0,158,170,33.5
-2022,Trichy City,city,22,22,2.4,2,2,0.2,151,152,16.8
-2022,Ariyalur,district,19,20,2.4,0,0,0.0,174,187,21.7
-2022,Chengalpattu,district,32,32,1.3,1,1,0.0,404,460,16.7
-2022,Coimbatore,district,39,39,1.5,6,6,0.2,794,827,31.0
-2022,Cuddalore,district,43,43,1.6,0,0,0.0,459,459,16.6
-2022,Dharmapuri,district,33,34,2.1,1,1,0.1,380,393,23.7
-2022,Dindigul,district,71,74,3.1,5,5,0.2,639,889,27.8
-2022,Erode,district,25,38,1.0,3,3,0.1,635,638,26.5
-2022,Kallakurichi,district,24,24,1.6,3,3,0.2,271,284,18.3
-2022,Kanchipuram,district,18,19,1.9,0,0,0.0,289,303,29.9
-2022,Kanyakumari,district,36,38,1.8,6,6,0.3,284,340,14.3
-2022,Karur,district,14,14,1.2,0,0,0.0,376,386,33.2
-2022,Krishnagiri,district,53,54,2.7,4,4,0.2,627,658,31.4
-2022,Madurai,district,65,68,3.0,1,1,0.0,588,689,27.4
-2022,Nagapattinam,district,41,43,2.4,1,1,0.1,273,306,15.9
-2022,Namakkal,district,29,29,1.6,1,1,0.1,520,531,28.3
-2022,Nilgiris,district,7,8,0.9,0,0,0.0,40,42,5.1
-2022,Perambalur,district,14,14,2.3,0,0,0.0,214,228,35.6
-2022,Pudukottai,district,34,36,2.0,1,3,0.1,474,485,27.5
-2022,Ramnathapuram,district,38,38,2.6,6,6,0.4,345,345,24.0
-2022,Ranipet,district,25,27,2.0,0,0,0.0,259,269,20.3
-2022,Salem,district,39,39,1.4,1,1,0.0,570,570,20.2
-2022,Sivagangai,district,39,40,2.7,6,6,0.4,379,427,26.6
-2022,Tenkasi,district,41,43,2.7,4,4,0.3,262,262,17.3
-2022,Thanjavur,district,68,71,2.7,0,0,0.0,532,549,20.8
-2022,Theni,district,53,54,4.0,6,6,0.5,312,338,23.5
-2022,Thirunelveli,district,46,49,3.7,1,2,0.1,301,325,24.0
-2022,Thiruvallur,district,19,19,0.8,1,1,0.0,335,335,13.3
-2022,Thiruvannamalai,district,42,49,1.6,2,3,0.1,535,611,20.4
-2022,Thiruvarur,district,21,23,1.6,1,1,0.1,205,265,15.3
-2022,Thoothukudi,district,84,86,4.5,8,8,0.4,432,719,23.2
-2022,Tiruppattur,district,22,22,1.8,1,1,0.1,198,415,15.8
-2022,Tiruppur,district,36,36,1.7,2,2,0.1,704,706,32.5
-2022,Trichy,district,37,37,1.9,0,0,0.0,540,562,27.1
-2022,Vellore,district,24,24,1.5,0,0,0.0,307,321,18.5
-2022,Villupuram,district,23,23,1.0,6,6,0.3,548,572,25.0
-2022,Virudhunagar,district,58,61,2.8,2,2,0.1,485,485,23.5
-2022,Cyber Cell,special_unit,0,0,,0,0,,0,0,
-2022,Other Units,special_unit,0,0,,0,0,,0,0,
-2022,Railway Chennai,special_unit,6,6,,0,0,,0,0,
-2022,Railway Trichy,special_unit,1,1,,0,0,,0,0,
-2023,Avadi,city,57,65,13.6,1,1,0.2,461,474,109.8
-2023,Chennai,city,105,106,1.7,11,11,0.2,599,606,9.9
-2023,Coimbatore City,city,22,23,2.0,1,1,0.1,316,323,28.2
-2023,Madurai City,city,37,38,3.4,0,0,0.0,265,281,24.4
-2023,Salem City,city,26,26,2.9,0,0,0.0,217,218,24.5
-2023,Tambaram,city,50,51,6.3,3,4,0.4,513,513,64.2
-2023,Thirunelveli City,city,17,17,3.4,0,0,0.0,97,97,19.2
-2023,Tiruppur City,city,24,24,5.1,0,0,0.0,155,158,32.7
-2023,Trichy City,city,19,19,2.1,0,0,0.0,160,169,17.7
-2023,Ariyalur,district,16,16,2.0,1,1,0.1,184,191,22.9
-2023,Chengalpattu,district,31,33,1.3,8,9,0.3,392,423,16.1
-2023,Coimbatore,district,52,52,2.0,7,7,0.3,783,811,30.5
-2023,Cuddalore,district,52,53,1.9,2,2,0.1,541,580,19.5
-2023,Dharmapuri,district,23,24,1.4,3,3,0.2,352,352,21.9
-2023,Dindigul,district,62,64,2.7,9,9,0.4,731,731,31.7
-2023,Erode,district,37,39,1.5,3,3,0.1,659,688,27.4
-2023,Kallakurichi,district,23,27,1.5,3,3,0.2,286,311,19.2
-2023,Kanchipuram,district,36,36,3.7,0,0,0.0,295,303,30.4
-2023,Kanyakumari,district,31,32,1.6,10,12,0.5,328,354,16.4
-2023,Karur,district,18,19,1.6,1,1,0.1,350,360,30.8
-2023,Krishnagiri,district,59,63,2.9,1,1,0.0,724,817,36.1
-2023,Madurai,district,63,64,2.9,3,3,0.1,575,575,26.7
-2023,Mayiladuthurai,district,10,11,1.0,5,5,0.5,150,154,15.4
-2023,Nagapattinam,district,15,15,2.0,3,3,0.4,128,187,17.1
-2023,Namakkal,district,35,36,1.9,0,0,0.0,556,641,30.2
-2023,Nilgiris,district,10,11,1.3,1,1,0.1,61,61,7.8
-2023,Perambalur,district,12,13,2.0,0,0,0.0,171,207,28.4
-2023,Pudukottai,district,29,29,1.7,3,3,0.2,423,423,24.5
-2023,Ramnathapuram,district,36,36,2.5,4,4,0.3,402,423,27.9
-2023,Ranipet,district,22,26,1.7,1,1,0.1,263,281,20.6
-2023,Salem,district,46,46,1.6,5,5,0.2,538,573,19.0
-2023,Sivagangai,district,42,46,2.9,1,1,0.1,381,440,26.7
-2023,Tenkasi,district,39,43,2.6,3,3,0.2,238,258,15.6
-2023,Thanjavur,district,51,51,2.0,4,4,0.2,587,607,22.9
-2023,Theni,district,46,46,3.5,6,6,0.5,322,335,24.2
-2023,Thirunelveli,district,47,47,3.7,2,2,0.2,302,318,24.0
-2023,Thiruvallur,district,30,30,1.2,7,7,0.3,297,312,11.8
-2023,Thiruvannamalai,district,35,35,1.3,7,7,0.3,648,742,24.7
-2023,Thiruvarur,district,18,18,1.3,4,4,0.3,220,226,16.3
-2023,Thoothukudi,district,74,75,4.0,7,10,0.4,469,496,25.1
-2023,Tiruppattur,district,19,19,1.5,4,21,0.3,200,239,15.9
-2023,Tiruppur,district,31,31,1.4,1,1,0.0,716,719,33.0
-2023,Trichy,district,45,46,2.3,1,1,0.1,528,555,26.4
-2023,Vellore,district,24,24,1.4,13,13,0.8,312,313,18.8
-2023,Villupuram,district,35,38,1.6,7,7,0.3,519,548,23.6
-2023,Virudhunagar,district,61,70,2.9,0,0,0.0,467,543,22.5
-2023,Cyber Cell,special_unit,0,0,,0,0,,0,0,
-2023,Other Units,special_unit,0,0,,0,0,,0,0,
-2023,Railway Chennai,special_unit,8,8,,0,0,,1,1,
-2023,Railway Trichy,special_unit,1,1,,1,1,,0,0,
+year,district_city,area_type,murder_incidence,murder_victims,murder_rate,culpable_homicide_incidence,culpable_homicide_victims,culpable_homicides_rate,causing_death_by_negligence_incidence,causing_death_by_negligence_victims,causing_death_by_negligence_rate,murder_incidents
+2022,Avadi,city,63.0,64,15.0,0.0,0.0,0.0,372.0,381.0,88.8,
+2022,Chennai,city,101.0,103,1.7,2.0,3.0,0.0,585.0,594.0,9.7,
+2022,Coimbatore City,city,31.0,31,2.8,0.0,0.0,0.0,275.0,291.0,24.6,
+2022,Madurai City,city,35.0,35,3.2,0.0,0.0,0.0,192.0,234.0,17.7,
+2022,Salem City,city,16.0,19,1.8,0.0,0.0,0.0,228.0,229.0,25.9,
+2022,Tambaram,city,62.0,66,7.8,2.0,2.0,0.3,485.0,527.0,60.9,
+2022,Thirunelveli City,city,18.0,18,3.6,0.0,0.0,0.0,89.0,89.0,17.7,
+2022,Tiruppur City,city,23.0,23,4.9,0.0,0.0,0.0,158.0,170.0,33.5,
+2022,Trichy City,city,22.0,22,2.4,2.0,2.0,0.2,151.0,152.0,16.8,
+2022,Ariyalur,district,19.0,20,2.4,0.0,0.0,0.0,174.0,187.0,21.7,
+2022,Chengalpattu,district,32.0,32,1.3,1.0,1.0,0.0,404.0,460.0,16.7,
+2022,Coimbatore,district,39.0,39,1.5,6.0,6.0,0.2,794.0,827.0,31.0,
+2022,Cuddalore,district,43.0,43,1.6,0.0,0.0,0.0,459.0,459.0,16.6,
+2022,Dharmapuri,district,33.0,34,2.1,1.0,1.0,0.1,380.0,393.0,23.7,
+2022,Dindigul,district,71.0,74,3.1,5.0,5.0,0.2,639.0,889.0,27.8,
+2022,Erode,district,25.0,38,1.0,3.0,3.0,0.1,635.0,638.0,26.5,
+2022,Kallakurichi,district,24.0,24,1.6,3.0,3.0,0.2,271.0,284.0,18.3,
+2022,Kanchipuram,district,18.0,19,1.9,0.0,0.0,0.0,289.0,303.0,29.9,
+2022,Kanyakumari,district,36.0,38,1.8,6.0,6.0,0.3,284.0,340.0,14.3,
+2022,Karur,district,14.0,14,1.2,0.0,0.0,0.0,376.0,386.0,33.2,
+2022,Krishnagiri,district,53.0,54,2.7,4.0,4.0,0.2,627.0,658.0,31.4,
+2022,Madurai,district,65.0,68,3.0,1.0,1.0,0.0,588.0,689.0,27.4,
+2022,Nagapattinam,district,41.0,43,2.4,1.0,1.0,0.1,273.0,306.0,15.9,
+2022,Namakkal,district,29.0,29,1.6,1.0,1.0,0.1,520.0,531.0,28.3,
+2022,Nilgiris,district,7.0,8,0.9,0.0,0.0,0.0,40.0,42.0,5.1,
+2022,Perambalur,district,14.0,14,2.3,0.0,0.0,0.0,214.0,228.0,35.6,
+2022,Pudukottai,district,34.0,36,2.0,1.0,3.0,0.1,474.0,485.0,27.5,
+2022,Ramnathapuram,district,38.0,38,2.6,6.0,6.0,0.4,345.0,345.0,24.0,
+2022,Ranipet,district,25.0,27,2.0,0.0,0.0,0.0,259.0,269.0,20.3,
+2022,Salem,district,39.0,39,1.4,1.0,1.0,0.0,570.0,570.0,20.2,
+2022,Sivagangai,district,39.0,40,2.7,6.0,6.0,0.4,379.0,427.0,26.6,
+2022,Tenkasi,district,41.0,43,2.7,4.0,4.0,0.3,262.0,262.0,17.3,
+2022,Thanjavur,district,68.0,71,2.7,0.0,0.0,0.0,532.0,549.0,20.8,
+2022,Theni,district,53.0,54,4.0,6.0,6.0,0.5,312.0,338.0,23.5,
+2022,Thirunelveli,district,46.0,49,3.7,1.0,2.0,0.1,301.0,325.0,24.0,
+2022,Thiruvallur,district,19.0,19,0.8,1.0,1.0,0.0,335.0,335.0,13.3,
+2022,Thiruvannamalai,district,42.0,49,1.6,2.0,3.0,0.1,535.0,611.0,20.4,
+2022,Thiruvarur,district,21.0,23,1.6,1.0,1.0,0.1,205.0,265.0,15.3,
+2022,Thoothukudi,district,84.0,86,4.5,8.0,8.0,0.4,432.0,719.0,23.2,
+2022,Tiruppattur,district,22.0,22,1.8,1.0,1.0,0.1,198.0,415.0,15.8,
+2022,Tiruppur,district,36.0,36,1.7,2.0,2.0,0.1,704.0,706.0,32.5,
+2022,Trichy,district,37.0,37,1.9,0.0,0.0,0.0,540.0,562.0,27.1,
+2022,Vellore,district,24.0,24,1.5,0.0,0.0,0.0,307.0,321.0,18.5,
+2022,Villupuram,district,23.0,23,1.0,6.0,6.0,0.3,548.0,572.0,25.0,
+2022,Virudhunagar,district,58.0,61,2.8,2.0,2.0,0.1,485.0,485.0,23.5,
+2022,Cyber Cell,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2022,Other Units,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2022,Railway Chennai,special_unit,6.0,6,,0.0,0.0,,0.0,0.0,,
+2022,Railway Trichy,special_unit,1.0,1,,0.0,0.0,,0.0,0.0,,
+2023,Avadi,city,57.0,65,13.6,1.0,1.0,0.2,461.0,474.0,109.8,
+2023,Chennai,city,105.0,106,1.7,11.0,11.0,0.2,599.0,606.0,9.9,
+2023,Coimbatore City,city,22.0,23,2.0,1.0,1.0,0.1,316.0,323.0,28.2,
+2023,Madurai City,city,37.0,38,3.4,0.0,0.0,0.0,265.0,281.0,24.4,
+2023,Salem City,city,26.0,26,2.9,0.0,0.0,0.0,217.0,218.0,24.5,
+2023,Tambaram,city,50.0,51,6.3,3.0,4.0,0.4,513.0,513.0,64.2,
+2023,Thirunelveli City,city,17.0,17,3.4,0.0,0.0,0.0,97.0,97.0,19.2,
+2023,Tiruppur City,city,24.0,24,5.1,0.0,0.0,0.0,155.0,158.0,32.7,
+2023,Trichy City,city,19.0,19,2.1,0.0,0.0,0.0,160.0,169.0,17.7,
+2023,Ariyalur,district,16.0,16,2.0,1.0,1.0,0.1,184.0,191.0,22.9,
+2023,Chengalpattu,district,31.0,33,1.3,8.0,9.0,0.3,392.0,423.0,16.1,
+2023,Coimbatore,district,52.0,52,2.0,7.0,7.0,0.3,783.0,811.0,30.5,
+2023,Cuddalore,district,52.0,53,1.9,2.0,2.0,0.1,541.0,580.0,19.5,
+2023,Dharmapuri,district,23.0,24,1.4,3.0,3.0,0.2,352.0,352.0,21.9,
+2023,Dindigul,district,62.0,64,2.7,9.0,9.0,0.4,731.0,731.0,31.7,
+2023,Erode,district,37.0,39,1.5,3.0,3.0,0.1,659.0,688.0,27.4,
+2023,Kallakurichi,district,23.0,27,1.5,3.0,3.0,0.2,286.0,311.0,19.2,
+2023,Kanchipuram,district,36.0,36,3.7,0.0,0.0,0.0,295.0,303.0,30.4,
+2023,Kanyakumari,district,31.0,32,1.6,10.0,12.0,0.5,328.0,354.0,16.4,
+2023,Karur,district,18.0,19,1.6,1.0,1.0,0.1,350.0,360.0,30.8,
+2023,Krishnagiri,district,59.0,63,2.9,1.0,1.0,0.0,724.0,817.0,36.1,
+2023,Madurai,district,63.0,64,2.9,3.0,3.0,0.1,575.0,575.0,26.7,
+2023,Mayiladuthurai,district,10.0,11,1.0,5.0,5.0,0.5,150.0,154.0,15.4,
+2023,Nagapattinam,district,15.0,15,2.0,3.0,3.0,0.4,128.0,187.0,17.1,
+2023,Namakkal,district,35.0,36,1.9,0.0,0.0,0.0,556.0,641.0,30.2,
+2023,Nilgiris,district,10.0,11,1.3,1.0,1.0,0.1,61.0,61.0,7.8,
+2023,Perambalur,district,12.0,13,2.0,0.0,0.0,0.0,171.0,207.0,28.4,
+2023,Pudukottai,district,29.0,29,1.7,3.0,3.0,0.2,423.0,423.0,24.5,
+2023,Ramnathapuram,district,36.0,36,2.5,4.0,4.0,0.3,402.0,423.0,27.9,
+2023,Ranipet,district,22.0,26,1.7,1.0,1.0,0.1,263.0,281.0,20.6,
+2023,Salem,district,46.0,46,1.6,5.0,5.0,0.2,538.0,573.0,19.0,
+2023,Sivagangai,district,42.0,46,2.9,1.0,1.0,0.1,381.0,440.0,26.7,
+2023,Tenkasi,district,39.0,43,2.6,3.0,3.0,0.2,238.0,258.0,15.6,
+2023,Thanjavur,district,51.0,51,2.0,4.0,4.0,0.2,587.0,607.0,22.9,
+2023,Theni,district,46.0,46,3.5,6.0,6.0,0.5,322.0,335.0,24.2,
+2023,Thirunelveli,district,47.0,47,3.7,2.0,2.0,0.2,302.0,318.0,24.0,
+2023,Thiruvallur,district,30.0,30,1.2,7.0,7.0,0.3,297.0,312.0,11.8,
+2023,Thiruvannamalai,district,35.0,35,1.3,7.0,7.0,0.3,648.0,742.0,24.7,
+2023,Thiruvarur,district,18.0,18,1.3,4.0,4.0,0.3,220.0,226.0,16.3,
+2023,Thoothukudi,district,74.0,75,4.0,7.0,10.0,0.4,469.0,496.0,25.1,
+2023,Tiruppattur,district,19.0,19,1.5,4.0,21.0,0.3,200.0,239.0,15.9,
+2023,Tiruppur,district,31.0,31,1.4,1.0,1.0,0.0,716.0,719.0,33.0,
+2023,Trichy,district,45.0,46,2.3,1.0,1.0,0.1,528.0,555.0,26.4,
+2023,Vellore,district,24.0,24,1.4,13.0,13.0,0.8,312.0,313.0,18.8,
+2023,Villupuram,district,35.0,38,1.6,7.0,7.0,0.3,519.0,548.0,23.6,
+2023,Virudhunagar,district,61.0,70,2.9,0.0,0.0,0.0,467.0,543.0,22.5,
+2023,Cyber Cell,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2023,Other Units,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2023,Railway Chennai,special_unit,8.0,8,,0.0,0.0,,1.0,1.0,,
+2023,Railway Trichy,special_unit,1.0,1,,1.0,1.0,,0.0,0.0,,
+2024,Avadi,city,31.0,36,13.6,1.0,1.0,0.2,254.0,261.0,109.8,
+2024,Chennai,city,,29,1.0,,,,,,,28.0
+2024,Coimbatore City,city,41.0,43,2.0,2.0,2.0,0.1,585.0,598.0,28.2,
+2024,Madurai City,city,61.0,63,3.4,0.0,0.0,0.0,438.0,465.0,24.4,
+2024,Salem City,city,22.0,22,2.9,0.0,0.0,0.0,185.0,186.0,24.5,
+2024,Tambaram,city,28.0,28,6.3,2.0,2.0,0.4,282.0,282.0,64.2,
+2024,Thirunelveli City,city,9.0,9,3.4,0.0,0.0,0.0,53.0,53.0,19.2,
+2024,Tiruppur City,city,13.0,13,5.1,0.0,0.0,0.0,85.0,87.0,32.7,
+2024,Trichy City,city,10.0,10,2.1,0.0,0.0,0.0,88.0,93.0,17.7,
+2024,Ariyalur,district,,2,0.5,,,,,,,2.0
+2024,Chengalpattu,district,17.0,18,1.3,4.0,5.0,0.3,216.0,233.0,16.1,
+2024,Coimbatore,district,,9,0.7,,,,,,,9.0
+2024,Cuddalore,district,29.0,29,1.9,1.0,1.0,0.1,298.0,319.0,19.5,
+2024,Dharmapuri,district,13.0,13,1.4,2.0,2.0,0.2,194.0,194.0,21.9,
+2024,Dindigul,district,34.0,35,2.7,5.0,5.0,0.4,402.0,402.0,31.7,
+2024,Erode,district,20.0,21,1.5,2.0,2.0,0.1,362.0,378.0,27.4,
+2024,Kallakurichi,district,13.0,15,1.5,2.0,2.0,0.2,157.0,171.0,19.2,
+2024,Kanchipuram,district,31.0,31,3.7,0.0,0.0,0.0,251.0,258.0,30.4,
+2024,Kanyakumari,district,17.0,18,1.6,6.0,7.0,0.5,180.0,195.0,16.4,
+2024,Karur,district,10.0,10,1.6,1.0,1.0,0.1,193.0,198.0,30.8,
+2024,Krishnagiri,district,32.0,35,2.9,1.0,1.0,0.0,398.0,449.0,36.1,
+2024,Madurai,district,,11,1.3,,,,,,,11.0
+2024,Mayiladuthurai,district,6.0,6,1.0,3.0,3.0,0.5,82.0,85.0,15.4,
+2024,Nagapattinam,district,8.0,8,2.0,2.0,2.0,0.4,70.0,103.0,17.1,
+2024,Namakkal,district,,3,0.8,,,,,,,3.0
+2024,Nilgiris,district,6.0,6,1.3,1.0,1.0,0.1,34.0,34.0,7.8,
+2024,Perambalur,district,7.0,7,2.0,0.0,0.0,0.0,94.0,114.0,28.4,
+2024,Pudukottai,district,16.0,16,1.7,2.0,2.0,0.2,233.0,233.0,24.5,
+2024,Ramnathapuram,district,20.0,20,2.5,2.0,2.0,0.3,221.0,233.0,27.9,
+2024,Ranipet,district,12.0,14,1.7,1.0,1.0,0.1,145.0,155.0,20.6,
+2024,Salem,district,,7,0.9,,,,,,,7.0
+2024,Sivagangai,district,23.0,25,2.9,1.0,1.0,0.1,210.0,242.0,26.7,
+2024,Tenkasi,district,21.0,24,2.6,2.0,2.0,0.2,131.0,142.0,15.6,
+2024,Thanjavur,district,28.0,28,2.0,2.0,2.0,0.2,323.0,334.0,22.9,
+2024,Theni,district,25.0,25,3.5,3.0,3.0,0.5,177.0,184.0,24.2,
+2024,Thirunelveli,district,26.0,26,3.7,1.0,1.0,0.2,166.0,175.0,24.0,
+2024,Thiruvallur,district,16.0,16,1.2,4.0,4.0,0.3,163.0,172.0,11.8,
+2024,Thiruvannamalai,district,19.0,19,1.3,4.0,4.0,0.3,356.0,408.0,24.7,
+2024,Thiruvarur,district,10.0,10,1.3,2.0,2.0,0.3,121.0,124.0,16.3,
+2024,Thoothukudi,district,41.0,41,4.0,4.0,6.0,0.4,258.0,273.0,25.1,
+2024,Tiruchirappalli,district,,5,0.6,,,,,,,5.0
+2024,Tirunelveli,district,,4,0.5,,,,,,,4.0
+2024,Tiruppattur,district,10.0,10,1.5,2.0,12.0,0.3,110.0,131.0,15.9,
+2024,Tiruppur,district,17.0,17,1.4,1.0,1.0,0.0,394.0,395.0,33.0,
+2024,Trichy,district,25.0,25,2.3,1.0,1.0,0.1,290.0,305.0,26.4,
+2024,Vellore,district,13.0,13,1.4,7.0,7.0,0.8,172.0,172.0,18.8,
+2024,Villupuram,district,19.0,21,1.6,4.0,4.0,0.3,285.0,301.0,23.6,
+2024,Virudhunagar,district,34.0,38,2.9,0.0,0.0,0.0,257.0,299.0,22.5,
+2024,Cyber Cell,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2024,Other Units,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2024,Railway Chennai,special_unit,15.0,15,,0.0,0.0,,2.0,2.0,,
+2024,Railway Trichy,special_unit,1.0,1,,1.0,1.0,,0.0,0.0,,
+2025,Avadi,city,31.0,36,13.6,1.0,1.0,0.2,254.0,261.0,109.8,
+2025,Chennai,city,194.0,196,1.7,20.0,20.0,0.2,1108.0,1121.0,9.9,
+2025,Coimbatore City,city,41.0,43,2.0,2.0,2.0,0.1,585.0,598.0,28.2,
+2025,Madurai City,city,50.0,52,3.4,0.0,0.0,0.0,360.0,382.0,24.4,
+2025,Salem City,city,14.0,14,2.9,0.0,0.0,0.0,119.0,120.0,24.5,
+2025,Tambaram,city,28.0,28,6.3,2.0,2.0,0.4,282.0,282.0,64.2,
+2025,Thirunelveli City,city,9.0,9,3.4,0.0,0.0,0.0,53.0,53.0,19.2,
+2025,Tiruppur City,city,13.0,13,5.1,0.0,0.0,0.0,85.0,87.0,32.7,
+2025,Trichy City,city,10.0,10,2.1,0.0,0.0,0.0,88.0,93.0,17.7,
+2025,Ariyalur,district,9.0,9,2.0,1.0,1.0,0.1,101.0,105.0,22.9,
+2025,Chengalpattu,district,17.0,18,1.3,4.0,5.0,0.3,216.0,233.0,16.1,
+2025,Coimbatore,district,96.0,96,2.0,13.0,13.0,0.3,1449.0,1500.0,30.5,
+2025,Cuddalore,district,29.0,29,1.9,1.0,1.0,0.1,298.0,319.0,19.5,
+2025,Dharmapuri,district,13.0,13,1.4,2.0,2.0,0.2,194.0,194.0,21.9,
+2025,Dindigul,district,34.0,35,2.7,5.0,5.0,0.4,402.0,402.0,31.7,
+2025,Erode,district,20.0,21,1.5,2.0,2.0,0.1,362.0,378.0,27.4,
+2025,Kallakurichi,district,13.0,15,1.5,2.0,2.0,0.2,157.0,171.0,19.2,
+2025,Kanchipuram,district,20.0,20,3.7,0.0,0.0,0.0,162.0,167.0,30.4,
+2025,Kanyakumari,district,17.0,18,1.6,6.0,7.0,0.5,180.0,195.0,16.4,
+2025,Karur,district,10.0,10,1.6,1.0,1.0,0.1,193.0,198.0,30.8,
+2025,Krishnagiri,district,32.0,35,2.9,1.0,1.0,0.0,398.0,449.0,36.1,
+2025,Madurai,district,86.0,87,2.9,4.0,4.0,0.1,782.0,782.0,26.7,
+2025,Mayiladuthurai,district,9.0,10,1.0,5.0,5.0,0.5,138.0,142.0,15.4,
+2025,Nagapattinam,district,8.0,8,2.0,2.0,2.0,0.4,70.0,103.0,17.1,
+2025,Namakkal,district,19.0,20,1.9,0.0,0.0,0.0,306.0,353.0,30.2,
+2025,Nilgiris,district,6.0,6,1.3,1.0,1.0,0.1,34.0,34.0,7.8,
+2025,Perambalur,district,7.0,7,2.0,0.0,0.0,0.0,94.0,114.0,28.4,
+2025,Pudukottai,district,16.0,16,1.7,2.0,2.0,0.2,233.0,233.0,24.5,
+2025,Ramnathapuram,district,20.0,20,2.5,2.0,2.0,0.3,221.0,233.0,27.9,
+2025,Ranipet,district,12.0,14,1.7,1.0,1.0,0.1,145.0,155.0,20.6,
+2025,Salem,district,25.0,25,1.6,3.0,3.0,0.2,296.0,315.0,19.0,
+2025,Sivagangai,district,23.0,25,2.9,1.0,1.0,0.1,210.0,242.0,26.7,
+2025,Tenkasi,district,21.0,24,2.6,2.0,2.0,0.2,131.0,142.0,15.6,
+2025,Thanjavur,district,28.0,28,2.0,2.0,2.0,0.2,323.0,334.0,22.9,
+2025,Theni,district,25.0,25,3.5,3.0,3.0,0.5,177.0,184.0,24.2,
+2025,Thirunelveli,district,26.0,26,3.7,1.0,1.0,0.2,166.0,175.0,24.0,
+2025,Thiruvallur,district,16.0,16,1.2,4.0,4.0,0.3,163.0,172.0,11.8,
+2025,Thiruvannamalai,district,19.0,19,1.3,4.0,4.0,0.3,356.0,408.0,24.7,
+2025,Thiruvarur,district,10.0,10,1.3,2.0,2.0,0.3,121.0,124.0,16.3,
+2025,Thoothukudi,district,41.0,41,4.0,4.0,6.0,0.4,258.0,273.0,25.1,
+2025,Tiruppattur,district,10.0,10,1.5,2.0,12.0,0.3,110.0,131.0,15.9,
+2025,Tiruppur,district,17.0,17,1.4,1.0,1.0,0.0,394.0,395.0,33.0,
+2025,Trichy,district,25.0,25,2.3,1.0,1.0,0.1,290.0,305.0,26.4,
+2025,Vellore,district,13.0,13,1.4,7.0,7.0,0.8,172.0,172.0,18.8,
+2025,Villupuram,district,19.0,21,1.6,4.0,4.0,0.3,285.0,301.0,23.6,
+2025,Virudhunagar,district,34.0,38,2.9,0.0,0.0,0.0,257.0,299.0,22.5,
+2025,Cyber Cell,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2025,Other Units,special_unit,0.0,0,,0.0,0.0,,0.0,0.0,,
+2025,Railway Chennai,special_unit,15.0,15,,0.0,0.0,,2.0,2.0,,
+2025,Railway Trichy,special_unit,1.0,1,,1.0,1.0,,0.0,0.0,,

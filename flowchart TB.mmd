@@ -1,64 +1,63 @@
 flowchart TB
     subgraph User_Interface
-        A[User / CLI / app.py Menu]
+        A1[Dashboard (primary)<br/>streamlit run dashboard.py]
+        A2[CLI Full Pipeline<br/>python app.py]
     end
 
-    subgraph Data_Pipeline
-        B[Raw CSVs<br/>dataset/*.csv]
-        C[Data Cleaning<br/>clean_data.py<br/>+ Sentiment Enrichment]
-        D[ML-Ready Dataset<br/>crimecast_ml_ready.csv]
+    subgraph Inputs
+        B[Raw CSVs]
+        E[Sentiment Text]
     end
 
-    subgraph Sentiment_Module
-        E[Sentiment Text Template<br/>or Synthetic Text]
-        F[Sentiment Analysis<br/>sentiment_analysis.py<br/>DistilBERT Primary + Lexicon Fallback]
-        G[Sentiment Scores<br/>+ Crime Intensity]
+    subgraph Sentiment
+        F[DistilBERT + Lexicon<br/>sentiment_analysis.py]
+        G[Sentiment Scores CSV]
     end
 
-    subgraph ML_Core
-        H[Feature Engineering<br/>Time + Sentiment Features]
-        I[Model Training<br/>train_model.py<br/>Temporal Validation + Risk Fusion]
-        J[Trained Models<br/>.joblib + best_models.json]
+    subgraph Pipeline
+        C[Clean + Enrich (fuse sentiment)<br/>clean_data.py]
+        D[ML Ready CSV]
+        H[Train (temporal)<br/>train_model.py]
+        J[Trained Models]
     end
 
-    subgraph Prediction_Engine
-        K[Prediction Module<br/>predict.py<br/>+ 2026 Rape Predictor]
-        L[Risk Index Calculation<br/>Crime Volume + Negative Sentiment]
-        M[Batch Forecasts<br/>All Districts 2026]
+    subgraph Predict
+        K[Predict + 2026<br/>predict*.py]
+        L[Risk Index (vol + sent)]
     end
 
-    subgraph Output_Layer
-        N[Visualizations<br/>matplotlib/seaborn<br/>model_outputs/figures/]
-        O[Reports<br/>training_report.md<br/>sentiment_report.txt<br/>rape_predictions_2026_report.txt]
-        P[CSV Outputs<br/>crime_predictions.csv<br/>sentiment_scores.csv]
+    subgraph Outputs
+        N[Figures]
+        O[CSVs + Reports]
+        V[Interactive Dashboard Views]
     end
 
-    A --> B
+    A2 --> B
     B --> C
-    C --> D
-    D --> H
-
     E --> F
     F --> G
-    G --> H
-    G --> L
+    G --> C
+    C --> D
+    D --> H
+    H --> J
 
-    H --> I
-    I --> J
+    A1 --> K
+    A1 --> F
+    D --> K
     J --> K
-
+    G --> K
     K --> L
-    L --> M
+
+    L --> V
+    L --> O
+    J --> V
+    D --> V
+    M[2026 Batch] --> O
     M --> N
-    M --> O
-    M --> P
+    V --> N
 
-    A --> K
-    A --> F
-    A --> I
-
-    style A fill:#e1f5fe
+    style A1 fill:#e0f2fe,stroke-width:2px
     style J fill:#c8e6c9
-    style L fill:#fff9c4
-    style N fill:#f3e5f5
-    style O fill:#f3e5f5
+    style L fill:#fef3c7
+    style G fill:#fefce8
+    style D fill:#fefce8

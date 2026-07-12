@@ -1,53 +1,38 @@
 # CRIMECAST - Level 1 DFD
 
 ```mermaid
-flowchart TB
-    subgraph External_Entities
-        E1[Crime Data Sources]
-        E2[User / Analyst]
-        E3[Text Data Sources]
-    end
+flowchart LR
+    %% External Entities
+    E1[Crime Data Sources] -->|Raw CSVs| P1((1.0<br/>Ingest &amp; Clean<br/>Crime Data))
+    E3[Text Data Sources] -->|Text / Narratives| P2((2.0<br/>Perform Sentiment<br/>Analysis))
+    E2[User / Analyst] -->|Prediction Requests<br/>(area, target, year)| P5((5.0<br/>Generate Predictions<br/>&amp; Risk Index))
+    E2 -->|View / Explore<br/>Requests| P6((6.0<br/>Serve Dashboard<br/>&amp; Outputs))
 
-    subgraph Processes
-        P1[1.0\nClean &amp; Prepare Data]
-        P2[2.0\nPerform Sentiment Analysis]
-        P3[3.0\nEngineer Features &amp; Fuse Data]
-        P4[4.0\nTrain ML Models]
-        P5[5.0\nGenerate Predictions &amp; Risk Index]
-        P6[6.0\nProduce Outputs &amp; Dashboard]
-    end
+    %% Data Stores
+    P1 -->|Cleaned Records| D2[(D2: ML-Ready Data<br/>crimecast_ml_ready.csv)]
+    P2 -->|Polarity, Intensity,<br/>Labels| D3[(D3: Sentiment Scores<br/>sentiment_scores.csv)]
 
-    subgraph Data_Stores
-        D1[(D1: Raw Crime Data)]
-        D2[(D2: Cleaned ML Data)]
-        D3[(D3: Sentiment Scores)]
-        D4[(D4: Trained Models)]
-        D5[(D5: Prediction Results)]
-    end
-
-    E1 -->|Raw CSVs| P1
-    E3 -->|Text Data| P2
-    E2 -->|Prediction Requests / Parameters| P5
-    E2 -->|View Dashboard / Reports| P6
-
-    P1 -->|Cleaned Data| D2
-    P2 -->|Sentiment Scores| D3
-
-    D2 --> P3
+    %% Fuse step (feature eng + sentiment merge happens inside clean/enrich)
+    D2 --> P3((3.0<br/>Fuse Sentiment +<br/>Build ML Dataset))
     D3 --> P3
-    P3 -->|Fused Feature Data| D2
+    P3 -->|Enriched Features<br/>(+ year_centered, sentiment_*)| D2
 
-    D2 --> P4
-    P4 -->|Trained Models| D4
+    %% Training (offline, produces models)
+    D2 --> P4((4.0<br/>Train ML Models<br/>(Temporal Validation)))
+    P4 -->|Best Models +<br/>Metadata| D4[(D4: Trained Models<br/>.joblib + best_models.json)]
 
+    %% Prediction uses data + models + sentiment
     D2 --> P5
-    D4 --> P5
     D3 --> P5
-    P5 -->|Predictions + Risk Index| D5
+    D4 --> P5
+    P5 -->|Predictions, Risk Index<br/>(volume + neg. sentiment)| D5[(D5: Prediction Results<br/>crime_predictions.csv + 2026)]
 
+    %% Output layer (dashboard is interactive front-end)
     D5 --> P6
-    P6 -->|Reports, CSVs, Visuals| E2
-    P6 -->|Interactive Dashboard| E2
+    D2 --> P6
+    D4 --> P6
+    P6 -->|Interactive Dashboard<br/>(live predict + sentiment)| E2
+    P6 -->|Reports, CSVs,<br/>Visuals, 2026 Forecasts| E2
 
     style P1 fill:#e0f2fe
     style P2 fill:#e0f2fe
@@ -55,7 +40,6 @@ flowchart TB
     style P4 fill:#e0f2fe
     style P5 fill:#e0f2fe
     style P6 fill:#e0f2fe
-    style D1 fill:#fefce8
     style D2 fill:#fefce8
     style D3 fill:#fefce8
     style D4 fill:#fefce8
@@ -69,20 +53,23 @@ flowchart TB
 
 | Process | Description |
 |---------|-------------|
-| **1.0 Clean & Prepare Data** | Ingest raw CSVs, standardize columns, remove aggregate rows, convert types, add year/area_type. |
-| **2.0 Perform Sentiment Analysis** | Score text using DistilBERT (primary) + rule-based fallback. Extract polarity, confidence, crime intensity and keywords. |
-| **3.0 Engineer Features & Fuse Data** | Add time-based features (year_centered, is_latest_year) and merge sentiment aggregates into numeric data. |
-| **4.0 Train ML Models** | Train multiple models with temporal validation (past year → latest year). Save best models for each target (including rates). |
-| **5.0 Generate Predictions & Risk Index** | Use latest data + trained models to predict for selected area/year. Calculate blended Risk Index (prediction volume + negative sentiment). |
-| **6.0 Produce Outputs & Dashboard** | Generate CSVs, reports, visualizations. Power the Streamlit interactive dashboard for user interaction. |
+| **1.0 Ingest & Clean Crime Data** | Load raw TN crime CSVs (complaints, women crimes, murder), normalize columns, drop totals/aggregates, classify areas, output cleaned yearly files. |
+| **2.0 Perform Sentiment Analysis** | Score unstructured text (template or live) with DistilBERT (primary) + crime lexicon. Compute polarity, confidence, sentiment_label, crime_intensity, keywords per record. |
+| **3.0 Fuse Sentiment + Build ML Dataset** | Merge cleaned crime tables, add time features (year_centered, is_latest_year), population signals, ratios. Left-merge aggregated sentiment features (sentiment_*). Fillna(0) for missing signals. Produces `crimecast_ml_ready.csv`. |
+| **4.0 Train ML Models (Temporal Validation)** | Load ML-ready data. Split temporally (older year train, latest test). Try RF/GB/Ridge (log target). Prune high-correlation features. Select best by temporal MAE. Persist .joblib pipelines + best_models.json. |
+| **5.0 Generate Predictions & Risk Index** | For user-specified area/year (incl. 2026 future using latest row as template + year override): load model, predict, enrich with risk_index = f(volume, negative_sentiment). Supports all targets + rates. |
+| **6.0 Serve Dashboard & Produce Outputs** | Streamlit dashboard (primary UI) for live predict, on-demand DistilBERT scoring, 2026 batch view, explorer, pre-generated charts. Also writes CSVs, figures, and reports. |
 
 ## Data Stores
 
-- **D1**: Raw Crime Data (original source files)
-- **D2**: Cleaned & Engineered Data (`crimecast_ml_ready.csv`)
-- **D3**: Sentiment Scores (`sentiment_scores.csv`)
-- **D4**: Trained Models (`.joblib` + metadata)
-- **D5**: Prediction Results (including 2026 forecasts and risk scores)
+- **D2**: Cleaned & Fused ML-Ready Data (`dataset/cleaned/crimecast_ml_ready.csv`)
+- **D3**: Sentiment Scores (`model_outputs/sentiment_scores.csv`)
+- **D4**: Trained Models (`models/*.joblib` + `model_outputs/best_models.json`)
+- **D5**: Prediction Results (`model_outputs/crime_predictions.csv`, `rape_predictions_2026_*.csv`, risk scores)
 
 ## Balancing Note
-All external flows from Level 0 (Raw Crime Data, Text Data, Predictions/Risk, etc.) are preserved and decomposed in Level 1. The User now explicitly sends requests to trigger predictions and dashboard views.
+
+External flows exactly match Level 0:
+- In: Raw Crime CSVs (E1), Unstructured Text (E3)
+- Out: Predictions + Risk, Sentiment Results, 2026 + Reports, Interactive Dashboard (all to E2 User)
+All Level-1 stores and sub-flows are internal. P6 represents both the runtime dashboard interface and batch output generation. Full pipeline (app.py) orchestrates 1-4 offline. Dashboard can invoke 2 and 5 on-demand.
