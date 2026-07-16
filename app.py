@@ -63,23 +63,117 @@ def run_prediction(
         print("Tip: Run option 1 first to ensure models and sentiment data exist.")
 
 
+def run_news_signals(
+    years: list[int] | None = None,
+    *,
+    demo: bool = False,
+    fetch: str | None = None,
+    lang: str = "ta",
+) -> None:
+    """
+    Run acquire_news_signals.py — Tamil + English media harvest.
+    Outlets: தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு, புதிய தலைமுறை, விகடன், பிபிசி தமிழ்
+    Keywords: கொலை, தாக்குதல், கடத்தல், லஞ்சம், திருட்டு, பாலியல் வன்கொடுமை, POCSO, …
+    """
+    script = ROOT / "acquire_news_signals.py"
+    if not script.exists():
+        print(f"[ERROR] Missing {script}")
+        return
+
+    cmd = [sys.executable, "-B", str(script)]
+    if demo:
+        cmd.append("--demo")
+    elif fetch:
+        cmd.extend(["--fetch", fetch, "--lang", lang, "--max-items", "25"])
+    else:
+        # Default: full media populate for 2024–2026
+        if years:
+            cmd.append("--populate-years")
+            cmd.extend(str(y) for y in years)
+        else:
+            cmd.append("--populate-2024-2026")
+
+    print("\n" + "=" * 60)
+    print("NEWS SIGNALS — Tamil media harvest (acquire_news_signals.py)")
+    print("=" * 60)
+    print(f"Command: {' '.join(cmd)}")
+    print("Outlets : தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு,")
+    print("          புதிய தலைமுறை, விகடன், பிபிசி தமிழ்")
+    print("Keywords: கொலை, தாக்குதல், கடத்தல், லஞ்சம், திருட்டு,")
+    print("          பாலியல் வன்கொடுமை, POCSO, போதைப்பொருள், கைது, FIR")
+    print("=" * 60 + "\n")
+
+    try:
+        result = subprocess.run(cmd, cwd=str(ROOT), check=False)
+        if result.returncode == 0:
+            print("\n[OK] News signal harvest finished.")
+            print("     Outputs: model_outputs/news_signals.csv")
+            print("              model_outputs/media_harvest_*.csv")
+            print("              dataset/tn_2024_*.csv … tn_2026_*.csv (if populate)")
+        else:
+            print(f"\n[WARN] acquire_news_signals exit code {result.returncode}")
+            # In-process fallback
+            try:
+                from acquire_news_signals import populate_years_from_net, create_demo_data, save_signals
+
+                if demo:
+                    save_signals(create_demo_data(years or [2022, 2023, 2024, 2025, 2026]))
+                else:
+                    populate_years_from_net(years=years or [2024, 2025, 2026])
+                print("[OK] Fallback in-process harvest completed.")
+            except Exception as e2:
+                print(f"[ERROR] News harvest failed: {e2}")
+    except Exception as e:
+        print(f"[ERROR] Could not run news harvest: {e}")
+
+
 def run_full_pipeline() -> None:
-    print("[1/5] Sentiment / NLP + news proxies...")
+    """
+    Full pipeline uses EXISTING news + only NEW headlines (incremental).
+    One-time bulk acquire is menu option n (mode 1), NOT repeated here.
+    """
+    print("[1/6] Pull NEW crime news only (incremental refresh)...")
+    print("      (Bulk one-time acquire is option n — not re-run every pipeline)")
+    try:
+        script = ROOT / "acquire_news_signals.py"
+        if script.exists():
+            r = subprocess.run(
+                [sys.executable, "-B", str(script), "--refresh-new"],
+                cwd=str(ROOT),
+                check=False,
+            )
+            if r.returncode != 0:
+                # in-process fallback
+                from acquire_news_signals import refresh_new_news
+
+                refresh_new_news()
+        else:
+            print("[WARN] acquire_news_signals.py missing — using existing news_signals.csv only")
+    except Exception as e:
+        print(f"[WARN] New-news refresh skipped (will use existing signals): {e}")
+
+    news_csv = ROOT / "model_outputs" / "news_signals.csv"
+    if news_csv.exists():
+        print(f"[OK] News signals available for clean fusion: {news_csv.name}")
+    else:
+        print("[WARN] No news_signals.csv yet. Run menu option n (mode 1) once for bulk acquire.")
+
+    print("[2/6] Sentiment / NLP...")
     try:
         sentiment_outputs = analyze_sentiment()
     except Exception as e:
         sentiment_outputs = {"output_file": "N/A", "rows": 0, "message": str(e)}
 
-    print("[2/5] Cleaning data...")
+    print("[3/6] Cleaning data (fuses existing + new news signals)...")
     cleaning_outputs = run_cleaning()
 
-    print("[3/5] Training ML models...")
+    print("[4/6] Training ML models...")
     training_outputs = train_models(data_path=cleaning_outputs["ml_ready"])
 
-    print("[4/5] Charts...")
+    print("[5/6] Charts...")
     visual_outputs = create_visualizations()
 
-    print("[5/5] Done.")
+    print("[6/6] Done.")
     print(f"ML-ready: {cleaning_outputs['ml_ready']}")
     print(f"Sentiment rows: {sentiment_outputs.get('rows', 0)}")
     print(f"Training report: {training_outputs['report']}")
@@ -161,9 +255,15 @@ def interactive_menu() -> None:
         print("=" * 40)
         print()
         print("ANALYSIS & PREDICTION")
-        print("  1. Run full pipeline")
+        print("  1. Run full pipeline (NEW news only → sentiment → clean → train → charts)")
         print("  2. Predict for an area")
         print("  3. Create charts")
+        print()
+        print("NEWS & MEDIA (Tamil + English)")
+        print("  n. News acquire / refresh  [acquire_news_signals.py]")
+        print("     Mode 1 = ONE-TIME bulk (2024–2026 proxies) — run once")
+        print("     Mode 2 = NEW headlines only (same as dashboard refresh)")
+        print("     Mode 3 = Demo offline | Mode 4 = Live single query")
         print()
         print("SENTIMENT ANALYSIS")
         print("  4. Run sentiment scoring")
@@ -172,7 +272,6 @@ def interactive_menu() -> None:
         print()
         print("CRIME FORECASTING")
         print("  7. 2026 rape prediction ALL districts  [FIXED-NO-SKLEARN-v4]")
-        print("     (opens FRESH python process — never uses old sklearn path)")
         print()
         print("UTILITIES")
         print("  8. List areas")
@@ -195,6 +294,38 @@ def interactive_menu() -> None:
         elif choice == "3":
             outputs = create_visualizations()
             print(f"[OK] Charts: {outputs['figure_dir']}")
+        elif choice == "n":
+            print("\nNews mode:")
+            print("  1 = ONE-TIME bulk populate 2024+2025+2026 (full acquire)")
+            print("  2 = NEW headlines only (incremental refresh)")
+            print("  3 = Demo offline")
+            print("  4 = Live single query")
+            sub = input("Mode [2]: ").strip() or "2"
+            if sub == "1":
+                run_news_signals(years=[2024, 2025, 2026])
+            elif sub == "3":
+                run_news_signals(demo=True)
+            elif sub == "4":
+                q = input(
+                    "Query [தமிழ்நாடு கொலை OR பாலியல்]: "
+                ).strip() or "தமிழ்நாடு கொலை OR பாலியல் OR கைது"
+                lang = input("Language en/ta [ta]: ").strip() or "ta"
+                run_news_signals(fetch=q, lang=lang)
+            else:
+                # Incremental new-only
+                print("[INFO] Refreshing NEW news only...")
+                try:
+                    r = subprocess.run(
+                        [sys.executable, "-B", str(ROOT / "acquire_news_signals.py"), "--refresh-new"],
+                        cwd=str(ROOT),
+                        check=False,
+                    )
+                    if r.returncode != 0:
+                        from acquire_news_signals import refresh_new_news
+
+                        refresh_new_news()
+                except Exception as e:
+                    print(f"[ERROR] {e}")
         elif choice == "4":
             result = analyze_sentiment()
             print(f"[OK] Rows: {result.get('rows')}")
@@ -221,7 +352,7 @@ def interactive_menu() -> None:
         elif choice == "9":
             print_targets()
         elif choice == "t":
-            test = ROOT / "test_option7_fix.py"
+            test = ROOT / "tests" / "test_option7_fix.py"
             print(f"[INFO] Running {test.name} ...")
             try:
                 r = subprocess.run(
@@ -245,7 +376,7 @@ def interactive_menu() -> None:
             print("\n[OK] Goodbye!\n")
             return
         else:
-            print("[ERROR] Invalid choice.")
+            print("[ERROR] Invalid choice. Use 0-9, n, t, or c.")
 
 
 def parse_args() -> argparse.Namespace:
@@ -257,6 +388,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tn-district", action="store_true")
     parser.add_argument("--state", action="store_true")
     parser.add_argument("--rape-2026", action="store_true", help="Option 7 fixed engine")
+    parser.add_argument(
+        "--news",
+        action="store_true",
+        help="Harvest Tamil+English crime news (acquire_news_signals) for 2024–2026",
+    )
+    parser.add_argument(
+        "--news-demo",
+        action="store_true",
+        help="Generate demo news signals only (offline)",
+    )
+    parser.add_argument(
+        "--news-years",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Years for --news (default 2024 2025 2026)",
+    )
     parser.add_argument("--area", default="Chennai")
     parser.add_argument("--year", type=int, default=None)
     parser.add_argument("--target", nargs="+", default=None)
@@ -271,6 +419,11 @@ def main() -> None:
 
     if args.full:
         run_full_pipeline()
+    elif args.news or args.news_demo:
+        run_news_signals(
+            years=args.news_years or [2024, 2025, 2026],
+            demo=bool(args.news_demo),
+        )
     elif args.charts:
         outputs = create_visualizations()
         print(f"[OK] Charts: {outputs['figure_dir']}")

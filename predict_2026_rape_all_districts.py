@@ -40,6 +40,18 @@ REPORT_FILE = OUT_DIR / "rape_predictions_2026_report.txt"
 
 
 def _forecast(years, values, target_year=TARGET_YEAR):
+    """Point forecast via linear trend (non-negative)."""
+    low, mid, high = _forecast_band(years, values, target_year)
+    return mid
+
+
+def _forecast_band(years, values, target_year=TARGET_YEAR) -> tuple[float, float, float]:
+    """
+    Tier-3 uncertainty band: (low, mid, high) for extrapolation.
+
+    mid  = linear trend to target_year
+    band = residual RMSE of fit scaled by sqrt(years_ahead), min 15% of mid
+    """
     pts = []
     for y, v in zip(years, values):
         try:
@@ -49,9 +61,12 @@ def _forecast(years, values, target_year=TARGET_YEAR):
         except Exception:
             continue
     if not pts:
-        return 0.0
+        return 0.0, 0.0, 0.0
     if len(pts) == 1:
-        return max(0.0, pts[0][1])
+        v = max(0.0, pts[0][1])
+        pad = max(0.5, 0.2 * v)
+        return max(0.0, v - pad), v, v + pad
+
     ys = [p[0] for p in pts]
     vs = [p[1] for p in pts]
     my = sum(ys) / len(ys)
@@ -59,8 +74,18 @@ def _forecast(years, values, target_year=TARGET_YEAR):
     num = sum((y - my) * (v - mv) for y, v in zip(ys, vs))
     den = sum((y - my) ** 2 for y in ys)
     slope = num / den if den else 0.0
-    last_y, last_v = max(pts, key=lambda p: p[0])
-    return max(0.0, last_v + slope * (float(target_year) - last_y))
+    intercept = mv - slope * my
+    fitted = [intercept + slope * y for y in ys]
+    resid = [vs[i] - fitted[i] for i in range(len(vs))]
+    rmse = math.sqrt(sum(r * r for r in resid) / max(1, len(resid)))
+    last_y = max(ys)
+    years_ahead = max(0.0, float(target_year) - last_y)
+    mid = max(0.0, intercept + slope * float(target_year))
+    # widen with horizon; floor at 15% of mid or 0.5
+    half = max(0.5, 0.15 * mid, rmse * math.sqrt(1.0 + years_ahead))
+    low = max(0.0, mid - half)
+    high = mid + half
+    return low, mid, high
 
 
 def _load_hist():
@@ -120,18 +145,23 @@ def predict_2026_rape_all_districts():
         pts = hist[district]
         years = [p[0] for p in pts]
         vals = [p[1] for p in pts]
-        pred = _forecast(years, vals)
+        low, pred, high = _forecast_band(years, vals)
         if not math.isfinite(pred):
-            pred, method, conf = gmed, "Global median", "Low"
+            pred, low, high = gmed, max(0.0, gmed * 0.7), gmed * 1.3
+            method, conf = "Global median", "Low"
         else:
             method = "Trend (fitted-actual)"
             conf = "High" if len(pts) >= 2 else "Medium"
         risk = round(min(1.0, 0.7 * min(pred / 25.0, 1.0)), 3)
         level = "HIGH" if risk > 0.65 else ("MEDIUM" if risk > 0.35 else "LOW")
+        band_w = high - low
         rows.append(
             {
                 "district": district,
                 "predicted_2026_rape_incidents": round(pred, 2),
+                "pred_low": round(low, 2),
+                "pred_high": round(high, 2),
+                "uncertainty_width": round(band_w, 2),
                 "model": "trend_extrapolation",
                 "confidence": conf,
                 "data_points_available": len(pts),
@@ -142,8 +172,7 @@ def predict_2026_rape_all_districts():
                 "risk_level": level,
             }
         )
-        # NEVER print [ERROR] Failed — always a number
-        print(f"{district:<30} {pred:>12.1f} incidents  {method}")
+        print(f"{district:<30} {pred:>8.1f}  [{low:.1f}–{high:.1f}]  {method}")
 
     rows.sort(key=lambda r: r["predicted_2026_rape_incidents"], reverse=True)
     for i, r in enumerate(rows, 1):

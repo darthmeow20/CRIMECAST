@@ -28,12 +28,15 @@
 | 2025_women_crimes | 51 | 50 | 1 | 39 | 48 | women_crimes_2025_clean.csv |
 | 2025_murder_homicide | 51 | 50 | 1 | 12 | 12 | murder_homicide_2025_clean.csv |
 | 2025_complaints | 8 | 8 | 0 | 7 | 0 | complaints_2025_clean.csv |
+| 2026_complaints | 51 | 50 | 1 | 19 | 0 | complaints_2026_clean.csv |
+| 2026_women_crimes | 51 | 50 | 1 | 39 | 48 | women_crimes_2026_clean.csv |
+| 2026_murder_homicide | 51 | 50 | 1 | 12 | 12 | murder_homicide_2026_clean.csv |
 
 ## ML-Ready Dataset
 
-- Rows: 203
-- Columns: 90
-- Years: 2022, 2023, 2024, 2025
+- Rows: 253
+- Columns: 92
+- Years: 2022, 2023, 2024, 2025, 2026
 - Output: `crimecast_ml_ready.csv`
 
 NOTE: Only two years of data currently. Sentiment aggregates (if sentiment_scores.csv exists) are automatically merged as predictive features.

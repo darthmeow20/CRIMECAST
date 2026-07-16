@@ -246,11 +246,17 @@ def add_ml_features(df: pd.DataFrame) -> pd.DataFrame:
             enriched[output_column] = safe_ratio(enriched, numerator, denominator)
 
     # --- Accuracy improvements: explicit time + population features ---
+    # Official TN tables currently cover ≤2023; later years are media-proxy fills.
+    OFFICIAL_MAX_YEAR = 2023
     if "year" in enriched.columns:
         # Center year for better trend extrapolation (helps when feeding future years)
         enriched["year_centered"] = enriched["year"].astype(float) - 2022.5
         # Binary for latest year (useful with only 2 years)
         enriched["is_latest_year"] = (enriched["year"] == enriched["year"].max()).astype(int)
+        # Flags for train_model: only official years are used as y labels
+        ynum = pd.to_numeric(enriched["year"], errors="coerce")
+        enriched["is_official_year"] = (ynum <= OFFICIAL_MAX_YEAR).astype(int)
+        enriched["is_media_proxy_year"] = (ynum > OFFICIAL_MAX_YEAR).astype(int)
 
     # Forward key population if present (from complaints) for per-capita awareness
     pop_col = None

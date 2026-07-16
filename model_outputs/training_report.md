@@ -1,35 +1,42 @@
 # Model Training Report
 
 - Dataset: `C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\dataset\cleaned\crimecast_ml_ready.csv`
-- Dataset rows: 203
-- Dataset years: 2022, 2023, 2024, 2025
+- Dataset rows: 253
+- Dataset years (full table): 2022, 2023, 2024, 2025, 2026
+- **Training labels**: official years only (≤ 2023) — media-proxy years excluded as y
 - Models directory: `C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\models`
 - Trained targets: 6
 
-RELIABILITY NOTE: Best model is chosen primarily by 'temporal_mae' (train on past year(s), test on most recent year).
+RELIABILITY NOTE: Best model is chosen primarily by 'temporal_mae' (train on past year(s), test on most recent *official* year).
 This is a much stricter and more honest measure of how well the model would perform on future/unseen years.
+
+## Official vs media-proxy years
+
+- **Official labels** (used for y): year ≤ 2023 (real TN crime tables).
+- **Media-proxy years** (2024+): may exist in `ml_ready` for maps/news features/templates, but are **not** used as training targets.
+- News/sentiment columns remain available as **features** when present on official-year rows.
+- Prediction still blends model output with district official history for rate ranking (see `predict.py`).
 
 ## Notes
 
-- **Temporal evaluation** (train earlier year, test latest) is now primary for realistic future prediction accuracy.
+- **Temporal evaluation** (train earlier year, test latest official year) is primary for realistic accuracy.
 - Each target excludes its own source family to reduce direct leakage.
 - `district_city` is excluded so the model does not simply memorize area names.
 - Highly correlated features are pruned (corr > 0.95) for more stable models.
-- `year` / `year_centered` / `is_latest_year`, population, and **sentiment features** (polarity, intensity, negative share) are used when available.
-- Sentiment signals from DistilBERT are fused to make crime rate predictions more accurate and context-aware.
-- More years of data will still give the biggest gains.
-- Rate targets (e.g. murder_rate, rape_rate, crime_rate) + risk_index give the most reliable view.
+- `year` / `year_centered` / `is_latest_year`, population, and **sentiment features** are used when available.
+- More official years of data will still give the biggest gains.
+- Rate targets (e.g. murder_rate, rape_rate) + risk_index give the most reliable view.
 
 ## Best Models
 
-| Target | Best model | CV MAE | CV RMSE | CV R2 | Test MAE | Temporal MAE | Temporal R2 | Notes |
-|---|---|---:|---:|---:|---:|---:|---:|---|
-| Total complaints | gradient_boosting_log | 11366.919 | 25650.227 | 0.435 | 10379.897 | 12406.154 | 0.413 | temporal holdout used |
-| Murder incidence | gradient_boosting_log | 7.055 | 13.623 | 0.645 | 11.250 | 6.293 | 0.516 | temporal holdout used |
-| Rape incidents | gradient_boosting_log | 2.410 | 4.087 | 0.589 | 2.052 | 1.031 | 0.919 | temporal holdout used |
-| Murder rate | gradient_boosting_log | 0.408 | 0.690 | 0.887 | 0.370 | 0.201 | 0.968 | temporal holdout used |
-| Rape rate | gradient_boosting_log | 0.326 | 0.493 | 0.638 | 0.309 | 0.162 | 0.880 | temporal holdout used |
-| Cognizable crime rate (IPC+SLL) | gradient_boosting_log | 205.615 | 361.770 | 0.290 | 105.184 | nan | nan | random holdout only |
+| Target | Best model | Train years | Rows | CV MAE | Temporal MAE | Temporal R2 | Notes |
+|---|---|---|---:|---:|---:|---:|---|
+| Total complaints | gradient_boosting_log | 2022,2023 | 99 | 9836.549 | 44760.442 | -0.866 | official + temporal holdout |
+| Murder incidence | gradient_boosting_log | 2022,2023 | 99 | 9.537 | 11.521 | 0.438 | official + temporal holdout |
+| Rape incidents | random_forest_log | 2022,2023 | 99 | 3.262 | 3.152 | 0.357 | official + temporal holdout |
+| Murder rate | gradient_boosting_log | 2022,2023 | 91 | 0.710 | 0.735 | 0.502 | official + temporal holdout |
+| Rape rate | ridge_log | 2022,2023 | 91 | 0.544 | 0.392 | 0.563 | official + temporal holdout |
+| Cognizable crime rate (IPC+SLL) | gradient_boosting_log | 2022 | 49 | 203.998 | nan | nan | official labels only |
 
 ## All Candidate Metrics
 

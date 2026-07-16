@@ -358,6 +358,57 @@ def predict_with_artifact(model: Any, X_df: pd.DataFrame) -> float:
     return float(pred_arr[0])
 
 
+def _official_history_baseline(
+    df: pd.DataFrame,
+    area: str,
+    target: str,
+    *,
+    prefer_max_year: int = 2023,
+) -> float | None:
+    """Mean of official-era values (prefer year<=2023) for ranking-stable predictions.
+
+    Example: Thoothukudi murder rate ~4.0–4.5 vs Madurai ~2.9–3.0 should stay ordered.
+    """
+    if "district_city" not in df.columns or target not in df.columns:
+        return None
+    mask = df["district_city"].astype(str).str.strip().str.casefold() == str(area).strip().casefold()
+    sub = df.loc[mask]
+    if sub.empty:
+        return None
+    if "year" in sub.columns:
+        years = pd.to_numeric(sub["year"], errors="coerce")
+        official = sub.loc[years <= prefer_max_year]
+        if not official.empty:
+            sub = official
+    vals = pd.to_numeric(sub[target], errors="coerce").dropna()
+    if vals.empty:
+        return None
+    return float(vals.mean())
+
+
+def _blend_with_history(
+    model_pred: float,
+    history: float | None,
+    target: str,
+) -> float:
+    """Blend model output with district history so rates/ranks stay realistic.
+
+    Crime *rates* (e.g. murder rate) are sticky by district — lean harder on history.
+    Counts lean more on the model for trend flexibility.
+    """
+    import math
+
+    if history is None or not math.isfinite(float(history)):
+        return max(0.0, model_pred)
+    t = target.lower()
+    is_rate = "rate" in t or t.endswith("_r")
+    # History weight higher for rates so Thoothukudi (high murder rate) stays above Madurai
+    w_hist = 0.62 if is_rate else 0.35
+    w_model = 1.0 - w_hist
+    blended = w_model * float(model_pred) + w_hist * float(history)
+    return max(0.0, float(blended))
+
+
 def predict_for_area(
     target: str,
     area: str,
@@ -376,17 +427,23 @@ def predict_for_area(
     prediction_row = apply_overrides(source_row, overrides or {}, feature_columns)
     x = series_to_feature_frame(prediction_row, feature_columns)
     raw_model = artifact["model"] if isinstance(artifact, dict) else artifact
-    prediction = max(predict_with_artifact(raw_model, x), 0.0)
+    model_pred = max(predict_with_artifact(raw_model, x), 0.0)
+
+    # Stabilize with official multi-year district baseline (esp. murder rate rankings)
+    history = _official_history_baseline(df, str(source_row.get("district_city", area)), resolved_target)
+    prediction = _blend_with_history(model_pred, history, resolved_target)
 
     actual = source_row.get(resolved_target, pd.NA)
     return {
         "area": source_row["district_city"],
-        "year": int(source_row["year"]),
+        "year": int(source_row["year"]) if year is None else int(year),
         "area_type": source_row["area_type"],
         "target": resolved_target,
         "target_label": artifact.get("target_label", TARGET_CONFIGS[resolved_target]["label"]),
         "model_name": artifact["metrics"]["model_name"],
         "prediction": prediction,
+        "model_raw": round(model_pred, 4),
+        "history_baseline": None if history is None else round(history, 4),
         "actual": None if pd.isna(actual) else float(actual),
         "overrides": overrides or {},
     }

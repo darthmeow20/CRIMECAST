@@ -108,39 +108,51 @@ def _lazy_zero_shot():
             return None
 
 
+def _has_tamil_script(text: str) -> bool:
+    return any("\u0b80" <= c <= "\u0bff" for c in (text or ""))
+
+
 def _lexicon_sentiment(text: str) -> dict[str, Any]:
-    """Rule fallback if DistilBERT not loaded."""
+    """Rule fallback — English + Tamil crime lexicon (Tier-3)."""
     t = text.lower()
-    neg = sum(1 for w in ("murder", "rape", "assault", "killed", "fear", "attack", "crime", "arrest") if w in t)
-    pos = sum(1 for w in ("safe", "arrested", "justice", "resolved", "improved") if w in t)
+    neg_en = ("murder", "rape", "assault", "killed", "fear", "attack", "crime", "arrest", "kidnap", "pocso")
+    pos_en = ("safe", "arrested", "justice", "resolved", "improved", "acquitted")
+    neg_ta = (
+        "கொலை", "பாலியல்", "தாக்குதல்", "கடத்தல்", "திருட்டு", "கைது",
+        "போதை", "வன்கொடுமை", "குற்றம்", "லஞ்சம்", "எஃப்ஐஆர்",
+    )
+    pos_ta = ("பாதுகாப்பு", "நீதி", "கைது", "தீர்க்கப்பட்டது")  # கைது is mixed context
+    neg = sum(1 for w in neg_en if w in t) + sum(1 for w in neg_ta if w in text)
+    pos = sum(1 for w in pos_en if w in t) + sum(1 for w in ("பாதுகாப்பு", "நீதி") if w in text)
+    method = "lexicon_ta" if _has_tamil_script(text) else "lexicon"
     if neg > pos:
-        return {"polarity": -0.6, "sentiment_label": "negative", "confidence": 0.55, "method": "lexicon"}
+        return {"polarity": -0.65, "sentiment_label": "negative", "confidence": 0.58, "method": method}
     if pos > neg:
-        return {"polarity": 0.4, "sentiment_label": "positive", "confidence": 0.5, "method": "lexicon"}
-    return {"polarity": 0.0, "sentiment_label": "neutral", "confidence": 0.4, "method": "lexicon"}
+        return {"polarity": 0.4, "sentiment_label": "positive", "confidence": 0.5, "method": method}
+    return {"polarity": 0.0, "sentiment_label": "neutral", "confidence": 0.4, "method": method}
 
 
 def _lexicon_crime_type(text: str) -> dict[str, Any]:
     t = text.lower()
     rules = [
-        ("homicide or murder", ("murder", "killed", "homicide", "dead body")),
-        ("rape or sexual assault", ("rape", "sexual assault", "molest", "harassment")),
-        ("cybercrime", ("cyber", "online fraud", "phishing", "digital arrest")),
-        ("drug or narcotics", ("narcotic", "drugs", "ganja", "ndps")),
-        ("theft or robbery", ("theft", "robbery", "snatching", "burglary")),
-        ("assault or violence", ("assault", "attack", "stab", "violence")),
+        ("homicide or murder", ("murder", "killed", "homicide", "dead body", "கொலை")),
+        ("rape or sexual assault", ("rape", "sexual assault", "molest", "harassment", "பாலியல்", "pocso", "வன்கொடுமை")),
+        ("cybercrime", ("cyber", "online fraud", "phishing", "digital arrest", "இணைய")),
+        ("drug or narcotics", ("narcotic", "drugs", "ganja", "ndps", "போதைப்பொருள்", "போதை")),
+        ("theft or robbery", ("theft", "robbery", "snatching", "burglary", "திருட்டு")),
+        ("assault or violence", ("assault", "attack", "stab", "violence", "தாக்குதல்", "கடத்தல்")),
     ]
     for label, kws in rules:
-        if any(k in t for k in kws):
-            return {"crime_type": label, "crime_type_score": 0.7, "method": "lexicon"}
+        if any(k in text or k in t for k in kws):
+            return {"crime_type": label, "crime_type_score": 0.72, "method": "lexicon_ta_en"}
     return {"crime_type": "other crime", "crime_type_score": 0.4, "method": "lexicon"}
 
 
 def _lexicon_trend(text: str) -> dict[str, Any]:
     t = text.lower()
-    if any(k in t for k in ("surge", "increase", "rising", "spike", "wave of")):
+    if any(k in t or k in text for k in ("surge", "increase", "rising", "spike", "wave of", "அதிகரி", "எழும்பு")):
         return {"trend_label": "rising crime trend", "trend_score": 0.65, "method": "lexicon"}
-    if any(k in t for k in ("decline", "drop", "reduced", "improved safety")):
+    if any(k in t or k in text for k in ("decline", "drop", "reduced", "improved safety", "குறைவு")):
         return {"trend_label": "declining crime trend", "trend_score": 0.6, "method": "lexicon"}
     if any(k in t for k in ("isolated", "single", "one person", "one incident")):
         return {"trend_label": "isolated incident", "trend_score": 0.55, "method": "lexicon"}
@@ -151,6 +163,35 @@ def _lexicon_trend(text: str) -> dict[str, Any]:
 # Model 1 — Sentiment
 # ---------------------------------------------------------------------------
 def run_sentiment_llm(text: str) -> dict[str, Any]:
+    """Sentiment: DistilBERT on English; Tamil-script text uses TA lexicon first, then EN model as weak signal."""
+    # Tier-3: pure Tamil headlines → lexicon (English SST-2 is unreliable on Tamil script)
+    if _has_tamil_script(text):
+        lex = _lexicon_sentiment(text)
+        # Optional: also score Latin-only residual if mixed headline
+        latin = re.sub(r"[\u0b80-\u0bff]+", " ", text)
+        latin = re.sub(r"\s+", " ", latin).strip()
+        if len(latin) >= 12:
+            pipe = _lazy_sentiment()
+            if pipe is not None:
+                try:
+                    out = pipe(latin[:512])[0]
+                    label = out["label"].lower()
+                    score = float(out["score"])
+                    en_pol = -score if "neg" in label else (score if "pos" in label else 0.0)
+                    # Blend: trust Tamil lexicon more
+                    pol = 0.7 * float(lex["polarity"]) + 0.3 * en_pol
+                    sent = "negative" if pol < -0.15 else ("positive" if pol > 0.15 else "neutral")
+                    return {
+                        "polarity": round(pol, 4),
+                        "sentiment_label": sent,
+                        "confidence": round(0.55 + 0.2 * score, 4),
+                        "method": "lexicon_ta+en_blend",
+                        "model": "tamil_lexicon+distilbert_sst2",
+                    }
+                except Exception:
+                    pass
+        return lex
+
     pipe = _lazy_sentiment()
     if pipe is None:
         return _lexicon_sentiment(text)
@@ -249,14 +290,14 @@ def analyze_crime_text(text: str) -> dict[str, Any]:
 
 def model_card() -> str:
     return """
-CRIMECAST 3-LLM NLP stack
--------------------------
-1. Sentiment   : distilbert-base-uncased-finetuned-sst-2-english
-2. Crime type  : typeform/distilbert-base-uncased-mnli (zero-shot)
-3. Trend       : typeform/distilbert-base-uncased-mnli (zero-shot, trend labels)
+CRIMECAST 3-LLM NLP stack (+ Tier-3 Tamil support)
+--------------------------------------------------
+1. Sentiment   : DistilBERT SST-2 (English); Tamil script → TA lexicon (+ optional EN blend)
+2. Crime type  : DistilBERT MNLI zero-shot + EN/TA lexicon fallback
+3. Trend       : DistilBERT MNLI zero-shot + lexicon
 
-Text sources (preferred): Google News, e-papers, DailyHunt / Lokal / Public-style
-news portals and RSS. Social media is OUT of scope for primary collection.
+Text sources: Google News EN+TA, Tamil dailies, English TN press.
+Social media is OUT of scope for primary collection.
 """
 
 

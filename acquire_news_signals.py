@@ -3,9 +3,11 @@
 CRIMECAST - Crime news acquisition (Tamil Nadu) — NEWS MEDIA ONLY
 
 Primary sources (NOT social media):
-  - Google News / web news search (RSS)
-  - E-papers & e-magazines (via public RSS / headline feeds where available)
-  - Local news aggregators (DailyHunt / Lokal / Public app style feeds via RSS/web)
+  - Google News RSS (English + Tamil)
+  - Tamil media outlets: Dinamalar, Dinakaran, Maalai Malar, Vikatan,
+    Puthiya Thalaimurai, News18 Tamil, OneIndia Tamil, BBC Tamil, etc.
+  - English TN press: The Hindu, DT Next, TOI, Indian Express
+  - Local aggregators (DailyHunt / Lokal / Public) via open web/RSS
 
 NLP (3 LLM roles — see nlp_pipeline.py):
   1) DistilBERT SST-2 — sentiment
@@ -13,7 +15,8 @@ NLP (3 LLM roles — see nlp_pipeline.py):
   3) DistilBERT MNLI zero-shot — trend labels
 
 Usage:
-  python acquire_news_signals.py --populate-2024-2025
+  python acquire_news_signals.py --populate-2024-2026
+  python acquire_news_signals.py --populate-years 2024 2025 2026
   python acquire_news_signals.py --fetch "Tamil Nadu crime"
   python acquire_news_signals.py --csv headlines.csv
 """
@@ -28,6 +31,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 import pandas as pd
 from dateutil import parser as date_parser  # already in requirements via python-dateutil
@@ -54,58 +58,219 @@ except Exception as e:
         HAS_SENTIMENT = False
 
 
+# User-priority Tamil media outlets (தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு, புதிய தலைமுறை, விகடன், பிபிசி தமிழ்)
+TAMIL_MEDIA_OUTLETS = [
+    # (site domain for site:, brand name, Tamil name)
+    ("dailythanthi.com", "Dina Thanthi", "தினத்தந்தி"),
+    ("dtnext.in", "DT Next / Thanthi", "தினத்தந்தி"),
+    ("thanthitv.com", "Thanthi TV", "தினத்தந்தி"),
+    ("dinamalar.com", "Dinamalar", "தினமலர்"),
+    ("dinamani.com", "Dinamani", "தினமணி"),
+    ("tamilmurasu.com.sg", "Tamil Murasu", "தமிழ் முரசு"),
+    ("tamilmurasu.com", "Tamil Murasu", "தமிழ் முரசு"),
+    ("puthiyathalaimurai.com", "Puthiya Thalaimurai", "புதிய தலைமுறை"),
+    ("vikatan.com", "Ananda Vikatan", "விகடன்"),
+    ("bbc.com/tamil", "BBC Tamil", "பிபிசி தமிழ்"),
+    # Additional TN Tamil press still useful
+    ("dinakaran.com", "Dinakaran", "தினகரன்"),
+    ("maalaimalar.com", "Maalai Malar", "மாலைமலர்"),
+    ("hindutamil.in", "Hindu Tamil", "இந்து தமிழ்"),
+    ("tamil.news18.com", "News18 Tamil", "நியூஸ்18 தமிழ்"),
+]
+
+# Crime keywords (Tamil + English) — user list
+TAMIL_CRIME_KEYWORDS = [
+    "கொலை",  # murder
+    "தாக்குதல்",  # assault / attack
+    "கடத்தல்",  # abduction / kidnapping
+    "லஞ்சம்",  # bribery
+    "இணைய வழி குற்றங்கள்",  # cyber crimes
+    "இணையவழி குற்றம்",
+    "திருட்டு",  # theft
+    "பாலியல் வன்கொடுமை",  # sexual violence
+    "பாலியல்",
+    "pocso",
+    "POCSO",
+    "போதைப்பொருள் கடத்தல்",  # drug trafficking
+    "போதைப்பொருள்",
+    "கைது",  # arrest
+    "முதல் தகவல் அறிக்கை",  # FIR
+    "FIR",
+]
+
+# Compact OR-group for Google News (too long OR lists get truncated)
+TAMIL_CRIME_OR = (
+    "கொலை OR தாக்குதல் OR கடத்தல் OR லஞ்சம் OR திருட்டு OR "
+    "பாலியல் OR POCSO OR போதைப்பொருள் OR கைது OR "
+    "\"முதல் தகவல் அறிக்கை\" OR \"இணைய வழி\""
+)
+
+ENGLISH_TN_MEDIA_SITES = [
+    ("thehindu.com", "The Hindu"),
+    ("dtnext.in", "DT Next"),
+    ("timesofindia.indiatimes.com", "Times of India"),
+    ("newindianexpress.com", "New Indian Express"),
+    ("indianexpress.com", "Indian Express"),
+    ("deccanchronicle.com", "Deccan Chronicle"),
+    ("hindustantimes.com", "Hindustan Times"),
+    ("news18.com", "News18"),
+    ("indiatoday.in", "India Today"),
+    ("thequint.com", "The Quint"),
+]
+
+# English keywords parallel to Tamil list (both languages always harvested)
+ENGLISH_CRIME_KEYWORDS = [
+    "murder",
+    "assault",
+    "attack",
+    "kidnapping",
+    "abduction",
+    "bribery",
+    "corruption",
+    "cybercrime",
+    "cyber crime",
+    "theft",
+    "robbery",
+    "rape",
+    "sexual assault",
+    "sexual violence",
+    "POCSO",
+    "narcotics",
+    "drug trafficking",
+    "arrest",
+    "FIR",
+    "police",
+]
+
+ENGLISH_CRIME_OR = (
+    "murder OR assault OR kidnapping OR bribery OR cybercrime OR theft OR "
+    "rape OR \"sexual assault\" OR POCSO OR narcotics OR \"drug trafficking\" OR "
+    "arrest OR FIR OR robbery"
+)
+
+# TVK (Tamilaga Vettri Kazhagam) — prefer *negative* party crime / controversy coverage
+TVK_EN_OR = 'TVK OR "Tamilaga Vettri Kazhagam" OR "Tamilaga Vetti Kazhagam" OR "Vijay party"'
+TVK_TA_OR = 'TVK OR "தமிழக வெற்றி கழகம்" OR "தமிழகவெற்றிகழகம்"'
+TVK_NEG_EN = (
+    "attack OR assault OR violence OR murder OR FIR OR arrest OR clash OR "
+    "scandal OR controversy OR accused OR charged OR complaint OR vandalism OR riot"
+)
+TVK_NEG_TA = (
+    "தாக்குதல் OR கைது OR கொலை OR வன்முறை OR FIR OR புகார் OR வழக்கு OR சர்ச்சை OR குற்றம்"
+)
+TVK_MARKERS = (
+    "tvk",
+    "tamilaga vettri",
+    "tamilaga vetti",
+    "vettri kazhagam",
+    "தமிழக வெற்றி",
+    "தமிழகவெற்றி",
+    "வெற்றி கழகம்",
+)
+TVK_NEG_KW = (
+    "attack", "assault", "murder", "violence", "clash", "fir", "arrest",
+    "accused", "charge", "complaint", "vandal", "threat", "illegal",
+    "scandal", "controversy", "riot", "stone", "mob", "beaten", "killed",
+    "crime", "police", "booked", "custody",
+    "தாக்குதல்", "கைது", "கொலை", "வன்முறை", "புகார்", "வழக்கு",
+    "தாக்கிய", "கிளர்ச்சி", "சர்ச்சை", "குற்றம்",
+)
+
+
+def is_tvk_related(text: str) -> bool:
+    """True if headline mentions TVK / Tamilaga Vettri Kazhagam (party)."""
+    t = (text or "").casefold()
+    if not t:
+        return False
+    if any(m in t for m in TVK_MARKERS) or "tvk" in t or "tamilaga" in t:
+        return True
+    if ("vijay" in t or "விஜய்" in t) and any(
+        k in t for k in ("party", "tvk", "kazhagam", "கட்சி", "rally", "cadre")
+    ):
+        return True
+    return False
+
+
+def is_tvk_negative(text: str) -> bool:
+    """TVK mention + negative/crime language (for feed pin + harvest tag)."""
+    if not is_tvk_related(text):
+        return False
+    t = (text or "").casefold()
+    return any(k in t for k in TVK_NEG_KW)
+
+
+def tag_tvk_item(it: dict[str, Any]) -> dict[str, Any]:
+    """Mark negative TVK rows for silent Live Feed priority (no UI label)."""
+    h = str(it.get("headline") or "")
+    if is_tvk_negative(h):
+        it["is_tvk"] = True
+        it["priority"] = "tvk_negative"
+    elif is_tvk_related(h):
+        it["is_tvk"] = True
+        it["priority"] = ""
+    else:
+        it.setdefault("is_tvk", False)
+    return it
+
+
+# Brand search names (Tamil + romanized) for queries without site:
+TAMIL_OUTLET_BRANDS = [
+    "தினத்தந்தி", "Dina Thanthi", "Daily Thanthi",
+    "தினமலர்", "Dinamalar",
+    "தினமணி", "Dinamani",
+    "தமிழ் முரசு", "Tamil Murasu",
+    "புதிய தலைமுறை", "Puthiya Thalaimurai",
+    "விகடன்", "Vikatan",
+    "பிபிசி தமிழ்", "BBC Tamil",
+]
+
+
 def normalize_district(text: str) -> str:
-    """Improved district normalizer for Tamil Nadu common names."""
-    t = text.lower().strip()
-    mapping = {
-        "chennai": "Chennai",
-        "madurai": "Madurai",
-        "coimbatore": "Coimbatore",
-        "trichy": "Tiruchirappalli",
-        "tiruchirappalli": "Tiruchirappalli",
-        "salem": "Salem",
-        "tirunelveli": "Tirunelveli",
-        "thoothukudi": "Thoothukudi",
-        "tuticorin": "Thoothukudi",
-        "erode": "Erode",
-        "vellore": "Vellore",
-        "namakkal": "Namakkal",
-        "nanguneri": "Tirunelveli",
-        "krishnagiri": "Krishnagiri",
-        "dharmapuri": "Dharmapuri",
-        "karur": "Karur",
-        "dindigul": "Dindigul",
-        "thanjavur": "Thanjavur",
-        "tiruppur": "Tiruppur",
-        "kanchipuram": "Kanchipuram",
-        "chengalpattu": "Chengalpattu",
-    }
-    for key, val in mapping.items():
-        if key in t:
-            return val
-    # Fallback: title case first word that looks like a place
-    for word in text.split():
-        if len(word) > 4 and word[0].isupper():
-            return word.strip(".,!?")
-    return "Other / Statewide"
+    """Map headline text → TN district (Tier-3 entity resolution)."""
+    try:
+        from district_entities import resolve_district
+
+        return resolve_district(text, default="Other / Statewide")
+    except Exception:
+        t = text.lower().strip()
+        for key, val in (
+            ("chennai", "Chennai"),
+            ("madurai", "Madurai"),
+            ("thoothukudi", "Thoothukudi"),
+            ("tuticorin", "Thoothukudi"),
+            ("coimbatore", "Coimbatore"),
+        ):
+            if key in t:
+                return val
+        return "Other / Statewide"
 
 
-def fetch_google_news_rss(query: str = "Tamil Nadu crime OR Chennai crime OR TN police", max_items: int = 20) -> list[dict[str, Any]]:
-    """Lightweight fetcher for Google News RSS (no extra deps, uses stdlib urllib + xml).
-    Returns list of dicts ready for scoring.
-    Note: Respect robots.txt / ToS in real use. For research/ personal use.
-    """
+def fetch_google_news_rss(
+    query: str = "Tamil Nadu crime OR Chennai crime OR TN police",
+    max_items: int = 20,
+    *,
+    lang: str = "en",
+) -> list[dict[str, Any]]:
+    """Fetch Google News RSS (English or Tamil). lang: 'en' | 'ta'."""
     items = []
     try:
-        q = query.replace(" ", "+")
-        url = f"https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
-        print(f"[INFO] Fetching Google News RSS: {query[:70]}...")
+        q = quote_plus(query)
+
+        if lang == "ta":
+            # Tamil Google News India
+            url = f"https://news.google.com/rss/search?q={q}&hl=ta-IN&gl=IN&ceid=IN:ta"
+            default_src = "Google News Tamil"
+        else:
+            url = f"https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
+            default_src = "Google News"
+
+        print(f"[INFO] Fetching Google News RSS ({lang}): {query[:72]}...")
 
         req = urllib.request.Request(
             url,
             headers={"User-Agent": "Mozilla/5.0 (compatible; CRIMECAST-research/1.0)"},
         )
-        with urllib.request.urlopen(req, timeout=20) as response:
+        with urllib.request.urlopen(req, timeout=25) as response:
             xml_data = response.read()
 
         root = ET.fromstring(xml_data)
@@ -120,7 +285,7 @@ def fetch_google_news_rss(query: str = "Tamil Nadu crime OR Chennai crime OR TN 
             title = (item.findtext("title") or "").strip()
             link = (item.findtext("link") or "").strip()
             pub_date = item.findtext("pubDate") or ""
-            source = item.findtext("source") or "Google News"
+            source = item.findtext("source") or default_src
 
             try:
                 dt = date_parser.parse(pub_date)
@@ -135,6 +300,7 @@ def fetch_google_news_rss(query: str = "Tamil Nadu crime OR Chennai crime OR TN 
                     "headline": title,
                     "source": str(source),
                     "url": link,
+                    "lang": lang,
                 })
                 count += 1
 
@@ -145,41 +311,97 @@ def fetch_google_news_rss(query: str = "Tamil Nadu crime OR Chennai crime OR TN 
     return items
 
 
-def harvest_tn_crime_media(year: int, max_per_query: int = 25) -> list[dict[str, Any]]:
-    """Harvest TN crime headlines from internet NEWS sources (e-paper / aggregator style).
+def harvest_tn_crime_media(year: int, max_per_query: int = 18) -> list[dict[str, Any]]:
+    """Harvest TN crime headlines — **balanced English + Tamil** news media.
 
-    Explicitly news-oriented queries (not social media). Sources that surface via Google News
-    often include The Hindu, DT Next, Times of India, Vikatan, Maalai Malar, News18 Tamil,
-    and aggregator surfaces similar to DailyHunt / Lokal / Public app feeds.
+    Tamil outlets: தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு, புதிய தலைமுறை, விகடன், பிபிசி தமிழ்
+    English outlets: The Hindu, TOI, DT Next, Indian Express, NIE, HT, News18, …
+
+    Both languages use parallel crime keyword sets and equal query priority.
     """
-    queries = [
-        # General + e-paper style statewide
-        f"Tamil Nadu crime after:{year}-01-01 before:{year + 1}-01-01",
-        f"Tamil Nadu police FIR after:{year}-01-01 before:{year + 1}-01-01",
-        # Category-specific (maps to our 3 raw datasets)
-        f"Chennai (rape OR \"sexual assault\" OR murder) after:{year}-01-01 before:{year + 1}-01-01",
-        f"Tamil Nadu (rape OR \"crimes against women\") after:{year}-01-01 before:{year + 1}-01-01",
-        f"Tamil Nadu (murder OR homicide OR killed) after:{year}-01-01 before:{year + 1}-01-01",
-        # City e-paper coverage
-        f"(Madurai OR Coimbatore OR Salem OR Trichy OR Tirunelveli) crime after:{year}-01-01 before:{year + 1}-01-01",
-        # Local / regional portals (surface via News)
-        f"site:thehindu.com Tamil Nadu crime after:{year}-01-01 before:{year + 1}-01-01",
-        f"site:dtnext.in (crime OR murder OR rape) after:{year}-01-01 before:{year + 1}-01-01",
-        f"site:timesofindia.indiatimes.com Chennai crime after:{year}-01-01 before:{year + 1}-01-01",
+    y_start = f"{year}-01-01"
+    y_end = f"{year + 1}-01-01"
+    after_before = f"after:{y_start} before:{y_end}"
+    ta_kw = TAMIL_CRIME_OR
+    en_kw = ENGLISH_CRIME_OR
+
+    # --- Tamil Google News ---
+    ta_queries: list[str] = [
+        f"தமிழ்நாடு ({ta_kw}) {after_before}",
+        f"({ta_kw}) தமிழ்நாடு {after_before}",
+        f"(தினத்தந்தி OR தினமலர் OR தினமணி OR \"தமிழ் முரசு\" OR \"புதிய தலைமுறை\" OR விகடன் OR \"பிபிசி தமிழ்\") ({ta_kw}) {after_before}",
+        f"(சென்னை OR மதுரை OR தூத்துக்குடி OR கோவை OR சேலம் OR திருச்சி) ({ta_kw}) {after_before}",
+        f"தமிழ்நாடு (கொலை OR தாக்குதல் OR கடத்தல்) {after_before}",
+        f"தமிழ்நாடு (பாலியல் வன்கொடுமை OR பாலியல் OR POCSO) {after_before}",
+        f"தமிழ்நாடு (போதைப்பொருள் கடத்தல் OR லஞ்சம் OR திருட்டு) {after_before}",
+        f"தமிழ்நாடு (\"முதல் தகவல் அறிக்கை\" OR கைது OR இணைய வழி) {after_before}",
+        f"தூத்துக்குடி (கொலை OR தாக்குதல் OR பாலியல்) {after_before}",
+        f"மதுரை (கொலை OR தாக்குதல் OR பாலியல்) {after_before}",
+        # TVK negative / controversy / crime (Tamil)
+        f"({TVK_TA_OR}) ({TVK_NEG_TA}) {after_before}",
+        f"TVK ({TVK_NEG_TA}) {after_before}",
+        f"\"தமிழக வெற்றி கழகம்\" ({TVK_NEG_TA}) {after_before}",
+        f"TVK (சர்ச்சை OR குற்றம் OR வன்முறை OR புகார்) {after_before}",
     ]
-    seen = set()
+    for site, _en, _ta in TAMIL_MEDIA_OUTLETS:
+        ta_queries.append(f"site:{site} ({ta_kw}) {after_before}")
+
+    # --- English Google News (equal weight) ---
+    en_queries: list[str] = [
+        f"Tamil Nadu ({en_kw}) {after_before}",
+        f"\"Tamil Nadu\" police ({en_kw}) {after_before}",
+        f"(Chennai OR Madurai OR Thoothukudi OR Tuticorin OR Coimbatore OR Salem) ({en_kw}) {after_before}",
+        f"Tamil Nadu (murder OR homicide OR killed) {after_before}",
+        f"Tamil Nadu (rape OR \"sexual assault\" OR POCSO) {after_before}",
+        f"Tamil Nadu (cybercrime OR theft OR kidnapping OR narcotics OR bribery) {after_before}",
+        f"Thoothukudi (murder OR crime OR police OR assault) {after_before}",
+        f"Madurai (murder OR crime OR police OR assault) {after_before}",
+        f"(The Hindu OR \"Times of India\" OR \"Indian Express\" OR \"DT Next\") Tamil Nadu ({en_kw}) {after_before}",
+        # TVK negative news / crime / controversy (English)
+        f"({TVK_EN_OR}) ({TVK_NEG_EN}) {after_before}",
+        f"TVK (Tamil Nadu OR Chennai OR Madurai) ({TVK_NEG_EN}) {after_before}",
+        f"\"Tamilaga Vettri Kazhagam\" ({TVK_NEG_EN}) {after_before}",
+        f"TVK (scandal OR controversy OR \"case against\" OR accused OR violence) {after_before}",
+    ]
+    for site, _name in ENGLISH_TN_MEDIA_SITES:
+        en_queries.append(
+            f"site:{site} (Tamil Nadu OR Chennai OR Madurai OR Thoothukudi) ({en_kw}) {after_before}"
+        )
+    # English-language indexing of Tamil outlet sites
+    for site, _en, _ta in TAMIL_MEDIA_OUTLETS:
+        en_queries.append(f"site:{site} ({en_kw}) {after_before}")
+
+    seen: set[tuple[str, str]] = set()
     all_items: list[dict[str, Any]] = []
-    print(f"\n[MEDIA] Harvesting Google News for Tamil Nadu crime — {year}")
-    for q in queries:
-        batch = fetch_google_news_rss(q, max_items=max_per_query)
+    n_en, n_ta = 0, 0
+
+    print(f"\n[MEDIA] Balanced EN + TA harvest — {year}")
+    print("        TA outlets: தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு, புதிய தலைமுறை, விகடன், பிபிசி தமிழ்")
+    print("        EN outlets: The Hindu, TOI, DT Next, Indian Express, NIE, HT, News18, …")
+    print("        Keywords TA: கொலை, தாக்குதல், கடத்தல், லஞ்சம், திருட்டு, பாலியல், POCSO, …")
+    print("        Keywords EN: murder, assault, kidnapping, theft, rape, POCSO, FIR, …")
+
+    def _absorb(batch: list[dict[str, Any]], lang_tag: str) -> int:
+        added = 0
         for it in batch:
-            key = (it.get("headline", "")[:80], it.get("date", ""))
+            key = (it.get("headline", "")[:90], it.get("date", ""))
             if key in seen:
                 continue
             seen.add(key)
             it["year"] = year
+            it["lang"] = it.get("lang") or lang_tag
+            tag_tvk_item(it)
             all_items.append(it)
-    print(f"[MEDIA] Unique headlines for {year}: {len(all_items)}")
+            added += 1
+        return added
+
+    # Interleave: English and Tamil both fully run (equal priority)
+    for q in en_queries:
+        n_en += _absorb(fetch_google_news_rss(q, max_items=max_per_query, lang="en"), "en")
+    for q in ta_queries:
+        n_ta += _absorb(fetch_google_news_rss(q, max_items=max_per_query, lang="ta"), "ta")
+
+    print(f"[MEDIA] Unique headlines for {year}: {len(all_items)}  (EN-tagged batch +{n_en}, TA-tagged batch +{n_ta})")
     return all_items
 
 
@@ -207,9 +429,19 @@ def load_media_volume_csv(path: Path | None = None) -> dict[int, dict[str, int]]
 def classify_crime_theme(text: str) -> str:
     """Rough theme for scaling different base files (women vs murder vs general)."""
     t = text.lower()
-    if any(k in t for k in ["rape", "sexual assault", "harassment", "women", "molest", "anna university"]):
+    women_kw = [
+        "rape", "sexual assault", "harassment", "women", "molest", "pocso",
+        "பாலியல்", "பாலியல் வன்கொடுமை", "பெண்", "பெண்கள்", "கற்பழிப்பு",
+    ]
+    murder_kw = [
+        "murder", "killed", "homicide", "stab", "shot dead", "dead body",
+        "கொலை", "கொலைமுயற்சி", "பிணம்", "தாக்குதல்",
+    ]
+    # Remaining Tamil keywords map to general complaints / cyber / theft
+    # (லஞ்சம், கடத்தல், திருட்டு, இணைய வழி, போதைப்பொருள், கைது, FIR)
+    if any(k in t for k in women_kw):
         return "women"
-    if any(k in t for k in ["murder", "killed", "homicide", "stab", "shot dead", "dead body"]):
+    if any(k in t for k in murder_kw):
         return "homicide"
     return "complaints"
 
@@ -238,14 +470,19 @@ def score_headlines(headlines: list[dict[str, Any]]) -> pd.DataFrame:
             continue
 
         district = h.get("district") or normalize_district(text)
+        sent_lab = str(res.get("sentiment_label", "neutral") or "neutral")
+        pol = float(res.get("polarity", 0.0))
+        tvk_neg = is_tvk_negative(text) or (
+            is_tvk_related(text) and (sent_lab.lower() in ("negative", "neg") or pol < -0.05)
+        )
         rows.append({
             "date": h.get("date"),
             "district_city": district,
             "headline": text,
             "source": h.get("source", "news"),
             "url": h.get("url", ""),
-            "polarity": round(float(res.get("polarity", 0.0)), 4),
-            "sentiment_label": res.get("sentiment_label", "neutral"),
+            "polarity": round(pol, 4),
+            "sentiment_label": sent_lab,
             "confidence": round(float(res.get("confidence", 0.0)), 3),
             "crime_intensity": intensity,
             "crime_types": crime_types,
@@ -254,6 +491,8 @@ def score_headlines(headlines: list[dict[str, Any]]) -> pd.DataFrame:
             "trend_score": res.get("trend_score", 0),
             "method": method,
             "source_class": "news_media",  # not social
+            "is_tvk": is_tvk_related(text) or bool(h.get("is_tvk")),
+            "priority": "tvk_negative" if tvk_neg else (h.get("priority") or ""),
         })
 
     if not rows:
@@ -322,12 +561,27 @@ def load_from_csv(path: Path) -> pd.DataFrame:
     return score_headlines(records)
 
 
-def save_signals(df: pd.DataFrame, out_path: Path = NEWS_OUTPUT) -> Path:
+def save_signals(df: pd.DataFrame, out_path: Path = NEWS_OUTPUT, *, merge: bool = False) -> Path:
+    """Save scored headlines + aggregates. If merge=True, append and dedupe vs existing raw."""
     if df.empty:
         print("[WARN] No signals generated.")
         return out_path
 
-    # Aggregate lightly like sentiment does (per district-year)
+    raw_path = out_path.with_name("news_signals_raw.csv")
+    if merge and raw_path.exists():
+        try:
+            old = pd.read_csv(raw_path)
+            df = pd.concat([old, df], ignore_index=True)
+            # Dedupe by headline + date (keep latest score)
+            subset = [c for c in ("headline", "date") if c in df.columns]
+            if subset:
+                df = df.drop_duplicates(subset=subset, keep="last").reset_index(drop=True)
+        except Exception as e:
+            print(f"[WARN] Could not merge with existing raw: {e}")
+
+    if "year" not in df.columns and "date" in df.columns:
+        df["year"] = pd.to_datetime(df["date"], errors="coerce").dt.year
+
     agg = (
         df.groupby(["year", "district_city"], dropna=False)
         .agg(
@@ -339,8 +593,6 @@ def save_signals(df: pd.DataFrame, out_path: Path = NEWS_OUTPUT) -> Path:
         .reset_index()
     )
 
-    # Also save raw scored headlines
-    raw_path = out_path.with_name("news_signals_raw.csv")
     df.to_csv(raw_path, index=False)
     agg.to_csv(out_path, index=False)
 
@@ -350,32 +602,187 @@ def save_signals(df: pd.DataFrame, out_path: Path = NEWS_OUTPUT) -> Path:
     return out_path
 
 
+def _existing_headline_keys() -> set[tuple[str, str]]:
+    """Keys already in harvest / raw so refresh only keeps NEW items."""
+    keys: set[tuple[str, str]] = set()
+    for path in (
+        OUTPUT_DIR / "news_signals_raw.csv",
+        *OUTPUT_DIR.glob("media_harvest_tn_crime_*.csv"),
+        *OUTPUT_DIR.glob("media_headlines_scored_*.csv"),
+    ):
+        if not path.exists():
+            continue
+        try:
+            old = pd.read_csv(path)
+            hcol = "headline" if "headline" in old.columns else None
+            dcol = "date" if "date" in old.columns else None
+            if not hcol:
+                continue
+            for _, row in old.iterrows():
+                h = str(row.get(hcol, ""))[:90]
+                d = str(row.get(dcol, "")) if dcol else ""
+                if h:
+                    keys.add((h, d))
+        except Exception:
+            continue
+    return keys
+
+
+def refresh_new_news(max_per_query: int = 20) -> dict[str, Any]:
+    """
+    Incremental refresh: fetch LATEST Tamil/English crime news only.
+    Skips headlines already stored. Does NOT re-populate historical proxy CSVs.
+
+    Use this for dashboard Refresh / full-pipeline light update.
+    One-time bulk backfill remains: --populate-2024-2026
+    """
+    print("=" * 60)
+    print("NEWS REFRESH — NEW headlines only (incremental)")
+    print("=" * 60)
+
+    existing = _existing_headline_keys()
+    print(f"[INFO] Already acquired headlines on disk: {len(existing)}")
+
+    year = datetime.now().year
+    # Live harvest for current year + quick brand queries (recent)
+    fresh = harvest_tn_crime_media(year, max_per_query=max_per_query)
+
+    # Recent EN + TA (equal priority)
+    ta_kw = TAMIL_CRIME_OR
+    en_kw = ENGLISH_CRIME_OR
+    recent_queries_ta = [
+        f"தமிழ்நாடு ({ta_kw})",
+        f"(தினத்தந்தி OR தினமலர் OR தினமணி OR விகடன் OR \"புதிய தலைமுறை\" OR \"பிபிசி தமிழ்\") ({ta_kw})",
+        f"சென்னை OR மதுரை OR தூத்துக்குடி OR கோவை ({ta_kw})",
+        f"({TVK_TA_OR}) ({TVK_NEG_TA})",
+        f"TVK ({TVK_NEG_TA})",
+        "TVK சர்ச்சை OR TVK வன்முறை OR TVK புகார் OR தமிழக வெற்றி கழகம் தாக்குதல்",
+    ]
+    recent_queries_en = [
+        f"Tamil Nadu ({en_kw})",
+        f"(The Hindu OR \"Times of India\" OR \"Indian Express\" OR \"DT Next\") Tamil Nadu ({en_kw})",
+        f"(Chennai OR Madurai OR Thoothukudi OR Tuticorin) ({en_kw})",
+        "Thoothukudi murder OR crime OR police",
+        "Madurai murder OR crime OR police",
+        f"({TVK_EN_OR}) ({TVK_NEG_EN})",
+        "TVK scandal OR TVK controversy OR TVK violence OR TVK FIR OR TVK accused OR Tamilaga Vettri Kazhagam arrest",
+    ]
+    for q in recent_queries_en:
+        fresh.extend(fetch_google_news_rss(q, max_items=max_per_query, lang="en"))
+    for q in recent_queries_ta:
+        fresh.extend(fetch_google_news_rss(q, max_items=max_per_query, lang="ta"))
+
+    # Filter to NEW only
+    new_items: list[dict[str, Any]] = []
+    seen_batch: set[tuple[str, str]] = set()
+    for it in fresh:
+        h = str(it.get("headline", ""))[:90]
+        d = str(it.get("date", ""))
+        key = (h, d)
+        if not h or key in existing or key in seen_batch:
+            continue
+        seen_batch.add(key)
+        it["year"] = it.get("year") or year
+        tag_tvk_item(it)
+        new_items.append(it)
+
+    print(f"[INFO] Fetched batch: {len(fresh)} | NEW unique: {len(new_items)}")
+
+    if not new_items:
+        print("[OK] No new headlines since last acquire — signals unchanged.")
+        return {"new_count": 0, "total_raw": len(existing), "message": "No new news"}
+
+    # Append to harvest log
+    harvest_path = OUTPUT_DIR / f"media_harvest_tn_crime_refresh_{datetime.now().strftime('%Y%m%d')}.csv"
+    try:
+        pd.DataFrame(new_items).to_csv(harvest_path, index=False)
+        # Also append to combined rolling harvest
+        combined = OUTPUT_DIR / "media_harvest_tn_crime_latest.csv"
+        if combined.exists():
+            prev = pd.read_csv(combined)
+            comb = pd.concat([prev, pd.DataFrame(new_items)], ignore_index=True)
+            comb = comb.drop_duplicates(subset=["headline", "date"], keep="last")
+            comb.to_csv(combined, index=False)
+        else:
+            pd.DataFrame(new_items).to_csv(combined, index=False)
+        print(f"[OK] New harvest log → {harvest_path.name}")
+    except Exception as e:
+        print(f"[WARN] Harvest log: {e}")
+
+    # Score only new headlines and MERGE into signals
+    scored = score_headlines(new_items)
+    if scored.empty:
+        print("[WARN] Scoring returned empty — saving unscored harvest only.")
+        return {"new_count": len(new_items), "scored": 0, "message": "Harvested but not scored"}
+
+    save_signals(scored, merge=True)
+    print(f"[OK] Merged {len(scored)} NEW scored headlines into news_signals.")
+    return {
+        "new_count": len(new_items),
+        "scored": len(scored),
+        "message": f"Added {len(scored)} new headlines",
+    }
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Acquire news/social proxy signals for CRIMECAST")
+    parser = argparse.ArgumentParser(
+        description="Acquire TN crime news signals (English + Tamil media; not social)"
+    )
     parser.add_argument("--demo", action="store_true", help="Generate demo news signals")
     parser.add_argument("--csv", type=str, default=None, help="Path to CSV with headlines to score")
-    parser.add_argument("--fetch", type=str, default=None, help="Fetch live from Google News RSS (e.g. 'Tamil Nadu crime')")
+    parser.add_argument("--fetch", type=str, default=None, help="Fetch live from Google News RSS")
+    parser.add_argument("--lang", type=str, default="en", choices=["en", "ta"], help="News language for --fetch")
     parser.add_argument("--max-items", type=int, default=15, help="Max items for --fetch")
-    parser.add_argument("--years", type=int, nargs="+", default=None)
-    parser.add_argument("--populate-2024-2025", action="store_true", help="Pull from net (news + twitter) and generate full 2024/2025 proxy data files")
-    parser.add_argument("--twitter-csv", type=str, default=None, help="Path to CSV (district,volume or district,year,volume) for real Twitter data")
-    parser.add_argument("--focus", type=str, default=None, help="Category focus: women (rape), homicide (murder), complaints")
+    parser.add_argument("--years", type=int, nargs="+", default=None, help="Years for demo or populate")
+    parser.add_argument(
+        "--refresh-new",
+        action="store_true",
+        help="Fetch only NEW headlines (incremental). For dashboard refresh / pipeline light update.",
+    )
+    parser.add_argument(
+        "--populate-2024-2025",
+        action="store_true",
+        help="ONE-TIME bulk: Tamil+English media; write 2024+2025+2026 proxy CSVs",
+    )
+    parser.add_argument(
+        "--populate-2024-2026",
+        action="store_true",
+        help="ONE-TIME bulk: Tamil+English media; write 2024, 2025, 2026 proxy CSVs",
+    )
+    parser.add_argument(
+        "--populate-years",
+        type=int,
+        nargs="+",
+        default=None,
+        help="ONE-TIME bulk for explicit years e.g. 2024 2025 2026",
+    )
+    parser.add_argument("--twitter-csv", type=str, default=None, help="Optional district volume CSV")
+    parser.add_argument("--focus", type=str, default=None, help="women | homicide | complaints")
     args = parser.parse_args()
 
-    if args.populate_2024_2025:
-        print("[INFO] Harvesting media + Twitter + Google News to fill 2024–2025 gaps...")
+    if args.refresh_new:
+        refresh_new_news(max_per_query=args.max_items or 20)
+        return
+
+    populate_years = None
+    if args.populate_years:
+        populate_years = list(args.populate_years)
+    elif args.populate_2024_2026 or args.populate_2024_2025:
+        populate_years = [2024, 2025, 2026]
+
+    if populate_years:
+        print(f"[INFO] ONE-TIME bulk harvest for years {populate_years}...")
         tw = {}
-        # Prefer explicit CSV; else use pre-seeded media/X volume file if present
         tw_path = args.twitter_csv or str(OUTPUT_DIR / "media_twitter_volumes_2024_2025.csv")
         if Path(tw_path).exists():
-            print(f"[INFO] Loading Twitter/media volumes from {tw_path}")
+            print(f"[INFO] Loading volume CSV from {tw_path}")
             tw = load_twitter_from_csv(tw_path)
-        populate_2024_2025_from_net(twitter_extra=tw, focus=args.focus)
+        populate_years_from_net(years=populate_years, twitter_extra=tw, focus=args.focus)
         return
 
     if args.fetch:
-        print(f"[INFO] Fetching live news for: {args.fetch}")
-        fetched = fetch_google_news_rss(args.fetch, args.max_items)
+        print(f"[INFO] Fetching live news ({args.lang}) for: {args.fetch}")
+        fetched = fetch_google_news_rss(args.fetch, args.max_items, lang=args.lang)
         if fetched:
             df = score_headlines(fetched)
         else:
@@ -385,17 +792,20 @@ def main():
         print(f"[INFO] Scoring headlines from {args.csv}...")
         df = load_from_csv(Path(args.csv))
     elif args.demo:
-        print("[INFO] Generating demo news signals (2022-2026) with realistic TN district examples...")
+        print("[INFO] Generating demo news signals (2022-2026)...")
         df = create_demo_data(args.years)
     else:
         print("Usage examples:")
-        print("  python acquire_news_signals.py --demo")
+        print("  # ONE-TIME bulk backfill (proxies + full harvest):")
+        print("  python acquire_news_signals.py --populate-2024-2026")
+        print("  # Incremental NEW headlines only (dashboard refresh / pipeline):")
+        print("  python acquire_news_signals.py --refresh-new")
+        print("  python acquire_news_signals.py --fetch 'தமிழ்நாடு குற்றம்' --lang ta")
         print("  python acquire_news_signals.py --csv my_headlines.csv")
-        print("  python acquire_news_signals.py --fetch 'Tamil Nadu crime OR Chennai rape'")
-        print("  python acquire_news_signals.py --populate-2024-2025   # pulls net data to create 2024/2025 CSVs")
+        print("  python acquire_news_signals.py --demo")
         return
 
-    save_signals(df)
+    save_signals(df, merge=bool(args.fetch or args.csv))
 
 
 def load_twitter_from_csv(path: str) -> dict:
@@ -417,7 +827,7 @@ def load_twitter_from_csv(path: str) -> dict:
             yr = None
             vol = int(row.iloc[1])
         if yr is None:
-            for y in [2024, 2025]:
+            for y in [2024, 2025, 2026]:
                 result.setdefault(y, {})[dist] = vol
         else:
             result.setdefault(yr, {})[dist] = vol
@@ -425,10 +835,7 @@ def load_twitter_from_csv(path: str) -> dict:
 
 
 def get_twitter_volume_demo(year: int) -> dict:
-    """X/Twitter discussion volume seeds (from public posts: Anna University 2024,
-    migrant murders / assaults 2025 in Coimbatore & Tiruvallur area, etc.).
-    Prefer media_twitter_volumes_2024_2025.csv when available.
-    """
+    """Optional volume seeds (media attention proxy). Prefer harvested news counts."""
     base_2024 = {
         "Chennai": 45, "Madurai": 8, "Coimbatore": 9, "Tiruchirappalli": 5,
         "Salem": 4, "Tirunelveli": 3, "Namakkal": 3, "Kanchipuram": 4,
@@ -439,35 +846,48 @@ def get_twitter_volume_demo(year: int) -> dict:
         "Salem": 3, "Tiruchirappalli": 3, "Thoothukudi": 2, "Villupuram": 2,
         "Other / Statewide": 6,
     }
+    # 2026: light seed so empty years still get structure; live harvest overrides
+    base_2026 = {
+        "Chennai": 18, "Madurai": 6, "Coimbatore": 7, "Tiruchirappalli": 4,
+        "Salem": 3, "Tirunelveli": 3, "Villupuram": 2, "Vellore": 3,
+        "Other / Statewide": 5,
+    }
     if year == 2024:
         return base_2024
     if year == 2025:
         return base_2025
+    if year == 2026:
+        return base_2026
     return {}
 
 
-def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | None = None):
-    """Fill 2024–2025 gaps using media + Twitter/X + Google News.
+def populate_years_from_net(
+    years: list[int] | None = None,
+    twitter_extra: dict | None = None,
+    focus: str | None = None,
+) -> None:
+    """Fill year gaps using Tamil + English news media (Google News RSS).
 
     Strategy (proxy, not official police counts):
-    1. Harvest multi-query Google News RSS for TN crime 2024 & 2025.
-    2. Merge with X/Twitter volume CSV (model_outputs/media_twitter_volumes_2024_2025.csv)
-       and built-in demo volumes (seeded from real public posts).
-    3. Copy full structure from each 2023 official file (complaints / women / murder).
-    4. Scale numeric incident/victim columns by district media attention.
-    5. Write complete tn_2024_* and tn_2025_* CSVs for ALL 2023 districts
-       so clean_data discover_raw_datasets() fills the years with no empty gaps.
+    1. Harvest EN + TA Google News + Tamil outlet site queries for each year.
+    2. Merge optional volume CSV + built-in seeds.
+    3. Copy structure from 2023 official files; scale by district media attention.
+    4. Write tn_{year}_* CSVs for clean_data.
+    5. Update news_signals.csv for ML fusion.
 
-    Disclaimer: media volume is a leading indicator / attention proxy, not verified FIRs.
+    Default years: 2024, 2025, 2026.
     """
     from collections import Counter
+
+    if years is None:
+        years = [2024, 2025, 2026]
+    years = sorted({int(y) for y in years})
 
     dataset_dir = PROJECT_ROOT / "dataset"
     dataset_dir.mkdir(exist_ok=True)
     if twitter_extra is None:
         twitter_extra = {}
 
-    # Exact 2023 templates (full column structure)
     known = {
         "complaints": dataset_dir / "tn_2023_complaints.csv",
         "women": dataset_dir / "tn_2023_crimes_against_women.csv",
@@ -479,22 +899,25 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
         return
 
     print("=" * 60)
-    print("CRIMECAST MEDIA HARVEST → populate 2024 & 2025")
+    print(f"CRIMECAST MEDIA HARVEST → populate {years}")
+    print("Sources: Google News TA+EN · Tamil dailies · TN English press")
+    print("Tamil outlets: தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு,")
+    print("  புதிய தலைமுறை, விகடன், பிபிசி தமிழ்")
+    print("Keywords: கொலை, தாக்குதல், கடத்தல், லஞ்சம், திருட்டு,")
+    print("  பாலியல் வன்கொடுமை, POCSO, போதைப்பொருள், கைது, FIR")
     print("=" * 60)
     print(f"Base templates: {[p.name for p in actual_bases.values()]}")
 
-    # Load pre-harvested X volumes + demo
     media_csv = load_media_volume_csv()
     all_media_rows: list[dict[str, Any]] = []
+    year_district_vol: dict[int, Counter] = {}
 
-    for year in [2024, 2025]:
+    for year in years:
         print(f"\n{'=' * 50}\n YEAR {year}\n{'=' * 50}")
 
-        # 1) Google News multi-query harvest
-        news_items = harvest_tn_crime_media(year, max_per_query=20)
+        news_items = harvest_tn_crime_media(year, max_per_query=16)
         all_media_rows.extend(news_items)
 
-        # District volumes from news
         district_counts: Counter = Counter()
         theme_counts: dict[str, Counter] = {
             "women": Counter(),
@@ -504,12 +927,11 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
         for it in news_items:
             dist = it.get("district") or normalize_district(it.get("headline", ""))
             if not dist or dist in ("Other / Statewide", "Unknown"):
-                dist = "Chennai"  # statewide stories often Chennai-centric in media
+                dist = "Chennai"
             district_counts[dist] += 1
             theme = classify_crime_theme(it.get("headline", ""))
             theme_counts[theme][dist] += 1
 
-        # 2) Twitter / X volumes
         tw = get_twitter_volume_demo(year)
         tw.update(media_csv.get(year, {}))
         if year in twitter_extra:
@@ -517,7 +939,6 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
                 tw[d] = tw.get(d, 0) + int(v)
         for d, v in tw.items():
             district_counts[d] += int(v)
-            # Default theme split for social discussion
             theme_counts["women"][d] += max(1, int(v * 0.4))
             theme_counts["homicide"][d] += max(1, int(v * 0.3))
             theme_counts["complaints"][d] += max(1, int(v * 0.3))
@@ -525,18 +946,17 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
         if not district_counts:
             district_counts = Counter({"Chennai": 25, "Madurai": 8, "Coimbatore": 8})
 
+        year_district_vol[year] = district_counts
         print(f"Combined media volume top: {dict(district_counts.most_common(8))}")
 
-        # Score headlines for sentiment fusion (optional)
         if HAS_SENTIMENT and news_items:
-            print("[INFO] Scoring harvested headlines with DistilBERT (sample)...")
-            scored = score_headlines(news_items[:40])  # cap for speed
+            print("[INFO] Scoring harvested headlines (3-LLM / DistilBERT sample)...")
+            scored = score_headlines(news_items[:50])
             if not scored.empty:
                 raw_path = OUTPUT_DIR / f"media_headlines_scored_{year}.csv"
                 scored.to_csv(raw_path, index=False)
                 print(f"  Saved scored headlines → {raw_path.name}")
 
-        # 3) For each crime category, copy 2023 → year and scale
         for key, base_path in actual_bases.items():
             if focus:
                 fl = focus.lower()
@@ -554,7 +974,6 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
                     df.columns[1],
                 )
 
-                # Prefer theme-specific volume for women/homicide files
                 if key == "women":
                     vol_map = theme_counts["women"]
                 elif key == "homicide":
@@ -562,7 +981,6 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
                 else:
                     vol_map = district_counts
 
-                # Merge with overall so no district is zero-volume
                 for d, v in district_counts.items():
                     if d not in vol_map:
                         vol_map[d] = max(1, v // 2)
@@ -578,16 +996,14 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
 
                 for idx in df.index:
                     dist = str(df.at[idx, dist_col]).strip()
-                    # Match media districts loosely
                     vol = vol_map.get(dist, 0)
                     if vol == 0:
-                        # try partial name match
                         for md, mv in vol_map.items():
                             if md.lower() in dist.lower() or dist.lower() in md.lower():
                                 vol = mv
                                 break
                     if vol == 0:
-                        vol = avg_vol * 0.55  # still populate — no empty gaps
+                        vol = avg_vol * 0.55
 
                     factor = max(0.55, min(1.85, 0.80 + (vol / avg_vol - 1.0) * 0.75))
 
@@ -603,7 +1019,6 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
                     if "year" in str(c).lower():
                         df[c] = year
 
-                # Output names clean_data.infer_dataset_name understands
                 if key == "complaints":
                     out_name = f"tn_{year}_complaints.csv"
                 elif key == "women":
@@ -612,31 +1027,33 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
                     out_name = f"tn_{year}_muder_homicide.csv"
 
                 out_path = dataset_dir / out_name
-                # Ensure unique districts (prevents clean_data one_to_one merge failure)
                 if dist_col in df.columns:
                     df = df.drop_duplicates(subset=[dist_col], keep="last").reset_index(drop=True)
                 df.to_csv(out_path, index=False)
-                print(f"  [OK] {out_name}  ({len(df)} districts, media-scaled, full columns)")
+                print(f"  [OK] {out_name}  ({len(df)} districts, media-scaled)")
 
             except Exception as e:
                 print(f"  [ERROR] {key}: {e}")
 
-    # Save combined media harvest log
     if all_media_rows:
-        harvest_path = OUTPUT_DIR / "media_harvest_tn_crime_2024_2025.csv"
+        y_tag = f"{min(years)}_{max(years)}"
+        harvest_path = OUTPUT_DIR / f"media_harvest_tn_crime_{y_tag}.csv"
         pd.DataFrame(all_media_rows).to_csv(harvest_path, index=False)
+        # Keep legacy filename when 2024-2025 included
+        if 2024 in years and 2025 in years:
+            legacy = OUTPUT_DIR / "media_harvest_tn_crime_2024_2025.csv"
+            pd.DataFrame(all_media_rows).to_csv(legacy, index=False)
         print(f"\n[OK] Full media harvest log → {harvest_path}")
 
-    # Aggregate news_signals for clean_data enrich
     try:
         agg_rows = []
-        for year in [2024, 2025]:
+        for year in years:
             media_csv_y = media_csv.get(year, {})
             demo = get_twitter_volume_demo(year)
-            districts = set(media_csv_y) | set(demo)
+            harvested = year_district_vol.get(year, Counter())
+            districts = set(media_csv_y) | set(demo) | set(harvested.keys())
             for d in districts:
-                vol = media_csv_y.get(d, 0) + demo.get(d, 0)
-                # negative share proxy from volume (higher buzz → slightly more negative)
+                vol = int(media_csv_y.get(d, 0) + demo.get(d, 0) + harvested.get(d, 0))
                 neg = min(0.9, 0.35 + vol / 80.0)
                 agg_rows.append({
                     "year": year,
@@ -648,23 +1065,27 @@ def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | 
                 })
         if agg_rows:
             news_df = pd.DataFrame(agg_rows)
-            # merge with existing if present
             if NEWS_OUTPUT.exists():
                 old = pd.read_csv(NEWS_OUTPUT)
                 news_df = pd.concat([old, news_df], ignore_index=True)
                 news_df = news_df.drop_duplicates(subset=["year", "district_city"], keep="last")
             news_df.to_csv(NEWS_OUTPUT, index=False)
-            print(f"[OK] Updated {NEWS_OUTPUT.name} for sentiment/news fusion in clean_data")
+            print(f"[OK] Updated {NEWS_OUTPUT.name} (years {years})")
     except Exception as e:
         print(f"[WARN] Could not write news_signals: {e}")
 
     print("\n" + "=" * 60)
-    print("[DONE] 2024 + 2025 proxy files populated from media/Twitter/Google News.")
+    print(f"[DONE] Proxy files populated for years {years} (Tamil + English media).")
     print("Next:")
     print("  1. python app.py   → option 1  (sentiment → clean → train)")
     print("  2. python app.py   → option 7  (2026 rape forecasts)")
-    print("Note: These are MEDIA PROXIES, not official TN Police statistics.")
+    print("Note: MEDIA PROXIES — not official TN Police statistics.")
     print("=" * 60)
+
+
+def populate_2024_2025_from_net(twitter_extra: dict | None = None, focus: str | None = None):
+    """Backward-compatible alias: now populates 2024, 2025, and 2026."""
+    populate_years_from_net(years=[2024, 2025, 2026], twitter_extra=twitter_extra, focus=focus)
 
 
 if __name__ == "__main__":

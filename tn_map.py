@@ -133,11 +133,23 @@ def load_media_fill_series() -> pd.Series:
     Used to fill null or zero values so every district paints on the map.
     """
     volumes: dict[str, float] = {}
+    out = PROJECT_ROOT / "model_outputs"
     candidates = [
-        PROJECT_ROOT / "model_outputs" / "news_signals.csv",
-        PROJECT_ROOT / "model_outputs" / "media_twitter_volumes_2024_2025.csv",
-        PROJECT_ROOT / "model_outputs" / "media_harvest_tn_crime_2024_2025.csv",
+        out / "media_harvest_tn_crime_latest.csv",
+        *sorted(out.glob("media_harvest_tn_crime_*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)[:3],
+        out / "news_signals.csv",
+        out / "media_twitter_volumes_2024_2025.csv",
+        out / "media_harvest_tn_crime_2024_2025.csv",
     ]
+    # de-dupe paths while preserving order
+    seen_p: set[str] = set()
+    uniq: list[Path] = []
+    for p in candidates:
+        k = str(p.resolve()) if p.exists() else str(p)
+        if k not in seen_p:
+            seen_p.add(k)
+            uniq.append(p)
+    candidates = uniq
     for path in candidates:
         if not path.exists():
             continue
@@ -265,14 +277,44 @@ def prepare_map_dataframe(
     return out
 
 
+# White → light blue → deep blue (clear low→high differentiation)
+HEAT_WHITE_BLUE = [
+    "#ffffff",
+    "#e0f2fe",
+    "#bae6fd",
+    "#7dd3fc",
+    "#38bdf8",
+    "#0ea5e9",
+    "#0284c7",
+    "#0369a1",
+    "#075985",
+    "#0c4a6e",
+]
+
+# Plotly sequential colorscale pairs for heatmap matrix
+HEAT_WHITE_BLUE_PLOTLY = [
+    [0.0, "#ffffff"],
+    [0.15, "#e0f2fe"],
+    [0.35, "#7dd3fc"],
+    [0.55, "#0ea5e9"],
+    [0.75, "#0369a1"],
+    [1.0, "#0c4a6e"],
+]
+
+
 def plot_tn_choropleth(
     df: pd.DataFrame,
     value_col: str,
     name_col: str = "district",
     title: str = "Tamil Nadu — District Heat Map",
     fill_nulls_from_media: bool = True,
+    color_scale: list | str | None = None,
+    colorbar_title: str = "Intensity",
 ) -> go.Figure | None:
-    """Choropleth heat map of ALL TN districts (zeros/nulls filled from news/media)."""
+    """Choropleth heat map of ALL TN districts (zeros/nulls filled from news/media).
+
+    Default colour scale: white (low) → blue (high) for clear differentiation.
+    """
     geojson = ensure_tn_geojson()
     if geojson is None:
         return None
@@ -297,6 +339,8 @@ def plot_tn_choropleth(
     if n_fill:
         map_title = f"{title}  ·  {n_fill} districts filled from news/media"
 
+    scale = color_scale if color_scale is not None else HEAT_WHITE_BLUE
+
     fig = px.choropleth(
         data,
         geojson=geojson,
@@ -305,7 +349,7 @@ def plot_tn_choropleth(
         color="value",
         hover_name="district_label",
         hover_data={"value": ":.2f", "value_source": True, "district_norm": False},
-        color_continuous_scale=["#166534", "#84cc16", "#eab308", "#f97316", "#dc2626"],
+        color_continuous_scale=scale,
         title=map_title,
     )
     fig.update_geos(
@@ -320,7 +364,7 @@ def plot_tn_choropleth(
         font_color="#d1d5db",
         margin=dict(l=0, r=0, t=48, b=0),
         height=560,
-        coloraxis_colorbar=dict(title="Intensity", thickness=12),
+        coloraxis_colorbar=dict(title=colorbar_title, thickness=12),
     )
     return fig
 
@@ -375,13 +419,7 @@ def plot_district_heatmap_matrix(
             z=z.values,
             x=[c.replace("_", " ")[:28] for c in z.columns],
             y=list(z.index),
-            colorscale=[
-                [0.0, "#166534"],
-                [0.35, "#84cc16"],
-                [0.5, "#eab308"],
-                [0.75, "#f97316"],
-                [1.0, "#dc2626"],
-            ],
+            colorscale=HEAT_WHITE_BLUE_PLOTLY,
             colorbar=dict(title="z-score"),
             hovertemplate="District: %{y}<br>%{x}: %{z:.2f}<extra></extra>",
         )

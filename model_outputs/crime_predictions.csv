@@ -1,2 +1,2 @@
-area,year,area_type,target,target_label,model_name,prediction,actual,overrides,district_city,sentiment_polarity,crime_intensity,district_city_news,news_negative_share,news_count,news_intensity,risk_index,risk_label,sentiment_polarity_used,news_negative_share_used,news_count_used
-Chennai,2026,city,women_crimes_rape_sec_376_i,Rape incidents,gradient_boosting_log,20.795324710398056,37.0,{},Chennai,-0.9961,1,Chennai,0.3333333333333333,3,0.0,0.536,MEDIUM,-0.9961,0.3333333333333333,3
+area,year,area_type,target,target_label,model_name,prediction,model_raw,history_baseline,actual,overrides,district_city,sentiment_polarity,crime_intensity,district_city_news,news_negative_share,news_count,news_intensity,risk_index,risk_label,sentiment_polarity_used,news_negative_share_used,news_count_used
+Kallakurichi,2026,district,complaints_total_complaints,Total complaints,gradient_boosting_log,22811.419649871743,21208.6456,25788.0,24747.0,{},,,,,,,,0.114,LOW,,,

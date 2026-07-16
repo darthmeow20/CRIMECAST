@@ -31,7 +31,12 @@ MODEL_DIR = PROJECT_ROOT / "models"
 OUTPUT_DIR = PROJECT_ROOT / "model_outputs"
 RANDOM_STATE = 42
 
-IDENTIFIER_COLUMNS = {"district_city"}
+# Years with official TN crime tables used as *labels* for training.
+# Media-proxy years (2024+) stay in ml_ready for prediction templates / news fusion,
+# but must NOT supervise the model (fake FIR-scale targets).
+OFFICIAL_LABEL_MAX_YEAR = 2023
+
+IDENTIFIER_COLUMNS = {"district_city", "is_media_proxy_year", "is_official_year"}
 TARGET_CONFIGS = {
     "complaints_total_complaints": {
         "label": "Total complaints",
@@ -328,22 +333,107 @@ def temporal_evaluate_estimator(
     return {f"temporal_{name}": value for name, value in metrics.items()}, prediction_frame
 
 
+def filter_official_label_rows(
+    df: pd.DataFrame,
+    target: str,
+    *,
+    official_max_year: int = OFFICIAL_LABEL_MAX_YEAR,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """
+    Keep only official-era rows as supervised training examples.
+
+    Media-proxy years (typically > official_max_year) remain in the full ML
+    table for prediction templates and news features, but their crime counts/
+    rates are NOT used as y labels (they were scaled from news, not FIRs).
+    """
+    meta: dict[str, Any] = {
+        "official_max_year": official_max_year,
+        "used_official_filter": False,
+        "rows_before": 0,
+        "rows_after": 0,
+        "years_used": [],
+    }
+    base = df.loc[df[target].notna()].copy()
+    meta["rows_before"] = int(len(base))
+
+    if base.empty:
+        return base, meta
+
+    if "is_official_year" in base.columns:
+        official = base.loc[base["is_official_year"].astype(bool)]
+    elif "is_media_proxy_year" in base.columns:
+        official = base.loc[~base["is_media_proxy_year"].astype(bool)]
+    elif "year" in base.columns:
+        years = pd.to_numeric(base["year"], errors="coerce")
+        official = base.loc[years <= float(official_max_year)]
+    else:
+        official = base
+
+    meta["rows_after"] = int(len(official))
+    if "year" in official.columns and not official.empty:
+        meta["years_used"] = sorted(
+            pd.to_numeric(official["year"], errors="coerce").dropna().astype(int).unique().tolist()
+        )
+
+    # Safety: if filter is too aggressive, fall back with a clear warning
+    if len(official) < 10:
+        print(
+            f"[WARN] Official-year filter left {len(official)} rows for {target} "
+            f"(need ≥10). Falling back to all non-null target rows. "
+            f"Check dataset years ≤ {official_max_year}."
+        )
+        if "year" in base.columns:
+            meta["years_used"] = sorted(
+                pd.to_numeric(base["year"], errors="coerce").dropna().astype(int).unique().tolist()
+            )
+        meta["rows_after"] = int(len(base))
+        meta["used_official_filter"] = False
+        meta["fallback"] = True
+        return base, meta
+
+    meta["used_official_filter"] = True
+    meta["fallback"] = False
+    print(
+        f"[INFO] {target}: training labels from official years only "
+        f"{meta['years_used']} ({meta['rows_after']} rows; "
+        f"excluded {meta['rows_before'] - meta['rows_after']} media-proxy rows)"
+    )
+    return official, meta
+
+
 def fit_target_model(
     df: pd.DataFrame,
     target: str,
     model_dir: Path,
+    *,
+    official_max_year: int = OFFICIAL_LABEL_MAX_YEAR,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], pd.DataFrame]:
     config = TARGET_CONFIGS[target]
-    feature_columns = select_feature_columns(df, target, config["exclude_prefixes"])
 
-    # Prune redundant correlated features for more stable/reliable models
-    feature_columns = prune_correlated_features(df, feature_columns)
+    # Labels: official years only (≤ official_max_year by default)
+    train_source, label_meta = filter_official_label_rows(
+        df, target, official_max_year=official_max_year
+    )
 
-    # Build model_df without duplicating 'year' (it may already be in feature_columns from select_feature_columns)
+    feature_columns = select_feature_columns(train_source, target, config["exclude_prefixes"])
+    # Drop label-meta columns if they slipped into features
+    feature_columns = [
+        c for c in feature_columns
+        if c not in ("is_media_proxy_year", "is_official_year")
+    ]
+
+    # Prune on official training rows only
+    feature_columns = prune_correlated_features(train_source, feature_columns)
+
     cols = feature_columns + [target]
-    if "year" in df.columns and "year" not in cols:
+    if "year" in train_source.columns and "year" not in cols:
         cols = cols + ["year"]
-    model_df = df.loc[df[target].notna(), cols].copy()
+    # Keep identifiers for fitted_predictions export
+    for id_col in ("district_city", "area_type"):
+        if id_col in train_source.columns and id_col not in cols:
+            cols = cols + [id_col]
+
+    model_df = train_source.loc[:, [c for c in cols if c in train_source.columns]].copy()
     x = model_df[feature_columns]
     y = model_df[target].astype(float)
     years_series = model_df["year"] if "year" in model_df.columns else pd.Series([2022] * len(y))
@@ -352,7 +442,6 @@ def fit_target_model(
         raise ValueError(f"Need at least 10 rows to train target {target}; found {len(y)}")
 
     evaluated_rows: list[dict[str, Any]] = []
-    holdout_predictions: dict[str, pd.DataFrame] = {}
 
     for spec in candidate_models():
         estimator = build_estimator(model_df, feature_columns, spec, config)
@@ -366,12 +455,14 @@ def fit_target_model(
             "model_name": spec.name,
             "rows": len(model_df),
             "feature_count": len(feature_columns),
+            "official_label_max_year": official_max_year,
+            "training_years": ",".join(str(y) for y in label_meta.get("years_used", [])),
+            "official_filter": label_meta.get("used_official_filter", False),
             **cv_metrics,
             **test_metrics,
             **temporal_metrics,
         }
         evaluated_rows.append(row)
-        # holdout_predictions kept for backward compat (we don't store temporal preds here)
 
     best_row = min(evaluated_rows, key=lambda row: row.get("temporal_mae", row["cv_mae"]))
     best_spec = next(spec for spec in candidate_models() if spec.name == best_row["model_name"])
@@ -389,6 +480,8 @@ def fit_target_model(
             "target_label": config["label"],
             "feature_columns": feature_columns,
             "training_rows": len(model_df),
+            "official_label_max_year": official_max_year,
+            "training_years": label_meta.get("years_used", []),
             "metrics": best_row,
             "trained_at": datetime.now().isoformat(timespec="seconds"),
         },
@@ -397,20 +490,27 @@ def fit_target_model(
 
     best_row["is_best"] = True
     best_row["model_path"] = str(model_path)
+    best_row["official_label_max_year"] = official_max_year
+    best_row["training_years"] = label_meta.get("years_used", [])
     for row in evaluated_rows:
         row.setdefault("is_best", False)
         row.setdefault("model_path", "")
 
     fitted_predictions = pd.DataFrame(
         {
-            "district_city": df.loc[model_df.index, "district_city"].to_numpy(),
-            "year": df.loc[model_df.index, "year"].to_numpy(),
-            "area_type": df.loc[model_df.index, "area_type"].to_numpy(),
+            "district_city": model_df["district_city"].to_numpy()
+            if "district_city" in model_df.columns
+            else np.array([""] * len(y)),
+            "year": model_df["year"].to_numpy() if "year" in model_df.columns else np.array([np.nan] * len(y)),
+            "area_type": model_df["area_type"].to_numpy()
+            if "area_type" in model_df.columns
+            else np.array([""] * len(y)),
             "target": target,
             "target_label": config["label"],
             "actual": y.to_numpy(),
             "predicted": np.maximum(best_estimator.predict(x), 0.0),
             "model_name": best_spec.name,
+            "label_source": "official",
         }
     )
 
@@ -432,42 +532,57 @@ def write_training_report(
         "",
         f"- Dataset: `{data_path}`",
         f"- Dataset rows: {dataset_rows}",
-        f"- Dataset years: {', '.join(str(year) for year in dataset_years)}",
+        f"- Dataset years (full table): {', '.join(str(year) for year in dataset_years)}",
+        f"- **Training labels**: official years only (≤ {OFFICIAL_LABEL_MAX_YEAR}) — media-proxy years excluded as y",
         f"- Models directory: `{model_dir}`",
         f"- Trained targets: {len(best_rows)}",
         "",
-        "RELIABILITY NOTE: Best model is chosen primarily by 'temporal_mae' (train on past year(s), test on most recent year).",
+        "RELIABILITY NOTE: Best model is chosen primarily by 'temporal_mae' (train on past year(s), test on most recent *official* year).",
         "This is a much stricter and more honest measure of how well the model would perform on future/unseen years.",
+        "",
+        "## Official vs media-proxy years",
+        "",
+        f"- **Official labels** (used for y): year ≤ {OFFICIAL_LABEL_MAX_YEAR} (real TN crime tables).",
+        f"- **Media-proxy years** (2024+): may exist in `ml_ready` for maps/news features/templates, but are **not** used as training targets.",
+        "- News/sentiment columns remain available as **features** when present on official-year rows.",
+        "- Prediction still blends model output with district official history for rate ranking (see `predict.py`).",
         "",
         "## Notes",
         "",
-        "- **Temporal evaluation** (train earlier year, test latest) is now primary for realistic future prediction accuracy.",
+        "- **Temporal evaluation** (train earlier year, test latest official year) is primary for realistic accuracy.",
         "- Each target excludes its own source family to reduce direct leakage.",
         "- `district_city` is excluded so the model does not simply memorize area names.",
         "- Highly correlated features are pruned (corr > 0.95) for more stable models.",
-        "- `year` / `year_centered` / `is_latest_year`, population, and **sentiment features** (polarity, intensity, negative share) are used when available.",
-        "- Sentiment signals from DistilBERT are fused to make crime rate predictions more accurate and context-aware.",
-        "- More years of data will still give the biggest gains.",
-        "- Rate targets (e.g. murder_rate, rape_rate, crime_rate) + risk_index give the most reliable view.",
+        "- `year` / `year_centered` / `is_latest_year`, population, and **sentiment features** are used when available.",
+        "- More official years of data will still give the biggest gains.",
+        "- Rate targets (e.g. murder_rate, rape_rate) + risk_index give the most reliable view.",
         "",
         "## Best Models",
         "",
-        "| Target | Best model | CV MAE | CV RMSE | CV R2 | Test MAE | Temporal MAE | Temporal R2 | Notes |",
-        "|---|---|---:|---:|---:|---:|---:|---:|---|",
+        "| Target | Best model | Train years | Rows | CV MAE | Temporal MAE | Temporal R2 | Notes |",
+        "|---|---|---|---:|---:|---:|---:|---|",
     ]
 
     for row in best_rows:
         temporal_mae = row.get("temporal_mae", float("nan"))
         temporal_r2 = row.get("temporal_r2", float("nan"))
-        note = "temporal holdout used" if not np.isnan(temporal_mae) else "random holdout only"
+        ty = row.get("training_years", [])
+        if isinstance(ty, list):
+            ty_s = ",".join(str(x) for x in ty)
+        else:
+            ty_s = str(ty)
+        note = "official labels only"
+        if not row.get("official_filter", True):
+            note = "fallback: all years (too few official rows)"
+        elif not np.isnan(temporal_mae):
+            note = "official + temporal holdout"
         lines.append(
             "| "
             f"{row['target_label']} | "
             f"{row['model_name']} | "
+            f"{ty_s} | "
+            f"{row.get('rows', '')} | "
             f"{row['cv_mae']:.3f} | "
-            f"{row['cv_rmse']:.3f} | "
-            f"{row['cv_r2']:.3f} | "
-            f"{row.get('test_mae', float('nan')):.3f} | "
             f"{temporal_mae:.3f} | "
             f"{temporal_r2:.3f} | "
             f"{note} |"
@@ -492,6 +607,8 @@ def train_models(
     model_dir: Path = MODEL_DIR,
     output_dir: Path = OUTPUT_DIR,
     targets: list[str] | None = None,
+    *,
+    official_max_year: int = OFFICIAL_LABEL_MAX_YEAR,
 ) -> dict[str, Path]:
     model_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -503,12 +620,19 @@ def train_models(
     if missing_targets:
         raise ValueError(f"Targets not found in dataset: {', '.join(missing_targets)}")
 
+    print(
+        f"[INFO] Training with official labels only (year ≤ {official_max_year}). "
+        "Media-proxy years are excluded as supervision targets."
+    )
+
     metrics_rows: list[dict[str, Any]] = []
     best_rows: list[dict[str, Any]] = []
     prediction_frames: list[pd.DataFrame] = []
 
     for target in selected_targets:
-        target_rows, best_row, predictions = fit_target_model(df, target, model_dir)
+        target_rows, best_row, predictions = fit_target_model(
+            df, target, model_dir, official_max_year=official_max_year
+        )
         metrics_rows.extend(target_rows)
         best_rows.append(best_row)
         prediction_frames.append(predictions)
@@ -522,7 +646,15 @@ def train_models(
 
     metrics.to_csv(metrics_file, index=False)
     predictions.to_csv(predictions_file, index=False)
-    best_models_file.write_text(json.dumps(best_rows, indent=2), encoding="utf-8")
+    # JSON-serializable best rows
+    best_for_json = []
+    for row in best_rows:
+        r = dict(row)
+        # ensure lists are JSON-safe
+        if isinstance(r.get("training_years"), np.ndarray):
+            r["training_years"] = r["training_years"].tolist()
+        best_for_json.append(r)
+    best_models_file.write_text(json.dumps(best_for_json, indent=2, default=str), encoding="utf-8")
     dataset_years = sorted(df["year"].dropna().astype(int).unique().tolist())
     report_file = write_training_report(
         metrics,
@@ -549,6 +681,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-dir", type=Path, default=MODEL_DIR)
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--targets", nargs="+", choices=sorted(TARGET_CONFIGS), default=None)
+    parser.add_argument(
+        "--official-max-year",
+        type=int,
+        default=OFFICIAL_LABEL_MAX_YEAR,
+        help=f"Only years ≤ this value are used as training labels (default {OFFICIAL_LABEL_MAX_YEAR}). "
+        "Media-proxy years remain in the table for prediction templates.",
+    )
     return parser.parse_args()
 
 
@@ -559,6 +698,7 @@ def main() -> None:
         model_dir=args.model_dir,
         output_dir=args.output_dir,
         targets=args.targets,
+        official_max_year=args.official_max_year,
     )
     print(f"Training metrics: {outputs['metrics']}")
     print(f"Fitted predictions: {outputs['predictions']}")
