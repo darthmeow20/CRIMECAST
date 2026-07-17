@@ -23,5 +23,5 @@ TOP 10:
 Method: linear trend on fitted actual rape counts → 2026
 If you saw ColumnTransformer / dataframe column errors before, those
 came from an OLD script. This engine cannot produce that error.
-Generated: 2026-07-14 12:31:04
+Generated: 2026-07-18 00:38:41
 ======================================================================

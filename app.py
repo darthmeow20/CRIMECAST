@@ -138,15 +138,15 @@ def run_full_pipeline() -> None:
         script = ROOT / "acquire_news_signals.py"
         if script.exists():
             r = subprocess.run(
-                [sys.executable, "-B", str(script), "--refresh-new"],
+                [sys.executable, "-B", str(script), "--refresh-new", "--light-score"],
                 cwd=str(ROOT),
                 check=False,
             )
             if r.returncode != 0:
-                # in-process fallback
+                # in-process fallback (lexicon only — no transformers)
                 from acquire_news_signals import refresh_new_news
 
-                refresh_new_news()
+                refresh_new_news(light_score=True)
         else:
             print("[WARN] acquire_news_signals.py missing — using existing news_signals.csv only")
     except Exception as e:
@@ -343,14 +343,20 @@ def interactive_menu() -> None:
                 print("[INFO] Refreshing NEW news only...")
                 try:
                     r = subprocess.run(
-                        [sys.executable, "-B", str(ROOT / "acquire_news_signals.py"), "--refresh-new"],
+                        [
+                            sys.executable,
+                            "-B",
+                            str(ROOT / "acquire_news_signals.py"),
+                            "--refresh-new",
+                            "--light-score",
+                        ],
                         cwd=str(ROOT),
                         check=False,
                     )
                     if r.returncode != 0:
                         from acquire_news_signals import refresh_new_news
 
-                        refresh_new_news()
+                        refresh_new_news(light_score=True)
                 except Exception as e:
                     print(f"[ERROR] {e}")
         elif choice == "4":

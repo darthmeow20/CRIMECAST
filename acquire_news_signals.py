@@ -41,21 +41,26 @@ OUTPUT_DIR = PROJECT_ROOT / "model_outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 NEWS_OUTPUT = OUTPUT_DIR / "news_signals.csv"
 
-# Prefer 3-LLM NLP stack; fall back to legacy DistilBERT-only scorer
-HAS_NLP3 = False
-HAS_SENTIMENT = False
-try:
-    from nlp_pipeline import analyze_crime_text, model_card
-    HAS_NLP3 = True
-    HAS_SENTIMENT = True
-except Exception as e:
-    print(f"[WARN] nlp_pipeline unavailable: {e}")
+# Do NOT import nlp_pipeline / transformers at module load.
+# Dashboard refresh uses lexicon-only scoring so Streamlit never pulls
+# transformers → torchvision / SAM ModuleNotFoundError spam.
+HAS_NLP3 = None  # resolved lazily
+HAS_SENTIMENT = True  # always have built-in lexicon scorer
+
+
+def _resolve_nlp() -> bool:
+    """Lazy: True if full 3-LLM nlp_pipeline is importable (not loaded until used)."""
+    global HAS_NLP3
+    if HAS_NLP3 is not None:
+        return bool(HAS_NLP3)
     try:
-        from sentiment_analysis import score_text, analyze_sentiment
-        HAS_SENTIMENT = True
-    except Exception as e2:
-        print(f"[WARN] sentiment_analysis also unavailable: {e2}")
-        HAS_SENTIMENT = False
+        import nlp_pipeline  # noqa: F401
+
+        HAS_NLP3 = True
+    except Exception as e:
+        print(f"[WARN] nlp_pipeline unavailable: {e}")
+        HAS_NLP3 = False
+    return bool(HAS_NLP3)
 
 
 # User-priority Tamil media outlets (தினத்தந்தி, தினமலர், தினமணி, தமிழ் முரசு, புதிய தலைமுறை, விகடன், பிபிசி தமிழ்)
@@ -446,54 +451,139 @@ def classify_crime_theme(text: str) -> str:
     return "complaints"
 
 
-def score_headlines(headlines: list[dict[str, Any]]) -> pd.DataFrame:
-    """Score headlines with 3-LLM NLP stack (sentiment + crime type + trend)."""
+def _score_one_light(text: str) -> dict[str, Any]:
+    """Lexicon-only scoring — no transformers / torch / torchvision."""
+    try:
+        from nlp_pipeline import analyze_crime_text_light
+
+        return analyze_crime_text_light(text)
+    except Exception:
+        pass
+    # Inline minimal EN lexicon if nlp_pipeline missing
+    t = (text or "").lower()
+    neg = ("murder", "rape", "assault", "killed", "attack", "crime", "arrest", "kidnap", "pocso")
+    pos = ("safe", "justice", "resolved", "improved", "acquitted")
+    n = sum(1 for w in neg if w in t)
+    p = sum(1 for w in pos if w in t)
+    if n > p:
+        pol, lab = -0.65, "negative"
+    elif p > n:
+        pol, lab = 0.4, "positive"
+    else:
+        pol, lab = 0.0, "neutral"
+    crime = "other crime"
+    for label, kws in (
+        ("homicide or murder", ("murder", "killed", "homicide")),
+        ("rape or sexual assault", ("rape", "sexual", "pocso")),
+        ("theft or robbery", ("theft", "robbery", "snatching")),
+        ("assault or violence", ("assault", "attack", "violence")),
+        ("cybercrime", ("cyber", "online fraud")),
+        ("drug or narcotics", ("drug", "narcotic", "ganja")),
+    ):
+        if any(k in t for k in kws):
+            crime = label
+            break
+    return {
+        "polarity": pol,
+        "sentiment_label": lab,
+        "confidence": 0.5,
+        "crime_type": crime,
+        "crime_type_score": 0.6 if crime != "other crime" else 0.4,
+        "trend_label": "stable situation",
+        "trend_score": 0.45,
+        "pipeline": "lexicon_inline",
+    }
+
+
+def _row_from_score(h: dict[str, Any], text: str, res: dict[str, Any]) -> dict[str, Any]:
+    intensity = int(
+        min(10, max(0, abs(float(res.get("polarity", 0))) * 8 + float(res.get("crime_type_score", 0)) * 3))
+    )
+    if "crime_intensity" in res and res.get("crime_intensity") is not None:
+        try:
+            intensity = int(res["crime_intensity"])
+        except Exception:
+            pass
+    method = res.get("pipeline") or res.get("sentiment_method") or res.get("method") or "scored"
+    crime_types = res.get("crime_type") or res.get("crime_types") or ""
+    district = h.get("district") or normalize_district(text)
+    sent_lab = str(res.get("sentiment_label", "neutral") or "neutral")
+    pol = float(res.get("polarity", 0.0))
+    tvk_neg = is_tvk_negative(text) or (
+        is_tvk_related(text) and (sent_lab.lower() in ("negative", "neg") or pol < -0.05)
+    )
+    return {
+        "date": h.get("date"),
+        "district_city": district,
+        "headline": text,
+        "source": h.get("source", "news"),
+        "url": h.get("url", ""),
+        "polarity": round(pol, 4),
+        "sentiment_label": sent_lab,
+        "confidence": round(float(res.get("confidence", 0.0)), 3),
+        "crime_intensity": intensity,
+        "crime_types": crime_types,
+        "crime_type": res.get("crime_type", crime_types),
+        "trend_label": res.get("trend_label", ""),
+        "trend_score": res.get("trend_score", 0),
+        "method": method,
+        "source_class": "news_media",  # not social
+        "is_tvk": is_tvk_related(text) or bool(h.get("is_tvk")),
+        "priority": "tvk_negative" if tvk_neg else (h.get("priority") or ""),
+    }
+
+
+def score_headlines_light(headlines: list[dict[str, Any]]) -> pd.DataFrame:
+    """Fast lexicon scoring for refresh — never loads DistilBERT / transformers."""
     rows = []
     for h in headlines:
         text = h.get("headline", "")
-        if not text or not HAS_SENTIMENT:
+        if not text:
             continue
         try:
-            if HAS_NLP3:
-                res = analyze_crime_text(text)
-                # Map intensity from crime-type score + negativity
-                intensity = int(min(10, max(0, abs(res.get("polarity", 0)) * 8 + res.get("crime_type_score", 0) * 3)))
-                method = res.get("pipeline", "3llm")
-                crime_types = res.get("crime_type", "")
-            else:
-                from sentiment_analysis import score_text
-                res = score_text(text)
-                intensity = res.get("crime_intensity", 0)
-                method = res.get("sentiment_method", "distilbert")
-                crime_types = res.get("crime_types", "")
+            res = _score_one_light(text)
+            rows.append(_row_from_score(h, text, res))
         except Exception:
             continue
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    df["year"] = pd.to_datetime(df["date"], errors="coerce").dt.year
+    return df
 
-        district = h.get("district") or normalize_district(text)
-        sent_lab = str(res.get("sentiment_label", "neutral") or "neutral")
-        pol = float(res.get("polarity", 0.0))
-        tvk_neg = is_tvk_negative(text) or (
-            is_tvk_related(text) and (sent_lab.lower() in ("negative", "neg") or pol < -0.05)
-        )
-        rows.append({
-            "date": h.get("date"),
-            "district_city": district,
-            "headline": text,
-            "source": h.get("source", "news"),
-            "url": h.get("url", ""),
-            "polarity": round(pol, 4),
-            "sentiment_label": sent_lab,
-            "confidence": round(float(res.get("confidence", 0.0)), 3),
-            "crime_intensity": intensity,
-            "crime_types": crime_types,
-            "crime_type": res.get("crime_type", crime_types),
-            "trend_label": res.get("trend_label", ""),
-            "trend_score": res.get("trend_score", 0),
-            "method": method,
-            "source_class": "news_media",  # not social
-            "is_tvk": is_tvk_related(text) or bool(h.get("is_tvk")),
-            "priority": "tvk_negative" if tvk_neg else (h.get("priority") or ""),
-        })
+
+def score_headlines(headlines: list[dict[str, Any]], *, light: bool = False) -> pd.DataFrame:
+    """Score headlines. light=True → lexicon only (safe for dashboard refresh)."""
+    if light:
+        return score_headlines_light(headlines)
+
+    rows = []
+    use_nlp3 = _resolve_nlp()
+    for h in headlines:
+        text = h.get("headline", "")
+        if not text:
+            continue
+        try:
+            if use_nlp3:
+                from nlp_pipeline import analyze_crime_text
+
+                res = analyze_crime_text(text)
+            else:
+                try:
+                    from sentiment_analysis import score_text
+
+                    res = score_text(text)
+                    # score_text may load DistilBERT; fall back to light on failure
+                except Exception:
+                    res = _score_one_light(text)
+        except Exception:
+            # Never drop the whole batch — light score on LLM failure
+            try:
+                res = _score_one_light(text)
+            except Exception:
+                continue
+
+        rows.append(_row_from_score(h, text, res))
 
     if not rows:
         return pd.DataFrame()
@@ -628,16 +718,20 @@ def _existing_headline_keys() -> set[tuple[str, str]]:
     return keys
 
 
-def refresh_new_news(max_per_query: int = 20) -> dict[str, Any]:
+def refresh_new_news(max_per_query: int = 20, *, light_score: bool = True) -> dict[str, Any]:
     """
     Incremental refresh: fetch LATEST Tamil/English crime news only.
     Skips headlines already stored. Does NOT re-populate historical proxy CSVs.
+
+    light_score=True (default): lexicon-only NLP — no transformers/torchvision.
+    Use light_score=False for full DistilBERT 3-LLM stack (CLI --full-nlp).
 
     Use this for dashboard Refresh / full-pipeline light update.
     One-time bulk backfill remains: --populate-2024-2026
     """
     print("=" * 60)
-    print("NEWS REFRESH — NEW headlines only (incremental)")
+    mode = "lexicon light (no transformers)" if light_score else "full DistilBERT NLP"
+    print(f"NEWS REFRESH — NEW headlines only | scoring: {mode}")
     print("=" * 60)
 
     existing = _existing_headline_keys()
@@ -709,18 +803,43 @@ def refresh_new_news(max_per_query: int = 20) -> dict[str, Any]:
     except Exception as e:
         print(f"[WARN] Harvest log: {e}")
 
-    # Score only new headlines and MERGE into signals
-    scored = score_headlines(new_items)
-    if scored.empty:
-        print("[WARN] Scoring returned empty — saving unscored harvest only.")
-        return {"new_count": len(new_items), "scored": 0, "message": "Harvested but not scored"}
+    # Score only new headlines and MERGE into signals (light by default)
+    try:
+        scored = score_headlines(new_items, light=light_score)
+    except Exception as e:
+        print(f"[WARN] Scoring failed ({e}) — harvest already saved; trying light fallback...")
+        try:
+            scored = score_headlines_light(new_items)
+        except Exception as e2:
+            print(f"[WARN] Light scoring also failed: {e2}")
+            scored = pd.DataFrame()
 
-    save_signals(scored, merge=True)
+    if scored is None or scored.empty:
+        print("[WARN] Scoring returned empty — harvest CSV kept; signals unchanged.")
+        return {
+            "new_count": len(new_items),
+            "scored": 0,
+            "light_score": light_score,
+            "message": "Harvested but not scored",
+        }
+
+    try:
+        save_signals(scored, merge=True)
+    except Exception as e:
+        print(f"[WARN] save_signals failed (harvest still on disk): {e}")
+        return {
+            "new_count": len(new_items),
+            "scored": len(scored),
+            "light_score": light_score,
+            "message": f"Scored {len(scored)} but merge failed: {e}",
+        }
+
     print(f"[OK] Merged {len(scored)} NEW scored headlines into news_signals.")
     return {
         "new_count": len(new_items),
         "scored": len(scored),
-        "message": f"Added {len(scored)} new headlines",
+        "light_score": light_score,
+        "message": f"Added {len(scored)} new headlines ({'lexicon' if light_score else 'full NLP'})",
     }
 
 
@@ -738,6 +857,17 @@ def main():
         "--refresh-new",
         action="store_true",
         help="Fetch only NEW headlines (incremental). For dashboard refresh / pipeline light update.",
+    )
+    parser.add_argument(
+        "--light-score",
+        action="store_true",
+        default=True,
+        help="Lexicon-only scoring on refresh (default; no transformers/torchvision).",
+    )
+    parser.add_argument(
+        "--full-nlp",
+        action="store_true",
+        help="Use DistilBERT 3-LLM stack when scoring (slower; may need torchvision).",
     )
     parser.add_argument(
         "--populate-2024-2025",
@@ -761,7 +891,9 @@ def main():
     args = parser.parse_args()
 
     if args.refresh_new:
-        refresh_new_news(max_per_query=args.max_items or 20)
+        # Default light; --full-nlp opts into DistilBERT
+        use_light = not bool(args.full_nlp)
+        refresh_new_news(max_per_query=args.max_items or 20, light_score=use_light)
         return
 
     populate_years = None
@@ -800,6 +932,7 @@ def main():
         print("  python acquire_news_signals.py --populate-2024-2026")
         print("  # Incremental NEW headlines only (dashboard refresh / pipeline):")
         print("  python acquire_news_signals.py --refresh-new")
+        print("  python acquire_news_signals.py --refresh-new --full-nlp  # DistilBERT (optional)")
         print("  python acquire_news_signals.py --fetch 'தமிழ்நாடு குற்றம்' --lang ta")
         print("  python acquire_news_signals.py --csv my_headlines.csv")
         print("  python acquire_news_signals.py --demo")

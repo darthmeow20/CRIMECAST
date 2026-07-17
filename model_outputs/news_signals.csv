@@ -1,25 +1,27 @@
 year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_crime_intensity
 2009,Latest,1,0.9953,0.0,8.0
-2014,Other / Statewide,1,-0.9928,1.0,8.0
+2014,Other / Statewide,2,-0.06259999999999999,0.5,7.5
 2014,SHIRDI,1,0.7074,0.0,6.0
 2015,Other / Statewide,4,-0.03282500000000002,0.5,7.5
 2016,Chennai,1,-0.9859,1.0,8.0
 2016,Indian,1,0.9949,0.0,8.0
-2016,Other / Statewide,1,-0.981,1.0,9.0
+2016,Other / Statewide,3,-0.9753333333333334,1.0,8.666666666666666
 2017,Conservation,1,0.9972,0.0,9.0
 2017,Facilitation,1,-0.9323,1.0,8.0
-2017,Other / Statewide,2,-0.9340999999999999,1.0,9.0
+2017,Other / Statewide,3,-0.9430999999999999,1.0,8.666666666666666
 2017,Tamilnadu,1,-0.9415,1.0,9.0
 2018,Bigger,1,-0.8159,1.0,7.0
 2018,Chennai,2,-0.9793000000000001,1.0,9.0
 2018,India,1,0.9987,0.0,8.0
 2018,News,1,-0.9262,1.0,8.0
+2018,Other / Statewide,1,-0.9948,1.0,10.0
 2018,QCrime:,1,-0.9696,1.0,9.0
 2019,Former,1,-0.9772,1.0,9.0
 2019,India,1,0.9845,0.0,8.0
-2019,Other / Statewide,1,-0.7923,1.0,6.0
+2019,Other / Statewide,2,-0.8517,1.0,7.0
 2019,Scotland,1,0.9896,0.0,8.0
 2019,Spice,1,0.9688,0.0,9.0
+2019,Tiruvallur,1,-0.9276,1.0,8.0
 2020,Jamia,1,-0.9906,1.0,8.0
 2020,Kangana,1,-0.9718,1.0,9.0
 2020,Other / Statewide,3,-0.9575333333333332,1.0,9.333333333333334
@@ -37,7 +39,7 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2022,Election,1,-0.9953,1.0,8.0
 2022,India,1,-0.8462,1.0,8.0
 2022,Movie,1,-0.9997,1.0,8.0
-2022,Other / Statewide,1,-0.9795,1.0,9.0
+2022,Other / Statewide,3,-0.8715,1.0,8.333333333333334
 2022,Stalin,2,-0.74615,1.0,6.5
 2023,Calcutta,1,-0.9968,1.0,8.0
 2023,Chennai,2,-0.98005,1.0,9.0
@@ -46,18 +48,18 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2023,Mumbai:,1,-0.9921,1.0,8.0
 2023,NIT-Hamirpur:,1,-0.9985,1.0,10.0
 2023,News18,1,-0.9803,1.0,8.0
-2023,Other / Statewide,1,0.9991,0.0,8.0
+2023,Other / Statewide,3,-0.3103666666666667,0.6666666666666666,9.0
 2023,Puthiyathalaimurai,1,-0.9445,1.0,8.0
 2024,Arrests,1,-0.9665,1.0,10.0
 2024,BJP's,1,-0.9971,1.0,8.0
-2024,Chennai,1,-0.9976,1.0,9.0
+2024,Chennai,2,-0.9541,1.0,8.0
 2024,Court,1,0.9747,0.0,8.0
 2024,Drugs,2,-0.9425,1.0,9.0
 2024,Enforcement,1,-0.941,1.0,8.0
 2024,Hemant,1,0.5945,0.0,5.0
 2024,India,1,-0.9878,1.0,9.0
 2024,News18,1,-0.9849,1.0,8.0
-2024,Other / Statewide,10,-0.52403,0.7,6.6
+2024,Other / Statewide,12,-0.4662583333333334,0.6666666666666666,6.583333333333333
 2024,Tambaram,1,-0.9836,1.0,8.0
 2024,Under,1,-0.901,1.0,9.0
 2025,Chennai,3,-0.9863333333333334,1.0,9.0
@@ -69,7 +71,7 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2025,India,1,0.9985,0.0,9.0
 2025,Meerut,1,-0.9914,1.0,9.0
 2025,Narcotics,1,-0.9927,1.0,9.0
-2025,Other / Statewide,9,-0.2081222222222222,0.6666666666666666,5.666666666666667
+2025,Other / Statewide,11,-0.23301818181818182,0.6363636363636364,5.545454545454546
 2025,Welcome,1,0.9986,0.0,8.0
 2026,AIADMK,1,-0.9994,1.0,0.0
 2026,Ahmedabad,1,-0.9678,1.0,8.0
@@ -94,8 +96,9 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,Cash,1,-0.898,1.0,9.0
 2026,Chandigarh,1,-0.9812,1.0,8.0
 2026,Charges,1,-0.7837,1.0,6.0
-2026,Chennai,67,-0.5146000000000001,0.8507462686567164,5.835820895522388
-2026,Coimbatore,16,-0.7201375,0.9375,7.0
+2026,Chengalpattu,2,-0.6204999999999999,1.0,5.0
+2026,Chennai,97,-0.5352422680412371,0.865979381443299,5.701030927835052
+2026,Coimbatore,26,-0.6243576923076923,0.9615384615384616,5.846153846153846
 2026,Coimbatore City,1,-0.9366,1.0,8.0
 2026,Controversial,1,-0.9993,1.0,8.0
 2026,Crime,1,-0.9488,1.0,8.0
@@ -113,6 +116,7 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,Drugs',1,-0.7652,1.0,6.0
 2026,EXCLUSIVE,1,-0.9883,1.0,9.0
 2026,Eliminate,1,0.5656,0.0,5.0
+2026,Erode,1,0.2952,0.0,2.0
 2026,Ex-BJP,2,0.9702,0.0,8.0
 2026,Ex-TN,1,-0.9937,1.0,9.0
 2026,Former,1,-0.9847,1.0,8.0
@@ -128,8 +132,8 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,Jaswant,1,-0.9493,1.0,8.0
 2026,Jharkhand,1,0.6557,0.0,6.0
 2026,Kangana,1,0.9961,0.0,8.0
-2026,Kanyakumari,6,-0.9525833333333334,1.0,8.0
-2026,Karur,7,-0.8841142857142857,1.0,7.142857142857143
+2026,Kanyakumari,10,-0.95701,1.0,8.0
+2026,Karur,9,-0.5977444444444444,0.7777777777777778,6.333333333333333
 2026,Khammam,1,0.5052,0.0,5.0
 2026,Killed,1,-0.9977,1.0,0.0
 2026,Kochi:,1,-0.9824,1.0,10.0
@@ -140,8 +144,8 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,Lokal,1,0.7149,0.0,6.0
 2026,Lorry,1,-0.9101,1.0,8.0
 2026,Madhya,1,-0.9808,1.0,8.0
-2026,Madurai,44,-0.6495045454545454,0.8863636363636364,7.0227272727272725
-2026,Madurai City,2,-0.04849999999999999,0.5,7.5
+2026,Madurai,50,-0.649406,0.88,6.92
+2026,Madurai City,5,0.16485999999999998,0.4,7.8
 2026,Mageshwari,1,-0.8908,1.0,7.0
 2026,Makkal,1,0.8167,0.0,7.0
 2026,Mandir,1,-0.9604,1.0,9.0
@@ -158,9 +162,10 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,News18,4,0.373625,0.25,6.0
 2026,News7,1,0.844,0.0,7.0
 2026,Nigerian,1,-0.9617,1.0,8.0
+2026,Nilgiris,1,-0.9917,1.0,8.0
 2026,Operation,1,-0.995,1.0,9.0
 2026,Opinion,1,-0.9818,1.0,9.0
-2026,Other / Statewide,465,-0.40321698924731186,0.789247311827957,5.051612903225807
+2026,Other / Statewide,683,-0.38979692532942894,0.780380673499268,4.87701317715959
 2026,Parents,1,0.9956,0.0,8.0
 2026,Perambur,1,-0.9823,1.0,10.0
 2026,Periyapalayam,1,-0.9989,1.0,0.0
@@ -186,7 +191,7 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,Seven,1,-0.9961,1.0,8.0
 2026,Shahbad,1,-0.9754,1.0,10.0
 2026,Sickles,1,-0.9986,1.0,8.0
-2026,Sivaganga,6,-0.8492666666666667,1.0,6.833333333333333
+2026,Sivaganga,8,-0.6375125,0.875,6.375
 2026,Sollathigaram,1,-0.92,1.0,7.0
 2026,South,2,0.014949999999999963,0.5,8.0
 2026,Stalin,1,-0.997,1.0,8.0
@@ -202,14 +207,14 @@ year,district_city,news_count,avg_news_polarity,negative_news_share,avg_news_cri
 2026,Thanjavur,1,-0.9793,1.0,10.0
 2026,Thanthi,1,-0.8275,1.0,7.0
 2026,Theft,2,-0.93405,1.0,9.0
-2026,Thoothukudi,38,-0.5921921052631579,0.868421052631579,6.605263157894737
+2026,Thoothukudi,44,-0.6147772727272728,0.8863636363636364,6.590909090909091
 2026,Times,2,-0.96485,1.0,9.0
-2026,Tiruchirappalli,1,-0.1553,1.0,1.0
+2026,Tiruchirappalli,2,0.05635000000000001,0.5,1.5
 2026,Tiruchy,1,-0.8596,1.0,9.0
 2026,Tirumazhisai,1,-0.9915,1.0,8.0
-2026,Tirunelveli,2,-0.62625,1.0,5.0
-2026,Tiruppattur,1,-0.9678,1.0,9.0
-2026,Tiruvallur,3,-0.9919333333333333,1.0,2.6666666666666665
+2026,Tirunelveli,4,-0.6637,1.0,6.0
+2026,Tiruppattur,2,-0.9678,1.0,9.0
+2026,Tiruvallur,4,-0.985225,1.0,4.5
 2026,Tiruvannamalai,1,-0.9985,1.0,10.0
 2026,Trafficking,1,-0.8942,1.0,10.0
 2026,Trudeau’s,1,-0.9912,1.0,9.0

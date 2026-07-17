@@ -599,6 +599,220 @@ def load_media_harvest():
     return pd.DataFrame()
 
 
+@st.cache_data(show_spinner=False)
+def cached_current_affairs_heat(
+    harvest_sig: str,
+    news_sig: str,
+    recent_days: int,
+) -> tuple[pd.DataFrame, str, str]:
+    """Cache heat by file signature so Live Feed / scoreboard don't recompute every click."""
+    harvest_df = load_media_harvest()
+    news_df = load_news_signals()
+    return build_current_affairs_heat(harvest_df, news_df, recent_days=recent_days)
+
+
+def _data_sig(*paths: Path) -> str:
+    parts = []
+    for p in paths:
+        if p is None:
+            continue
+        try:
+            if p.exists():
+                st_ = p.stat()
+                parts.append(f"{p.name}:{st_.st_mtime_ns}:{st_.st_size}")
+        except Exception:
+            parts.append(str(p))
+    return "|".join(parts) if parts else "none"
+
+
+def get_current_affairs_heat(recent_days: int = 90) -> tuple[pd.DataFrame, str, str]:
+    """Public helper: cached news heat for a time window."""
+    hpath = _latest_media_harvest_path()
+    npath = OUTPUT_DIR / "news_signals.csv"
+    return cached_current_affairs_heat(
+        _data_sig(hpath) if hpath else "no-harvest",
+        _data_sig(npath),
+        int(recent_days),
+    )
+
+
+def data_freshness_caption() -> str:
+    """Short 'as of' line for demos / viva (college-usable transparency)."""
+    from datetime import datetime
+
+    bits = []
+    for label, path in (
+        ("ML data", ML_READY_FILE),
+        ("News", _latest_media_harvest_path() or (OUTPUT_DIR / "news_signals.csv")),
+        ("2026 forecast", RAPE_2026),
+    ):
+        try:
+            if path is not None and Path(path).exists():
+                ts = datetime.fromtimestamp(Path(path).stat().st_mtime)
+                bits.append(f"{label} {ts.strftime('%Y-%m-%d %H:%M')}")
+        except Exception:
+            pass
+    if not bits:
+        return "Data: load pipeline outputs under model_outputs/ and dataset/cleaned/"
+    return "As of · " + " · ".join(bits)
+
+
+# Language packs — switch via sidebar (English ↔ Tamil)
+UI_EN: dict[str, str] = {
+    "Live Feed": "Live Feed",
+    "District Map & Scoreboard": "District Map & Scoreboard",
+    "Accuracy Check": "Accuracy Check",
+    "Predict": "Predict",
+    "Sentiment": "Sentiment",
+    "2026 Forecasts": "2026 Forecasts",
+    "Refresh news": "Refresh news",
+    "News time window": "News time window",
+    "Live view": "Live view",
+    "Feed controls": "Feed controls",
+    "Export brief": "Export brief",
+    "Alert log": "Alert log",
+    "Official vs media": "Official vs media",
+    "Scenario only": "Scenario only (not fact)",
+    "Language": "Language",
+    "Murder rate": "Murder rate",
+    "Rape rate": "Rape rate",
+    "News 90d": "News 90d",
+    "Focus district": "Focus district",
+    "Compare with": "Compare with",
+    "Map data source": "Map data source",
+    "Show map": "Show TN map (slower)",
+    "District detail": "District detail",
+    "HIGH alerts": "HIGH alerts",
+    "Build accuracy": "Build accuracy table",
+    "Targets": "Targets",
+    "Max districts": "Max districts",
+    "Media news volume": "Media news volume",
+    "ML-ready": "ML-ready (latest year)",
+    "Scoreboard rank by": "Scoreboard rank by (high → low)",
+    "none": "— none —",
+    "Recent headlines": "Recent headlines",
+    "Preview top districts": "Preview · top districts",
+    "News language split": "News language split",
+}
+
+UI_TA: dict[str, str] = {
+    "Live Feed": "நேரடி ஊட்டம்",
+    "District Map & Scoreboard": "மாவட்ட வரைபடம்",
+    "Accuracy Check": "துல்லியப் பரிசோதனை",
+    "Predict": "கணிப்பு",
+    "Sentiment": "உணர்வுப் பகுப்பாய்வு",
+    "2026 Forecasts": "2026 கணிப்புகள்",
+    "Refresh news": "செய்தி புதுப்பி",
+    "News time window": "செய்தி கால அளவு",
+    "Live view": "நேரடி பார்வை",
+    "Feed controls": "ஊட்டக் கட்டுப்பாடு",
+    "Export brief": "அறிக்கை பதிவிறக்கு",
+    "Alert log": "எச்சரிக்கை பதிவு",
+    "Official vs media": "அதிகாரப்பூர்வ vs ஊடகம்",
+    "Scenario only": "காட்சி மட்டும் (உண்மை அல்ல)",
+    "Language": "மொழி",
+    "Murder rate": "கொலை விகிதம்",
+    "Rape rate": "பாலியல் குற்ற விகிதம்",
+    "News 90d": "செய்தி 90 நாள்",
+    "Focus district": "மாவட்டம்",
+    "Compare with": "ஒப்பிடு",
+    "Map data source": "வரைபடத் தரவு",
+    "Show map": "தமிழ்நாடு வரைபடம் (மெதுவு)",
+    "District detail": "மாவட்ட விவரம்",
+    "HIGH alerts": "உயர் எச்சரிக்கை",
+    "Build accuracy": "துல்லிய அட்டவணை",
+    "Targets": "இலக்குகள்",
+    "Max districts": "மாவட்ட எண்ணிக்கை",
+    "Media news volume": "ஊடக செய்தி அளவு",
+    "ML-ready": "ML தரவு (சமீப ஆண்டு)",
+    "Scoreboard rank by": "தரவரிசை (உயர் → தாழ்)",
+    "none": "— இல்லை —",
+    "Recent headlines": "சமீபத்திய தலைப்புகள்",
+    "Preview top districts": "முன்னணி மாவட்டங்கள்",
+    "News language split": "செய்தி மொழிப் பிரிவு",
+}
+
+
+def t(key: str) -> str:
+    """UI string for current language (session: ui_lang = EN | TA)."""
+    try:
+        lang = st.session_state.get("ui_lang", "EN")
+    except Exception:
+        lang = "EN"
+    if lang == "TA":
+        return UI_TA.get(key, UI_EN.get(key, key))
+    return UI_EN.get(key, key)
+
+
+def plot_official_vs_news_chart(
+    area: str,
+    ml_data: pd.DataFrame,
+    harvest_df: pd.DataFrame,
+    news_df: pd.DataFrame,
+) -> go.Figure | None:
+    """Priority 5: before/after style — official rates vs current news heat for one district."""
+    card = build_district_scorecard(
+        area, ml_data, news_df, harvest_df, pd.DataFrame(), pd.DataFrame()
+    )
+    rows = []
+    for lab, key in (
+        ("Murder rate (official)", "murder_rate"),
+        ("Rape rate (official)", "rape_rate"),
+        ("News 90d (media)", "news_90d"),
+    ):
+        v = card.get(key)
+        if v is not None and pd.notna(v):
+            try:
+                rows.append({
+                    "metric": lab,
+                    "value": float(v),
+                    "layer": "Official" if "official" in lab.lower() else "Media",
+                })
+            except (TypeError, ValueError):
+                pass
+    if len(rows) < 1:
+        return None
+    df = pd.DataFrame(rows)
+    fig = px.bar(
+        df,
+        x="metric",
+        y="value",
+        color="layer",
+        title=f"{area} · official rates vs media news heat",
+        template="plotly_dark",
+        color_discrete_map={"Official": "#0ea5e9", "Media": "#a855f7"},
+        barmode="group",
+    )
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#0e0e12",
+        height=320,
+        xaxis_title="",
+        yaxis_title="Value (different units — compare pattern, not absolute)",
+        legend_title_text="",
+    )
+    return fig
+
+
+def persist_and_load_alerts(
+    ml_data: pd.DataFrame,
+    harvest_df: pd.DataFrame,
+    news_df: pd.DataFrame,
+    rape_2026_df: pd.DataFrame,
+) -> tuple[list, pd.DataFrame]:
+    """Compute alerts, log new ones, return (alerts, log_df)."""
+    alerts = compute_alert_rules(ml_data, harvest_df, news_df, rape_2026_df)
+    try:
+        from db import log_alerts, load_alert_log, init_db
+
+        init_db()
+        log_alerts(alerts)
+        log_df = load_alert_log(limit=40)
+    except Exception:
+        log_df = pd.DataFrame()
+    return alerts, log_df
+
+
 def build_current_affairs_heat(
     harvest_df: pd.DataFrame,
     news_df: pd.DataFrame,
@@ -614,7 +828,7 @@ def build_current_affairs_heat(
       Fallback → latest-year news_signals counts
 
     Metric name: `news_90d` (headline count in window; + soft_fill flag).
-    Not official crime rates. Not 2026 model forecasts.
+    Districts only — never newspaper/source names.
     """
     from datetime import datetime, timedelta
 
@@ -625,76 +839,181 @@ def build_current_affairs_heat(
         def _normalize_name(x):  # type: ignore
             return str(x).strip().lower()
 
+    try:
+        from district_entities import resolve_district, TN_DISTRICTS
+    except Exception:
+        TN_DISTRICTS = TN_DISTRICT_CANONICAL
+
+        def resolve_district(text: str, default: str = "Other / Statewide") -> str:
+            return default
+
+    # Newspaper / outlet / junk tokens that must never appear as district ranks
     junk = {
-        "", "other / statewide", "unknown", "india", "tamil nadu", "tn",
-        "quick", "killed", "teenage", "courier", "pushpa", "dinamani",
+        "", "other / statewide", "unknown", "india", "tamil nadu", "tn", "nan", "none",
+        "quick", "killed", "teenage", "courier", "pushpa", "dinamani", "dinamalar",
         "dmk’s", "dmk's", "telangana", "taramani", "poonamallee",
+        "the hindu", "hindu", "times of india", "toi", "indian express", "new indian express",
+        "dt next", "deccan chronicle", "hindustan times", "news18", "india today",
+        "the quint", "bbc", "bbc tamil", "ananda vikatan", "vikatan", "puthiya thalaimurai",
+        "daily thanthi", "dina thanthi", "thanthi", "maalai malar", "dinakaran",
+        "google news", "google news tamil", "news media", "social media reports",
+        "local news", "local reports", "reuters", "ani", "ptI", "pti",
+        "sun news", "zee news", "ndtv", "republic", "polimer", "jaya tv",
+        "latest", "source", "headline", "other units", "cyber cell",
     }
+    # Canonical set for validation (casefold)
+    canon_cf = {_normalize_name(d) for d in list(TN_DISTRICT_CANONICAL) + list(TN_DISTRICTS)}
+    # Also accept common city suffixes mapped via resolve
+    outlet_tokens = (
+        "hindu", "thanthi", "dinamalar", "dinamani", "times", "express", "vikatan",
+        "news18", "ndtv", "bbc", "google", "thanthi", "maalai", "dt next", "chronicle",
+    )
 
-    def _clean_dist_series(s: pd.Series) -> pd.Series:
-        out = s.astype(str).str.strip()
-        mask = ~out.str.lower().isin(junk) & (out.str.len() >= 3)
-        return out.where(mask, other=pd.NA)
+    def _is_valid_district_name(name: str) -> bool:
+        n = str(name or "").strip()
+        if len(n) < 3:
+            return False
+        nl = n.casefold()
+        if nl in junk or any(t in nl for t in outlet_tokens if len(t) > 3):
+            # allow real districts that contain substring? e.g. none
+            if _normalize_name(n) not in canon_cf:
+                return False
+        if _normalize_name(n) in canon_cf:
+            return True
+        # resolve may return canonical
+        try:
+            r = resolve_district(n, default="")
+            return bool(r) and _normalize_name(r) in canon_cf
+        except Exception:
+            return False
 
-    def _counts_from_harvest(h: pd.DataFrame, mask: pd.Series | None = None) -> pd.Series:
+    def _resolve_row_district(district_val: object, headline: object) -> str | None:
+        """Map row → canonical TN district; never return newspaper names."""
+        d = str(district_val or "").strip()
+        h = str(headline or "")
+        # Prefer entity resolve on combined text
+        try:
+            from_h = resolve_district(f"{d} {h}", default="")
+            if from_h and _is_valid_district_name(from_h) and from_h.casefold() not in (
+                "other / statewide", "other",
+            ):
+                return from_h
+        except Exception:
+            pass
+        if d and _is_valid_district_name(d):
+            try:
+                r = resolve_district(d, default=d)
+                if r and _is_valid_district_name(r):
+                    return r
+            except Exception:
+                if _normalize_name(d) in canon_cf:
+                    return d
+        if h:
+            try:
+                r = resolve_district(h, default="")
+                if r and _is_valid_district_name(r) and r.casefold() not in (
+                    "other / statewide", "other",
+                ):
+                    return r
+            except Exception:
+                pass
+        return None
+
+    def _assign_districts_fast(h: pd.DataFrame) -> pd.Series:
+        """Map rows → district using unique district strings only (fast)."""
         dcol = "district" if "district" in h.columns else (
             "district_city" if "district_city" in h.columns else None
         )
-        if dcol is None or "headline" not in h.columns:
-            return pd.Series(dtype=float)
-        sub = h if mask is None else h.loc[mask]
-        if sub.empty:
-            return pd.Series(dtype=float)
-        sub = sub.copy()
-        sub["_d"] = _clean_dist_series(sub[dcol])
-        sub = sub.dropna(subset=["_d"])
-        if sub.empty:
-            return pd.Series(dtype=float)
-        return sub.groupby("_d")["headline"].count().astype(float)
+        hcol = "headline" if "headline" in h.columns else None
+        n = len(h)
+        if n == 0:
+            return pd.Series(dtype=object)
+
+        raw_d = (
+            h[dcol].astype(str).str.strip()
+            if dcol
+            else pd.Series([""] * n, index=h.index)
+        )
+        # Build map unique district_raw → canonical (once each)
+        uniq_vals = raw_d.unique().tolist()
+        val_map: dict[str, str | None] = {}
+        for val in uniq_vals:
+            if not val or str(val).lower() in ("nan", "none", ""):
+                val_map[val] = None
+                continue
+            if _is_valid_district_name(str(val)):
+                try:
+                    canon = resolve_district(str(val), default=str(val))
+                except Exception:
+                    canon = str(val)
+                val_map[val] = canon if _is_valid_district_name(canon) else None
+            else:
+                val_map[val] = _resolve_row_district(val, "")
+
+        out = raw_d.map(val_map)
+        # Fill missing from unique headlines (capped) — only if many still missing
+        need = out.isna()
+        if need.any() and hcol is not None and int(need.sum()) <= 400:
+            headlines = h.loc[need, hcol].astype(str)
+            uniq_hl = headlines.unique().tolist()[:300]
+            hl_map: dict[str, str | None] = {
+                hl: _resolve_row_district("", hl[:120]) for hl in uniq_hl
+            }
+            out.loc[need] = headlines.map(hl_map)
+        return out
 
     primary = pd.Series(dtype=float)
     all_time = pd.Series(dtype=float)
     window_label = f"{recent_days}d"
 
-    if harvest_df is not None and not harvest_df.empty and "headline" in harvest_df.columns:
+    if harvest_df is not None and not harvest_df.empty and (
+        "headline" in harvest_df.columns
+        or "district" in harvest_df.columns
+        or "district_city" in harvest_df.columns
+    ):
         h = harvest_df.copy()
-        if "date" in h.columns:
-            h["_dt"] = pd.to_datetime(h["date"], errors="coerce")
-            cutoff = datetime.now() - timedelta(days=recent_days)
-            recent_mask = h["_dt"].notna() & (h["_dt"] >= cutoff)
-            primary = _counts_from_harvest(h, recent_mask)
-            # If 90d is empty (stale harvest), use current calendar year as soft primary
-            if primary.empty or primary.sum() == 0:
-                y_now = datetime.now().year
-                y_mask = h["_dt"].notna() & (h["_dt"].dt.year == y_now)
-                primary = _counts_from_harvest(h, y_mask)
-                window_label = f"YTD {y_now}"
-            all_time = _counts_from_harvest(h, None)
-        else:
-            primary = _counts_from_harvest(h, None)
-            all_time = primary.copy()
-            window_label = "all"
+        # Resolve districts once for whole harvest (was 2–3× full iterrows — very slow)
+        h["_dist"] = _assign_districts_fast(h)
+        h = h.dropna(subset=["_dist"])
+        if not h.empty:
+            all_time = h.groupby("_dist").size().astype(float)
+            if "date" in h.columns:
+                h["_dt"] = pd.to_datetime(h["date"], errors="coerce")
+                cutoff = datetime.now() - timedelta(days=recent_days)
+                recent = h[h["_dt"].notna() & (h["_dt"] >= cutoff)]
+                primary = recent.groupby("_dist").size().astype(float)
+                if primary.empty or primary.sum() == 0:
+                    y_now = datetime.now().year
+                    ymask = h["_dt"].notna() & (h["_dt"].dt.year == y_now)
+                    primary = h.loc[ymask].groupby("_dist").size().astype(float)
+                    window_label = f"YTD {y_now}"
+            else:
+                primary = all_time.copy()
+                window_label = "all"
 
-    # news_signals fill for all-time / missing districts
+    # news_signals fill — only valid districts
     if news_df is not None and not news_df.empty and "district_city" in news_df.columns:
         n = news_df.copy()
-        n["_d"] = _clean_dist_series(n["district_city"])
+        n["_d"] = n["district_city"].map(
+            lambda x: _resolve_row_district(x, "") or (x if _is_valid_district_name(str(x)) else None)
+        )
         n = n.dropna(subset=["_d"])
         if "news_count" in n.columns and not n.empty:
-            # latest year for "current-ish" signal fill
             if "year" in n.columns:
                 y = pd.to_numeric(n["year"], errors="coerce")
                 latest = n[y == y.max()]
             else:
                 latest = n
             sig = latest.groupby("_d")["news_count"].sum().astype(float)
-            if primary.empty:
+            # Drop invalid keys
+            sig = sig[[k for k in sig.index if _is_valid_district_name(str(k))]]
+            if primary.empty and not sig.empty:
                 primary = sig
                 window_label = "signals"
-            # all-time from signals
             sig_all = n.groupby("_d")["news_count"].sum().astype(float)
             for k, v in sig_all.items():
-                all_time[k] = all_time.get(k, 0) + float(v)
+                if _is_valid_district_name(str(k)):
+                    all_time[k] = all_time.get(k, 0) + float(v)
 
     if primary.empty and all_time.empty:
         return pd.DataFrame(), "", "district"
@@ -716,12 +1035,17 @@ def build_current_affairs_heat(
             key = d
             primary[key] = float(primary.get(key, 0) or 0)
 
+    # Final filter: districts only
+    primary = primary[[k for k in primary.index if _is_valid_district_name(str(k))]]
+    if primary.empty:
+        return pd.DataFrame(), "", "district"
+
     g = primary.rename("news_90d").reset_index()
     g.columns = ["district", "news_90d"]
     g["news_90d"] = pd.to_numeric(g["news_90d"], errors="coerce").fillna(0.0)
+    g = g[g["district"].map(lambda x: _is_valid_district_name(str(x)))]
     g["is_soft_fill"] = g["news_90d"] < 1.0
     g = g.sort_values("news_90d", ascending=False).reset_index(drop=True)
-    # window label for UI caption
     g["heat_window"] = window_label
     return g, "news_90d", "district"
 
@@ -1319,22 +1643,21 @@ def district_brief_html(card: dict[str, Any], drivers: list[str]) -> str:
  .v {{ font-size: 22px; font-weight: 700; }}
 </style></head><body>
 <h1>CRIMECAST District Brief — {dist}</h1>
-<p>Generated for Tamil Nadu crime intelligence (official rates + news + 2026 forecast).</p>
+<p><b>CRIMECAST college prototype</b> — district brief for Tamil Nadu
+ (official rates + news media). Not a live police system.</p>
 <div class="grid">
- <div class="box"><div class="k">Murder rate</div><div class="v">{card.get('murder_rate', '—')}</div></div>
- <div class="box"><div class="k">Rape rate</div><div class="v">{card.get('rape_rate', '—')}</div></div>
- <div class="box"><div class="k">News 90d</div><div class="v">{card.get('news_90d', '—')}</div></div>
- <div class="box"><div class="k">2026 rape forecast</div><div class="v">{card.get('forecast_2026_rape', '—')}</div></div>
+ <div class="box"><div class="k">Murder rate · கொலை</div><div class="v">{card.get('murder_rate', '—')}</div></div>
+ <div class="box"><div class="k">Rape rate · பாலியல்</div><div class="v">{card.get('rape_rate', '—')}</div></div>
+ <div class="box"><div class="k">News 90d · செய்தி</div><div class="v">{card.get('news_90d', '—')}</div></div>
+ <div class="box"><div class="k">Complaints</div><div class="v">{card.get('complaints', '—')}</div></div>
 </div>
-<p><b>Risk:</b> {card.get('risk_level', '—')}
- &nbsp;·&nbsp; <b>Risk index:</b> {card.get('rape_risk_index', '—')}
- &nbsp;·&nbsp; <b>News rank:</b> #{card.get('news_rank', '—')}
+<p><b>News rank:</b> #{card.get('news_rank', '—')}
  &nbsp;·&nbsp; <b>Year:</b> {card.get('year', '—')}</p>
-<h2>Why this district stands out</h2>
+<h2>Why this district stands out · முக்கியம்</h2>
 <ul>{lines}</ul>
-<h2>Recent headlines</h2>
+<h2>Recent headlines · தலைப்புகள்</h2>
 <ul>{hls or '<li>No headlines on file. Use Refresh news.</li>'}</ul>
-<p style="color:#888;font-size:12px;">CRIMECAST · Official training labels ≤2023 · Live heat from news · Print this page to PDF (Ctrl+P)</p>
+<p style="color:#888;font-size:12px;">CRIMECAST · Media ≠ FIR · Print PDF (Ctrl+P) · Scenario models are not facts</p>
 </body></html>"""
 
 
@@ -1352,7 +1675,7 @@ def build_map_metric_frame(
     Returns (df, value_col, name_col, caption).
     """
     if metric.startswith("News"):
-        df, vcol, ncol = build_current_affairs_heat(harvest_df, news_df, recent_days=recent_days)
+        df, vcol, ncol = get_current_affairs_heat(recent_days=recent_days)
         cap = f"Crime news headline count · last {recent_days} days (+ soft fill). Not official rates."
         return df, vcol, ncol, cap
 
@@ -1430,7 +1753,7 @@ def compute_alert_rules(
             })
 
     # Rule 2: news_90d spike — district ≥ 2× median of active districts
-    heat, vcol, _ = build_current_affairs_heat(harvest_df, news_df, recent_days=90)
+    heat, vcol, _ = get_current_affairs_heat(recent_days=90)
     if not heat.empty and vcol in heat.columns:
         active = heat[heat[vcol] >= 1.0]
         if len(active) >= 3:
@@ -1498,7 +1821,7 @@ def explain_prediction_drivers(
             drivers.append(f"Final prediction: **{float(pred_row['prediction']):.2f}**.")
 
     # 2) News volume rank
-    heat, vcol, _ = build_current_affairs_heat(harvest_df, news_df, recent_days=90)
+    heat, vcol, _ = get_current_affairs_heat(recent_days=90)
     if not heat.empty and vcol in heat.columns:
         h = heat.copy()
         h["_cf"] = h["district"].astype(str).str.casefold()
@@ -1550,63 +1873,14 @@ def build_media_news_volume_by_district(
 ) -> pd.DataFrame:
     """
     Aggregate **news headlines** into district-level volume (not raw signal rows).
-    Prefer media harvest; fall back to news_signals counts.
-    Returns columns: district, news_volume, negative_share (if available).
+    Uses cached heat (all-time window) — districts only.
     """
-    frames: list[pd.DataFrame] = []
-    if harvest_df is not None and not harvest_df.empty:
-        h = harvest_df.copy()
-        dcol = "district" if "district" in h.columns else (
-            "district_city" if "district_city" in h.columns else None
-        )
-        hcol = next((c for c in ("headline", "text", "source_text") if c in h.columns), None)
-        if dcol and hcol:
-            h["_d"] = h[dcol].astype(str).str.strip()
-            h = h[h["_d"].notna() & (h["_d"] != "") & (h["_d"].str.lower() != "nan")]
-            # Resolve vague rows via headline when possible
-            try:
-                from district_entities import resolve_district
-
-                mask_bad = h["_d"].str.casefold().isin(
-                    {"other / statewide", "other", "statewide", "latest", "unknown", "—"}
-                )
-                if mask_bad.any():
-                    h.loc[mask_bad, "_d"] = h.loc[mask_bad, hcol].map(
-                        lambda t: resolve_district(str(t), default="Other / Statewide")
-                    )
-            except Exception:
-                pass
-            g = h.groupby("_d", as_index=False).agg(news_volume=(hcol, "count"))
-            g = g.rename(columns={"_d": "district"})
-            frames.append(g)
-
-    if (not frames) and news_df is not None and not news_df.empty and "district_city" in news_df.columns:
-        n = news_df.copy()
-        # Prefer latest year totals, then sum news_count per district
-        if "year" in n.columns:
-            y = pd.to_numeric(n["year"], errors="coerce")
-            n = n.assign(_y=y)
-            max_y = n["_y"].max()
-            n = n[n["_y"] == max_y] if pd.notna(max_y) else n
-        n["_d"] = n["district_city"].astype(str).str.strip()
-        if "news_count" in n.columns:
-            g = n.groupby("_d", as_index=False).agg(news_volume=("news_count", "sum"))
-        else:
-            g = n.groupby("_d", as_index=False).size().rename(columns={"size": "news_volume"})
-        g = g.rename(columns={"_d": "district"})
-        frames.append(g)
-
-    if not frames:
-        return pd.DataFrame(columns=["district", "news_volume"])
-
-    out = frames[0]
-    out["news_volume"] = pd.to_numeric(out["news_volume"], errors="coerce").fillna(0)
-    # Drop non-district noise
-    out = out[~out["district"].astype(str).str.casefold().isin(
-        {"latest", "unknown", "nan", "", "none"}
-    )]
-    out = out.sort_values("news_volume", ascending=False).reset_index(drop=True)
-    return out
+    g, vcol, ncol = get_current_affairs_heat(recent_days=365 * 5)
+    if not g.empty and vcol in g.columns:
+        out = g[[ncol, vcol]].copy()
+        out = out.rename(columns={ncol: "district", vcol: "news_volume"})
+        return out.sort_values("news_volume", ascending=False).reset_index(drop=True)
+    return pd.DataFrame(columns=["district", "news_volume"])
 
 
 def build_district_scoreboard_table(
@@ -1617,41 +1891,67 @@ def build_district_scoreboard_table(
     *,
     rank_by: str = "news_90d",
 ) -> pd.DataFrame:
-    """All-district scoreboard sorted high → low by rank_by metric."""
-    heat, vcol, _ = build_current_affairs_heat(harvest_df, news_df, recent_days=90)
+    """
+    All-district scoreboard sorted high → low.
+    Fast path: vectorized merges + cached news heat.
+    """
+    heat, vcol, _ = get_current_affairs_heat(recent_days=90)
     latest = _latest_ml_by_district(ml_data)
-    rows = []
-    names: set[str] = set()
-    if not heat.empty and "district" in heat.columns:
-        names.update(heat["district"].astype(str).tolist())
-    if not latest.empty and "district_city" in latest.columns:
-        names.update(latest["district_city"].astype(str).tolist())
-    if rape_2026_df is not None and not rape_2026_df.empty:
-        ncol = "district" if "district" in rape_2026_df.columns else "district_city"
-        names.update(rape_2026_df[ncol].dropna().astype(str).tolist())
 
-    for dist in sorted(names):
-        if not dist or dist.lower() in ("nan", "none"):
-            continue
-        card = build_district_scorecard(
-            dist, ml_data, news_df, harvest_df, rape_2026_df, pd.DataFrame()
-        )
-        rows.append({
-            "district": dist,
-            "murder_rate": card.get("murder_rate"),
-            "rape_rate": card.get("rape_rate"),
-            "complaints": card.get("complaints"),
-            "news_90d": card.get("news_90d"),
-            "forecast_2026_rape": card.get("forecast_2026_rape"),
-            "rape_risk_index": card.get("rape_risk_index"),
-            "risk_level": card.get("risk_level"),
-        })
-    if not rows:
+    board = pd.DataFrame()
+    if not latest.empty and "district_city" in latest.columns:
+        board = latest[["district_city"]].copy()
+        board = board.rename(columns={"district_city": "district"})
+        board["district"] = board["district"].astype(str)
+        for key, col in [
+            ("murder_rate", "murder_homicide_murder_rate"),
+            ("rape_rate", "women_crimes_rape_r"),
+            ("complaints", "complaints_total_complaints"),
+        ]:
+            if col in latest.columns:
+                board[key] = pd.to_numeric(latest[col], errors="coerce").values
+    elif not heat.empty:
+        board = heat[["district"]].copy()
+        board["district"] = board["district"].astype(str)
+
+    if board.empty:
         return pd.DataFrame()
-    board = pd.DataFrame(rows)
+
+    board = board.drop_duplicates(subset=["district"], keep="first")
+
+    # News 90d (one heat build, left-join)
+    if not heat.empty and vcol in heat.columns:
+        h = heat[["district", vcol]].copy()
+        h = h.rename(columns={vcol: "news_90d"})
+        h["district"] = h["district"].astype(str)
+        board = board.merge(h, on="district", how="outer")
+    else:
+        board["news_90d"] = np.nan
+
+    # 2026 forecast join
+    if rape_2026_df is not None and not rape_2026_df.empty:
+        r26 = rape_2026_df.copy()
+        ncol = "district" if "district" in r26.columns else "district_city"
+        keep = [ncol]
+        ren = {ncol: "district"}
+        if "predicted_2026_rape_incidents" in r26.columns:
+            keep.append("predicted_2026_rape_incidents")
+            ren["predicted_2026_rape_incidents"] = "forecast_2026_rape"
+        if "rape_risk_index" in r26.columns:
+            keep.append("rape_risk_index")
+        if "risk_level" in r26.columns:
+            keep.append("risk_level")
+        r26 = r26[keep].rename(columns=ren)
+        r26["district"] = r26["district"].astype(str)
+        board = board.merge(r26, on="district", how="outer")
+
+    board = board[board["district"].notna() & (board["district"].astype(str).str.len() > 1)]
+    board = board[~board["district"].astype(str).str.casefold().isin({"nan", "none", ""})]
+
     sort_col = rank_by if rank_by in board.columns else "news_90d"
     if sort_col not in board.columns:
-        sort_col = board.select_dtypes(include=[np.number]).columns[0]
+        nums = board.select_dtypes(include=[np.number]).columns.tolist()
+        sort_col = nums[0] if nums else "district"
     board = board.sort_values(sort_col, ascending=False, na_position="last").reset_index(drop=True)
     board.insert(0, "rank", range(1, len(board) + 1))
     return board
@@ -1691,7 +1991,7 @@ def build_district_scorecard(
                     except Exception:
                         pass
 
-    heat, vcol, _ = build_current_affairs_heat(harvest_df, news_df, recent_days=90)
+    heat, vcol, _ = get_current_affairs_heat(recent_days=90)
     if not heat.empty and vcol in heat.columns:
         m = heat[heat["district"].astype(str).str.casefold() == area_cf]
         if m.empty:
@@ -1745,7 +2045,9 @@ def build_district_scorecard(
 def run_acquire_news_refresh(years: list[int] | None = None) -> tuple[bool, str]:
     """
     Dashboard refresh: fetch only NEW headlines (incremental).
-    Does NOT re-download already acquired news. Bulk one-time populate is CLI/app option n mode 1.
+    Uses lexicon-only scoring (no DistilBERT/transformers) so Streamlit does not
+    hit torchvision/SAM ModuleNotFoundError while refreshing.
+    Bulk one-time populate is CLI/app option n mode 1.
     """
     import subprocess
     import sys
@@ -1754,8 +2056,16 @@ def run_acquire_news_refresh(years: list[int] | None = None) -> tuple[bool, str]
     if not script.exists():
         return False, f"Missing {script.name}"
 
-    # Prefer incremental --refresh-new (new only)
-    cmd = [sys.executable, "-B", str(script), "--refresh-new", "--max-items", "22"]
+    # Incremental + light score (default path — never loads transformers)
+    cmd = [
+        sys.executable,
+        "-B",
+        str(script),
+        "--refresh-new",
+        "--light-score",
+        "--max-items",
+        "22",
+    ]
     try:
         result = subprocess.run(
             cmd,
@@ -1770,17 +2080,25 @@ def run_acquire_news_refresh(years: list[int] | None = None) -> tuple[bool, str]
         if result.returncode == 0:
             load_news_signals.clear()
             load_media_harvest.clear()
+            try:
+                cached_current_affairs_heat.clear()
+            except Exception:
+                pass
             _sync_db_after_news()
-            return True, f"NEW news only (skipped already acquired).\n\n{tail}"
-        # Fallback: in-process refresh_new_news
+            return True, f"NEW news (lexicon score, no transformers).\n\n{tail}"
+        # Fallback: in-process refresh with light_score (still no DistilBERT)
         try:
             from acquire_news_signals import refresh_new_news
 
-            info = refresh_new_news()
+            info = refresh_new_news(light_score=True)
             load_news_signals.clear()
             load_media_harvest.clear()
+            try:
+                cached_current_affairs_heat.clear()
+            except Exception:
+                pass
             _sync_db_after_news()
-            return True, f"NEW news refresh (in-process): {info}\n\n{tail or result.stderr or ''}"
+            return True, f"NEW news refresh (in-process light): {info}\n\n{tail or result.stderr or ''}"
         except Exception as e2:
             err = (result.stderr or "")[-800:] or str(e2)
             return False, f"Refresh failed (exit {result.returncode}): {err}"
@@ -1790,11 +2108,15 @@ def run_acquire_news_refresh(years: list[int] | None = None) -> tuple[bool, str]
         try:
             from acquire_news_signals import refresh_new_news
 
-            info = refresh_new_news()
+            info = refresh_new_news(light_score=True)
             load_news_signals.clear()
             load_media_harvest.clear()
+            try:
+                cached_current_affairs_heat.clear()
+            except Exception:
+                pass
             _sync_db_after_news()
-            return True, f"NEW news refresh (fallback): {info}"
+            return True, f"NEW news refresh (fallback light): {info}"
         except Exception as e2:
             return False, f"Could not refresh news: {e2}"
 
@@ -2026,102 +2348,105 @@ def main():
         unsafe_allow_html=True,
     )
 
-    page = st.sidebar.radio(
-        "Command",
-        [
-            "🔴 Live Feed",
-            "📡 Feed Controls",
-            "🗺️ District Map & Scoreboard",
-            "✅ Accuracy Check",
-            "🔥 Heat Map",
-            "🔮 Predict",
-            "💬 Sentiment",
-            "📅 2026 Forecasts",
-        ],
-        label_visibility="collapsed",
-    )
+    # Language default (widget is at bottom of sidebar)
+    if "ui_lang" not in st.session_state:
+        st.session_state["ui_lang"] = "EN"
 
-    # Shared Live Feed controls (set on Feed Controls tab; used by Live Feed)
+    # Stable page keys (language-independent)
+    _NAV = [
+        ("live", "🔴", "Live Feed"),
+        ("map", "🗺️", "District Map & Scoreboard"),
+        ("acc", "✅", "Accuracy Check"),
+        ("pred", "🔮", "Predict"),
+        ("sent", "💬", "Sentiment"),
+        ("f2026", "📅", "2026 Forecasts"),
+    ]
+    _nav_labels = [f"{emoji} {t(key)}" for _, emoji, key in _NAV]
+    _nav_ix = st.sidebar.radio(
+        "Command",
+        list(range(len(_NAV))),
+        format_func=lambda i: _nav_labels[i],
+        label_visibility="collapsed",
+        key="main_nav_ix",
+    )
+    page = {
+        "live": "🔴 Live Feed",
+        "map": "🗺️ District Map & Scoreboard",
+        "acc": "✅ Accuracy Check",
+        "pred": "🔮 Predict",
+        "sent": "💬 Sentiment",
+        "f2026": "📅 2026 Forecasts",
+    }[_NAV[_nav_ix][0]]
+
+    # Shared Live Feed controls (news heat only) — set defaults once
     if "live_map_metric" not in st.session_state:
+        st.session_state["live_map_metric"] = "News (time window)"
+    else:
         st.session_state["live_map_metric"] = "News (time window)"
     if "live_news_window" not in st.session_state:
         st.session_state["live_news_window"] = "90 days"
 
-    # Lightweight health strip (usable / reliable demos)
-    _health_label = "ONLINE"
-    _health_color = "#4ade80"
-    _health_detail = "News + official hybrid · white→blue maps"
-    try:
-        from health_check import run_health_check
-
-        _hr = run_health_check()
-        if _hr["overall"] == "blocked":
-            _health_label = "BLOCKED"
-            _health_color = "#ef4444"
-            _health_detail = f"{_hr['blocking']} fail · run python health_check.py"
-        elif _hr["overall"] == "ready_with_warnings":
-            _health_label = "OK · WARN"
-            _health_color = "#f59e0b"
-            _health_detail = f"{_hr['warnings']} warnings · refresh news if stale"
-        else:
-            _health_label = "READY"
-            _health_color = "#4ade80"
-            _health_detail = "Health check OK · demo-ready"
-    except Exception:
-        pass
-
-    st.sidebar.markdown(
-        f"""
-        <div class="ops-status">
-            <span class="dot" style="background:{_health_color};box-shadow:0 0 8px {_health_color}"></span>
-            <b style="color:{_health_color}">{_health_label}</b><br/>
-            {_health_detail}<br/>
-            <span style="opacity:0.85">SCRB/NCRB = official labels · media = support</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ---- Sidebar: compact refresh icon ----
+    # ---- Sidebar: news refresh ----
     st.sidebar.markdown("---")
-    sc1, sc2 = st.sidebar.columns([1, 4])
-    with sc1:
-        st.markdown('<div class="refresh-icon-wrap">', unsafe_allow_html=True)
-        if st.button("🔄", type="primary", key="sidebar_refresh_news", help="Refresh news"):
-            with st.spinner("Fetching news…"):
-                ok, msg = run_acquire_news_refresh()
-            if ok:
-                st.sidebar.success("Updated")
-                st.rerun()
-            else:
-                st.sidebar.error("Failed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    with sc2:
-        st.caption("News")
+    if st.sidebar.button(
+        f"🔄 {t('Refresh news')}",
+        type="primary",
+        key="sidebar_refresh_news",
+        help=t("Refresh news"),
+    ):
+        with st.spinner("Fetching news…"):
+            ok, msg = run_acquire_news_refresh()
+        if ok:
+            st.sidebar.success("Updated" if st.session_state["ui_lang"] == "EN" else "புதுப்பிக்கப்பட்டது")
+            st.rerun()
+        else:
+            st.sidebar.error("Failed" if st.session_state["ui_lang"] == "EN" else "தோல்வி")
 
-    # Load data (after possible refresh + rerun)
+    # ---- Language at bottom of sidebar ----
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Lang")
+    _lang_choice = st.sidebar.radio(
+        "Lang",
+        ["EN", "TA"],
+        index=0 if st.session_state["ui_lang"] == "EN" else 1,
+        horizontal=True,
+        key="ui_lang_radio",
+        label_visibility="collapsed",
+    )
+    if _lang_choice != st.session_state["ui_lang"]:
+        st.session_state["ui_lang"] = _lang_choice
+        st.rerun()
+
+    # Lazy / cached loads — only what this page needs (faster page switches)
+    def _empty() -> pd.DataFrame:
+        return pd.DataFrame()
+
+    # Lightweight globals used by several pages
     ml_data = load_ml_data()
-    sentiment_df = load_sentiment_scores()
-    crime_preds = load_crime_predictions()
     rape_2026_df = load_rape_2026()
-    news_df = load_news_signals()
-    harvest_df = load_media_harvest()
+    # Heavy news tables: load only for pages that use them
+    _need_news = page in (
+        "🔴 Live Feed",
+        "🗺️ District Map & Scoreboard",
+        "💬 Sentiment",
+        "✅ Accuracy Check",
+        "🔮 Predict",
+    )
+    if _need_news:
+        news_df = load_news_signals()
+        harvest_df = load_media_harvest()
+        sentiment_df = load_sentiment_scores()
+    else:
+        news_df = _empty()
+        harvest_df = _empty()
+        sentiment_df = _empty()
+    crime_preds = _empty()  # rarely needed; avoid extra CSV on every click
 
     n_models = len([f for f in MODELS_DIR.glob("*.joblib") if "sentiment" not in f.name])
     n_sent = len(sentiment_df) if not sentiment_df.empty else 0
     n_2026 = len(rape_2026_df) if not rape_2026_df.empty else 0
     n_media = len(news_df) if not news_df.empty else 0
     n_harvest = len(harvest_df) if not harvest_df.empty else 0
-
-    # Ensure SQLite schema exists; soft-sync 2026 forecasts if present
-    try:
-        from db import init_db, save_rape_2026
-
-        init_db()
-        if not rape_2026_df.empty:
-            save_rape_2026(rape_2026_df)
-    except Exception:
-        pass
 
     def _live_window_days(time_window: str) -> int:
         if time_window == "30 days":
@@ -2157,7 +2482,7 @@ def main():
         if shown == 0:
             st.caption("No alerts at this level.")
 
-    # ============ LIVE FEED — map + feed + HIGH alerts only ============
+    # ============ LIVE FEED (+ nested Feed Controls) ============
     if page == "🔴 Live Feed":
         tb1, tb2 = st.columns([20, 1])
         with tb1:
@@ -2174,203 +2499,254 @@ def main():
                     st.toast("Refresh failed", icon="⚠️")
             st.markdown("</div>", unsafe_allow_html=True)
 
-        from tn_map import plot_tn_choropleth
+        st.caption(data_freshness_caption())
 
-        map_metric = st.session_state.get("live_map_metric", "News (time window)")
-        time_window = st.session_state.get("live_news_window", "90 days")
-        recent_days = _live_window_days(time_window)
-
-        live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
-            map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
+        # Sub-nav: Live view vs Feed Controls
+        _live_subs = [t("Live view"), t("Feed controls")]
+        live_sub_ix = st.radio(
+            "Live Feed section",
+            [0, 1],
+            format_func=lambda i: f"{'▶' if i == 0 else '⚙'} {_live_subs[i]}",
+            horizontal=True,
+            key="live_sub_nav_ix",
+            label_visibility="collapsed",
         )
 
-        # HIGH alerts only on Live Feed
-        alerts = compute_alert_rules(ml_data, harvest_df, news_df, rape_2026_df)
-        high_alerts = [a for a in alerts if a.get("level") == "HIGH"]
-        if high_alerts:
-            st.markdown("**HIGH alerts**")
-            _render_alert_cards(high_alerts, levels={"HIGH"}, max_n=6)
-        else:
-            st.caption("No HIGH alerts · MED+HIGH and map settings → **Feed Controls**")
+        from tn_map import plot_tn_choropleth, HEAT_WHITE_BLUE
 
-        m1, m2, m3, m4, m5 = st.columns(5)
-        with m1:
-            st.metric("EVENTS / MODELS", n_models, delta=None)
-        with m2:
-            st.metric("SENTIMENT ROWS", n_sent)
-        with m3:
-            st.metric("MEDIA HEADLINES", n_harvest or n_media)
-        with m4:
-            active = 0
-            if not live_map_df.empty and live_vcol in live_map_df.columns:
-                active = int((live_map_df[live_vcol] >= 1).sum())
-            st.metric("ACTIVE (window)", active)
-        with m5:
-            open_alerts = len(high_alerts)
-            if not live_map_df.empty and live_vcol in live_map_df.columns:
-                thr = live_map_df[live_vcol].quantile(0.75) if len(live_map_df) > 4 else live_map_df[live_vcol].median()
-                hot = int((live_map_df[live_vcol] >= thr).sum())
-            else:
-                hot = 0
-            st.metric("HOT DISTRICTS", hot)
-
-        left, right = st.columns([1.05, 1.15], gap="medium")
-
-        with left:
-            st.markdown(
-                '<div class="panel"><div class="panel-title">● Live intelligence feed · current affairs</div>',
-                unsafe_allow_html=True,
+        # ---- nested Feed Controls ----
+        if live_sub_ix == 1:
+            st.markdown(f"### {t('Feed controls')}")
+            st.caption("Time window, MED+HIGH alerts, language split, alert log.")
+            map_metric = "News (time window)"
+            st.session_state["live_map_metric"] = map_metric
+            st.radio(
+                t("News time window"),
+                ["30 days", "90 days", "YTD", "All time"],
+                horizontal=True,
+                key="live_news_window",
             )
-            feed = harvest_df if not harvest_df.empty else sentiment_df
-            if not feed.empty:
-                # First 3 = high negative; rest = other negative (no special labels)
-                feed_show = build_negative_news_feed(feed, top_n=14, high_n=3)
-                for _, r in feed_show.iterrows():
-                    headline = str(r.get("headline") or r.get("text") or r.get("source_text") or "—")
-                    source = str(r.get("source") or r.get("sentiment_method") or "News media")
-                    label = str(r.get("sentiment_label") or r.get("label") or "News").title()
-                    district = str(r.get("district") or r.get("district_city") or "")
-                    url = str(r.get("url") or "")
-                    crime = str(r.get("crime_types") or r.get("crime_theme") or r.get("crime_type") or "Current affairs")
-                    if isinstance(crime, str) and len(crime) > 24:
-                        crime = crime[:24] + "…"
-                    date_s = str(r.get("date") or "")[:10]
-                    if date_s and date_s != "nan":
-                        source = f"{source} · {date_s}"
-                    render_feed_card(
-                        source, headline[:220], label=label, crime=crime, district=district, url=url
+
+            time_window = st.session_state.get("live_news_window", "90 days")
+            recent_days = _live_window_days(time_window)
+            live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
+                map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
+            )
+            st.info(
+                f"**Live view:** news heat · window **{time_window}** "
+                f"({recent_days}d) · {map_caption}"
+            )
+
+            st.markdown("### Alerts (MEDIUM + HIGH)")
+            alerts, alert_log = persist_and_load_alerts(
+                ml_data, harvest_df, news_df, rape_2026_df
+            )
+            if alerts:
+                _render_alert_cards(alerts, levels={"HIGH", "MED"}, max_n=20)
+            else:
+                st.caption("No MED or HIGH alerts right now.")
+
+            st.markdown(f"### {t('Alert log')}")
+            if alert_log is not None and not alert_log.empty:
+                st.dataframe(alert_log, use_container_width=True, hide_index=True)
+            else:
+                st.caption("No saved alerts yet — open Live view once to log them.")
+
+            st.markdown(f"### {t('News language split')}")
+            lang_df = news_lang_split(harvest_df)
+            if not lang_df.empty:
+                lc1, lc2 = st.columns([1.2, 1.8])
+                with lc1:
+                    st.dataframe(lang_df, use_container_width=True, hide_index=True)
+                with lc2:
+                    fig_lang = px.pie(
+                        lang_df,
+                        names="language",
+                        values="headlines",
+                        title="Tamil vs English · தமிழ் / English",
+                        template="plotly_dark",
+                        color_discrete_sequence=["#ef4444", "#3b82f6", "#9ca3af"],
                     )
+                    fig_lang.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        height=280,
+                        margin=dict(l=10, r=10, t=40, b=10),
+                    )
+                    st.plotly_chart(fig_lang, use_container_width=True, key="controls_lang_pie")
             else:
-                st.info("No live media yet. Click **🔄** to refresh news.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.caption("No language data — refresh news.")
 
-        with right:
-            st.markdown(
-                f'<div class="panel"><div class="panel-title">Tamil Nadu district heat · {map_metric}</div>',
-                unsafe_allow_html=True,
-            )
-            st.caption(f"Window: {time_window} · change on **📡 Feed Controls**")
             if not live_map_df.empty and live_vcol:
-                with st.spinner("Loading map..."):
-                    fig_live = plot_tn_choropleth(
-                        live_map_df,
-                        value_col=live_vcol,
-                        name_col=live_ncol,
-                        title=f"{map_metric}",
-                    )
-                if fig_live is not None:
-                    fig_live.update_layout(height=420, margin=dict(l=0, r=0, t=48, b=0))
-                    st.plotly_chart(fig_live, use_container_width=True, key="live_tn_map")
-                    st.caption(map_caption)
+                st.markdown(f"### {t('Preview top districts')}")
+                render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=15)
+
+        # ---- Live view ----
+        else:
+            st.radio(
+                t("News time window"),
+                ["30 days", "90 days", "YTD", "All time"],
+                horizontal=True,
+                key="live_news_window",
+            )
+
+            map_metric = "News (time window)"
+            st.session_state["live_map_metric"] = map_metric
+            time_window = st.session_state.get("live_news_window", "90 days")
+            recent_days = _live_window_days(time_window)
+
+            live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
+                map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
+            )
+
+            alerts, alert_log = persist_and_load_alerts(
+                ml_data, harvest_df, news_df, rape_2026_df
+            )
+            high_alerts = [a for a in alerts if a.get("level") == "HIGH"]
+            if high_alerts:
+                st.markdown(f"**{t('HIGH alerts')}**")
+                _render_alert_cards(high_alerts, levels={"HIGH"}, max_n=6)
+            else:
+                st.caption(f"No HIGH · MED+HIGH → **⚙ {t('Feed controls')}**")
+
+            with st.expander(f"📜 {t('Alert log')}", expanded=False):
+                if alert_log is not None and not alert_log.empty:
+                    st.dataframe(alert_log.head(15), use_container_width=True, hide_index=True)
                 else:
-                    st.caption("Map GeoJSON loading… ranking bars.")
+                    st.caption("Empty — alerts are saved when Live Feed runs.")
+
+            m1, m2, m3, m4, m5 = st.columns(5)
+            with m1:
+                st.metric("EVENTS / MODELS", n_models)
+            with m2:
+                st.metric("SENTIMENT ROWS", n_sent)
+            with m3:
+                st.metric("MEDIA HEADLINES", n_harvest or n_media)
+            with m4:
+                active = 0
+                if not live_map_df.empty and live_vcol in live_map_df.columns:
+                    active = int((live_map_df[live_vcol] >= 1).sum())
+                st.metric("ACTIVE (window)", active)
+            with m5:
+                open_alerts = len(high_alerts)
+                if not live_map_df.empty and live_vcol in live_map_df.columns:
+                    thr = (
+                        live_map_df[live_vcol].quantile(0.75)
+                        if len(live_map_df) > 4
+                        else live_map_df[live_vcol].median()
+                    )
+                    hot = int((live_map_df[live_vcol] >= thr).sum())
+                else:
+                    hot = 0
+                st.metric("HOT DISTRICTS", hot)
+
+            left, right = st.columns([1.05, 1.15], gap="medium")
+            with left:
+                st.markdown(
+                    '<div class="panel"><div class="panel-title">● Live intelligence feed</div>',
+                    unsafe_allow_html=True,
+                )
+                feed = harvest_df if not harvest_df.empty else sentiment_df
+                if not feed.empty:
+                    feed_show = build_negative_news_feed(feed, top_n=14, high_n=3)
+                    for _, r in feed_show.iterrows():
+                        headline = str(
+                            r.get("headline") or r.get("text") or r.get("source_text") or "—"
+                        )
+                        source = str(r.get("source") or r.get("sentiment_method") or "News media")
+                        label = str(r.get("sentiment_label") or r.get("label") or "News").title()
+                        district = str(r.get("district") or r.get("district_city") or "")
+                        url = str(r.get("url") or "")
+                        crime = str(
+                            r.get("crime_types")
+                            or r.get("crime_theme")
+                            or r.get("crime_type")
+                            or "Current affairs"
+                        )
+                        if isinstance(crime, str) and len(crime) > 24:
+                            crime = crime[:24] + "…"
+                        date_s = str(r.get("date") or "")[:10]
+                        if date_s and date_s != "nan":
+                            source = f"{source} · {date_s}"
+                        render_feed_card(
+                            source,
+                            headline[:220],
+                            label=label,
+                            crime=crime,
+                            district=district,
+                            url=url,
+                        )
+                else:
+                    st.info("No live media yet. Click **🔄** to refresh news.")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with right:
+                st.markdown(
+                    f'<div class="panel"><div class="panel-title">'
+                    f"District heat · {map_metric} · {time_window}</div>",
+                    unsafe_allow_html=True,
+                )
+                if not live_map_df.empty and live_vcol:
+                    # Prefer fast bar ranking; map is optional (geojson is heavy)
+                    show_map = st.checkbox(
+                        "Show TN map (slower)",
+                        value=False,
+                        key="live_show_choropleth",
+                        help="Choropleth loads GeoJSON — leave off for speed",
+                    )
+                    if show_map:
+                        with st.spinner("Loading map…"):
+                            fig_live = plot_tn_choropleth(
+                                live_map_df,
+                                value_col=live_vcol,
+                                name_col=live_ncol,
+                                title=f"{map_metric}",
+                                fill_nulls_from_media=False,
+                                color_scale=HEAT_WHITE_BLUE,
+                            )
+                        if fig_live is not None:
+                            fig_live.update_layout(height=400, margin=dict(l=0, r=0, t=40, b=0))
+                            st.plotly_chart(
+                                fig_live, use_container_width=True, key="live_tn_map"
+                            )
+                        else:
+                            st.caption("Map unavailable — ranking only.")
                     fig_fb = px.bar(
                         live_map_df.sort_values(live_vcol, ascending=True).tail(15),
                         x=live_vcol,
                         y=live_ncol,
                         orientation="h",
                         color=live_vcol,
-                        color_continuous_scale=["#ffffff", "#7dd3fc", "#0284c7", "#0c4a6e"],
+                        color_continuous_scale=HEAT_WHITE_BLUE,
                         template="plotly_dark",
+                        title="Top districts (news volume)",
                     )
                     fig_fb.update_layout(
                         paper_bgcolor="rgba(0,0,0,0)",
                         plot_bgcolor="#0e0e12",
                         height=380,
-                        margin=dict(l=8, r=8, t=8, b=8),
+                        margin=dict(l=8, r=8, t=40, b=8),
                     )
-                    st.plotly_chart(fig_fb, use_container_width=True, key="live_map_fallback")
-            else:
-                st.info("No map data for this metric. Refresh news or run pipeline / option 7.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                    st.plotly_chart(fig_fb, use_container_width=True, key="live_map_bars")
+                    st.caption(map_caption)
+                else:
+                    st.info("No map data. Refresh news or change metric.")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            if not live_map_df.empty and live_vcol:
-                st.caption(f"Top districts · {map_metric}")
-                render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=12)
+                if not live_map_df.empty and live_vcol:
+                    st.caption(f"District ranking · {map_metric} · {time_window}")
+                    render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=12)
 
-        st.markdown(
-            f"""
-            <div class="ticker">
-                <span class="live">● LIVE WIRE</span>
-                &nbsp; Models {n_models} · Sentiment {n_sent} · Media {n_media or n_harvest}
-                · 2026 districts {n_2026} · HIGH alerts {open_alerts}
-                · Map: {map_metric} · {time_window}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # ============ FEED CONTROLS — MED+HIGH, map metric, window, language ============
-    elif page == "📡 Feed Controls":
-        ops_topbar("Feed Controls — alerts, map metric, news window, language")
-        st.caption(
-            "Settings here drive the **Live Feed** heat map. "
-            "Live Feed shows district heat, headline feed, and HIGH alerts only."
-        )
-
-        st.markdown("### Map metric")
-        st.radio(
-            "Map metric",
-            ["News (time window)", "Murder rate", "Rape rate", "2026 rape forecast"],
-            horizontal=True,
-            key="live_map_metric",
-        )
-
-        map_metric = st.session_state["live_map_metric"]
-        if map_metric.startswith("News"):
-            st.markdown("### News time window")
-            st.radio(
-                "News time window",
-                ["30 days", "90 days", "YTD", "All time"],
-                horizontal=True,
-                key="live_news_window",
+            st.markdown(
+                f"""
+                <div class="ticker">
+                    <span class="live">● LIVE WIRE</span>
+                    &nbsp; Models {n_models} · Media {n_media or n_harvest}
+                    · HIGH {open_alerts} · {map_metric} · {time_window}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-        else:
-            st.caption("Time window applies when Map metric is **News (time window)**.")
-
-        time_window = st.session_state.get("live_news_window", "90 days")
-        recent_days = _live_window_days(time_window)
-        live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
-            map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
-        )
-        st.info(f"**Live Feed map:** {map_metric} · window **{time_window}** ({recent_days}d) · {map_caption}")
-
-        st.markdown("### Alerts (MEDIUM + HIGH)")
-        alerts = compute_alert_rules(ml_data, harvest_df, news_df, rape_2026_df)
-        if alerts:
-            _render_alert_cards(alerts, levels={"HIGH", "MED"}, max_n=20)
-        else:
-            st.caption("No MED or HIGH alerts right now.")
-
-        st.markdown("### News language split")
-        lang_df = news_lang_split(harvest_df)
-        if not lang_df.empty:
-            lc1, lc2 = st.columns([1.2, 1.8])
-            with lc1:
-                st.dataframe(lang_df, use_container_width=True, hide_index=True)
-            with lc2:
-                fig_lang = px.pie(
-                    lang_df,
-                    names="language",
-                    values="headlines",
-                    title="Tamil vs English headlines (harvest)",
-                    template="plotly_dark",
-                    color_discrete_sequence=["#ef4444", "#3b82f6", "#9ca3af"],
-                )
-                fig_lang.update_layout(
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    height=280,
-                    margin=dict(l=10, r=10, t=40, b=10),
-                    showlegend=True,
-                )
-                st.plotly_chart(fig_lang, use_container_width=True, key="controls_lang_pie")
-        else:
-            st.caption("No harvest language data. Click **🔄** in the sidebar to refresh news.")
-
-        if not live_map_df.empty and live_vcol:
-            st.markdown("### Preview · top districts (same metric as Live Feed)")
-            render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=15)
 
     # ============ STATE ADMINISTRATION COMPARISON — DMK vs TVK ============
     elif page == "🏛️ State Administration Comparison":
@@ -2963,28 +3339,32 @@ def main():
         else:
             _render_card(area)
 
-    # ============ ACCURACY CHECK (Tier-2) ============
+    # ============ ACCURACY CHECK (Tier-2 · polished) ============
     elif page == "✅ Accuracy Check":
-        ops_topbar("Accuracy check — official vs model vs blend")
+        ops_topbar(f"{t('Accuracy Check')} — official vs model vs blend")
         st.caption(
-            "Compares **official history mean** (≤2023), **model raw**, and **blended prediction**. "
-            "Blend should usually be closer to official history for sticky rates (e.g. murder rate)."
+            f"{t('Official vs media')} honesty check: **official history mean**, **model raw**, "
+            "**blended prediction**. Blend should usually sit closer to official history for sticky rates."
         )
+        st.caption(data_freshness_caption())
 
         tgt_opts = {
-            "Murder rate": "murder_homicide_murder_rate",
-            "Rape rate": "women_crimes_rape_r",
+            "Murder rate · கொலை விகிதம்": "murder_homicide_murder_rate",
+            "Rape rate · பாலியல் குற்ற விகிதம்": "women_crimes_rape_r",
             "Murder incidence": "murder_homicide_murder_incidence",
             "Rape incidents": "women_crimes_rape_sec_376_i",
+            "Cognizable crime rate": "complaints_rate_of_cognizable_crime_ipc_sll",
         }
+        # Only options that exist in data
+        tgt_opts = {k: v for k, v in tgt_opts.items() if ml_data.empty or v in ml_data.columns}
         pick = st.multiselect(
-            "Targets",
+            t("Targets"),
             list(tgt_opts.keys()),
-            default=["Murder rate", "Rape rate"],
+            default=list(tgt_opts.keys())[:2],
             key="acc_targets",
         )
-        max_n = st.slider("Max districts", 10, 50, 25, key="acc_max")
-        if st.button("Build accuracy table", type="primary", key="acc_build"):
+        max_n = st.slider(t("Max districts"), 8, 40, 20, key="acc_max")
+        if st.button(t("Build accuracy"), type="primary", key="acc_build"):
             with st.spinner("Running predictions for sample districts…"):
                 acc = build_accuracy_table(
                     ml_data,
@@ -2992,14 +3372,41 @@ def main():
                     max_areas=max_n,
                 )
             if acc.empty:
-                st.warning("No accuracy rows. Train models first: `python train_model.py`")
+                st.warning("No accuracy rows. Train models: `python train_model.py`")
             else:
                 st.session_state["accuracy_table"] = acc
 
         acc = st.session_state.get("accuracy_table")
-        if acc is not None and not acc.empty:
-            st.dataframe(acc, use_container_width=True, hide_index=True)
-            # Summary
+        if acc is not None and isinstance(acc, pd.DataFrame) and not acc.empty:
+            # Summary metrics
+            s1, s2, s3, s4 = st.columns(4)
+            with s1:
+                st.metric("Rows", len(acc))
+            with s2:
+                if "abs_err_blend" in acc.columns and acc["abs_err_blend"].notna().any():
+                    st.metric(
+                        "Mean |err| blend",
+                        f"{float(acc['abs_err_blend'].mean()):.3f}",
+                    )
+                else:
+                    st.metric("Mean |err| blend", "—")
+            with s3:
+                if "abs_err_raw" in acc.columns and acc["abs_err_raw"].notna().any():
+                    st.metric(
+                        "Mean |err| raw",
+                        f"{float(acc['abs_err_raw'].mean()):.3f}",
+                    )
+                else:
+                    st.metric("Mean |err| raw", "—")
+            with s4:
+                if "blend_better" in acc.columns and acc["blend_better"].notna().any():
+                    better = int(acc["blend_better"].fillna(False).sum())
+                    total = int(acc["blend_better"].notna().sum())
+                    pct = 100 * better / total if total else 0
+                    st.metric("Blend better %", f"{pct:.0f}%")
+                else:
+                    st.metric("Blend better %", "—")
+
             if "blend_better" in acc.columns and acc["blend_better"].notna().any():
                 better = int(acc["blend_better"].fillna(False).sum())
                 total = int(acc["blend_better"].notna().sum())
@@ -3007,17 +3414,57 @@ def main():
                     f"Blend closer to official history on **{better}/{total}** rows "
                     f"({100 * better / total:.0f}%)."
                 )
-            # Spotlight Thoothukudi vs Madurai
-            spot = acc[acc["district"].isin(["Thoothukudi", "Madurai", "Madurai City"])]
+
+            # Error comparison chart (polished)
+            if {"abs_err_raw", "abs_err_blend", "district"}.issubset(acc.columns):
+                chart_acc = acc.dropna(subset=["abs_err_raw", "abs_err_blend"]).copy()
+                if not chart_acc.empty:
+                    long = []
+                    for _, r in chart_acc.head(15).iterrows():
+                        long.append({
+                            "district": r["district"],
+                            "error": float(r["abs_err_raw"]),
+                            "kind": "Model raw",
+                        })
+                        long.append({
+                            "district": r["district"],
+                            "error": float(r["abs_err_blend"]),
+                            "kind": "Blended",
+                        })
+                    fig_e = px.bar(
+                        pd.DataFrame(long),
+                        x="district",
+                        y="error",
+                        color="kind",
+                        barmode="group",
+                        title="Absolute error vs official history (lower is better)",
+                        template="plotly_dark",
+                        color_discrete_map={"Model raw": "#f59e0b", "Blended": "#0ea5e9"},
+                    )
+                    fig_e.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="#0e0e12",
+                        height=360,
+                        xaxis_tickangle=-35,
+                        legend_title_text="",
+                    )
+                    st.plotly_chart(fig_e, use_container_width=True, key="acc_err_chart")
+
+            st.dataframe(acc, use_container_width=True, hide_index=True)
+
+            spot = acc[acc["district"].astype(str).isin(
+                ["Thoothukudi", "Madurai", "Madurai City", "Chennai"]
+            )]
             if not spot.empty:
-                st.markdown("#### Spotlight: Thoothukudi vs Madurai")
+                st.markdown("#### Spotlight · Thoothukudi / Madurai / Chennai")
                 st.dataframe(spot, use_container_width=True, hide_index=True)
-            csv_bytes = acc.to_csv(index=False).encode("utf-8")
+
             st.download_button(
                 "⬇️ Download accuracy CSV",
-                data=csv_bytes,
+                data=acc.to_csv(index=False).encode("utf-8"),
                 file_name="crimecast_accuracy_check.csv",
                 mime="text/csv",
+                key="acc_dl_csv",
             )
         else:
             st.info("Click **Build accuracy table** to compare official vs model vs blend.")
@@ -3045,7 +3492,6 @@ def main():
         - **Time window** — 30d / 90d / YTD / all time for news heat
         - **Tamil vs English** news split on **Feed Controls** tab
         - **District scorecard** + HTML brief export + **Accuracy Check** table
-        - Demo path: `docs/DEMO_SCRIPT.md`
         """)
 
         if not news_df.empty and "negative_news_share" in news_df.columns:
@@ -3064,21 +3510,119 @@ def main():
 
     # ============ DISTRICT MAP & SCOREBOARD (Geography + Scorecard combined) ============
     elif page == "🗺️ District Map & Scoreboard":
-        from tn_map import plot_tn_choropleth, HEAT_WHITE_BLUE
+        import importlib
+        import sys
 
-        ops_topbar("District Map & Scoreboard — map + high→low ranking + detail")
+        # Force fresh load so Streamlit never keeps a stale tn_map without compare helpers
+        if "tn_map" in sys.modules:
+            importlib.reload(sys.modules["tn_map"])
+        import tn_map as _tn_map
+
+        plot_tn_choropleth = _tn_map.plot_tn_choropleth
+        HEAT_WHITE_BLUE = _tn_map.HEAT_WHITE_BLUE
+        COMPARE_PALETTE = getattr(
+            _tn_map, "COMPARE_PALETTE", ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7"]
+        )
+        plot_tn_compare_districts = getattr(_tn_map, "plot_tn_compare_districts", None)
+        plot_district_carved_out = getattr(_tn_map, "plot_district_carved_out", None)
+        if plot_tn_compare_districts is None:
+            st.error(
+                "tn_map is outdated (missing plot_tn_compare_districts). "
+                "Stop Streamlit fully and restart with START_DASHBOARD.bat "
+                "(delete `__pycache__/tn_map*.pyc` if it still fails)."
+            )
+            st.stop()
+
+        ops_topbar("District Map & Scoreboard — carved-out compare + data below")
         st.caption(
-            "**Combined** former Geographic + District Scorecard. "
-            "Map (white→blue) · scoreboard ranked high→low · pick a district for full detail. "
-            "Media volume is counted from **news headlines**, not raw signal rows."
+            "Pick **Focus** and **Compare** (e.g. Chennai vs Chengalpattu). "
+            "Each district is **carved out** as its own zoomed shape, then shown together. "
+            "Metrics and tables sit under the maps. Media volume = **news headlines**."
         )
 
-        map_source = st.radio(
-            "Map data source",
-            ["Media news volume", "2026 rape forecasts", "ML-ready (latest year)"],
-            horizontal=True,
-            key="geo_map_source",
+        # --- Scoreboard first (feeds district list) ---
+        rank_metric = st.selectbox(
+            t("Scoreboard rank by"),
+            ["news_90d", "murder_rate", "rape_rate", "complaints"],
+            key="geo_rank_by",
         )
+        board = build_district_scoreboard_table(
+            ml_data, harvest_df, news_df, rape_2026_df, rank_by=rank_metric
+        )
+
+        # Canonical TN names first so Chengalpattu/Chennai always appear
+        from tn_map import TN_DISTRICT_CANONICAL
+
+        district_opts: list[str] = []
+        if not board.empty:
+            district_opts = board["district"].astype(str).tolist()
+        # Merge canonical names not already in board (spelling variants)
+        seen_cf = {d.casefold() for d in district_opts}
+        for d in TN_DISTRICT_CANONICAL:
+            if d.casefold() not in seen_cf:
+                district_opts.append(d)
+                seen_cf.add(d.casefold())
+        if not district_opts:
+            district_opts = list(TN_DISTRICT_CANONICAL)
+
+        # --- District comparison selectors (drive map + detail) ---
+        st.markdown(f"### {t('District detail')} · map comparison")
+        d1, d2, d3 = st.columns([2, 2, 1.2])
+        with d1:
+            default_ix = 0
+            for prefer in ("Chennai", "Madurai", "Thoothukkudi", "Coimbatore"):
+                for i, d in enumerate(district_opts):
+                    if d.casefold() == prefer.casefold():
+                        default_ix = i
+                        break
+                else:
+                    continue
+                break
+            pick_dist = st.selectbox(
+                t("Focus district"),
+                district_opts,
+                index=min(default_ix, len(district_opts) - 1),
+                key="geo_focus_district",
+            )
+        with d2:
+            compare_opts = [d for d in district_opts if d.casefold() != str(pick_dist).casefold()]
+            # Prefer Chengalpattu as default compare when focus is Chennai
+            cmp_default = 0  # "none"
+            _none_label = t("none")
+            cmp_choices = [_none_label] + compare_opts
+            if str(pick_dist).casefold() == "chennai":
+                for i, d in enumerate(compare_opts):
+                    if "chengalpattu" in d.casefold() or "chengalpet" in d.casefold():
+                        cmp_default = i + 1
+                        break
+            pick_cmp = st.selectbox(
+                t("Compare with"),
+                cmp_choices,
+                index=min(cmp_default, len(cmp_choices) - 1),
+                key="geo_compare_district",
+            )
+        with d3:
+            show_geo_map = st.checkbox(
+                t("Show map"),
+                value=True,
+                key="geo_show_map",
+                help="Comparison map highlights selected districts. Full heat map is optional below.",
+            )
+
+        _none = t("none")
+        comparing = bool(pick_cmp and pick_cmp != _none and pick_cmp != "— none —")
+        selected_districts = [pick_dist] + ([pick_cmp] if comparing else [])
+
+        # --- Map data source / metric ---
+        _map_src_opts = [t("Media news volume"), t("ML-ready")]
+        map_source_ix = st.radio(
+            t("Map data source"),
+            [0, 1],
+            format_func=lambda i: _map_src_opts[i],
+            horizontal=True,
+            key="geo_map_source_ix",
+        )
+        map_source = "Media news volume" if map_source_ix == 0 else "ML-ready (latest year)"
 
         map_df = pd.DataFrame()
         value_col = ""
@@ -3090,18 +3634,6 @@ def main():
             name_col = "district"
             if map_df.empty:
                 st.warning("No news harvest yet. Click **🔄** in the sidebar to refresh media.")
-        elif map_source == "2026 rape forecasts" and not rape_2026_df.empty:
-            map_df = rape_2026_df.copy()
-            value_col = (
-                "predicted_2026_rape_incidents"
-                if "predicted_2026_rape_incidents" in map_df.columns
-                else (
-                    "rape_risk_index"
-                    if "rape_risk_index" in map_df.columns
-                    else map_df.select_dtypes(include=[np.number]).columns[-1]
-                )
-            )
-            name_col = "district" if "district" in map_df.columns else "district_city"
         elif not ml_data.empty:
             map_df = (
                 ml_data.sort_values("year").groupby("district_city").tail(1)
@@ -3109,7 +3641,6 @@ def main():
                 else ml_data
             )
             name_col = "district_city"
-            # Prefer core rates for ML map
             prefer = [
                 c for c in (
                     "murder_homicide_murder_rate",
@@ -3125,43 +3656,103 @@ def main():
                 and np.issubdtype(map_df[c].dtype, np.number)
             ]
             value_col = st.selectbox(
-                "Metric to colour the map",
+                "Metric (hover on map + ranking bars)",
                 candidates or map_df.select_dtypes(include=[np.number]).columns.tolist()[:12],
                 key="geo_metric_pick",
             )
         else:
             st.warning("No data for map. Run pipeline (option 1) and optionally option 7 for 2026.")
 
-        # --- Scoreboard high → low ---
-        rank_metric = st.selectbox(
-            "Scoreboard rank by (high → low)",
-            ["news_90d", "murder_rate", "rape_rate", "forecast_2026_rape", "complaints"],
-            key="geo_rank_by",
-        )
-        board = build_district_scoreboard_table(
-            ml_data, harvest_df, news_df, rape_2026_df, rank_by=rank_metric
-        )
+        # --- MAP: carve selected districts out of TN (separate polygons) ---
+        if show_geo_map:
+            st.markdown("#### Map · carved-out districts")
+            _mdf = map_df if not map_df.empty else None
+            _vc = value_col if value_col else None
 
-        # District list from scoreboard order (high→low) when available
-        if not board.empty:
-            district_opts = board["district"].astype(str).tolist()
-        else:
-            district_opts = []
-            if not map_df.empty and name_col in map_df.columns:
-                district_opts = (
-                    map_df.sort_values(value_col, ascending=False)[name_col]
-                    .dropna().astype(str).unique().tolist()
-                    if value_col in map_df.columns
-                    else sorted(map_df[name_col].dropna().astype(str).unique().tolist())
+            if comparing:
+                st.caption(
+                    f"**{pick_dist}** and **{pick_cmp}** carved out separately "
+                    "(only those shapes — rest of TN removed)."
                 )
-            if not district_opts:
-                district_opts = ["Chennai", "Madurai", "Thoothukudi", "Coimbatore"]
+                # Side-by-side: each district alone, full zoom (no A/B labels)
+                if plot_district_carved_out is not None:
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        with st.spinner(f"Carving {pick_dist}…"):
+                            fig_a = plot_district_carved_out(
+                                pick_dist,
+                                color=COMPARE_PALETTE[0],
+                                df=_mdf,
+                                value_col=_vc,
+                                name_col=name_col,
+                                title=pick_dist,
+                                height=400,
+                            )
+                        if fig_a is not None:
+                            st.plotly_chart(fig_a, use_container_width=True, key="tn_carve_a")
+                        else:
+                            st.warning(f"Could not carve **{pick_dist}** from GeoJSON.")
+                    with col_b:
+                        with st.spinner(f"Carving {pick_cmp}…"):
+                            fig_b = plot_district_carved_out(
+                                pick_cmp,
+                                color=COMPARE_PALETTE[1],
+                                df=_mdf,
+                                value_col=_vc,
+                                name_col=name_col,
+                                title=pick_cmp,
+                                height=400,
+                            )
+                        if fig_b is not None:
+                            st.plotly_chart(fig_b, use_container_width=True, key="tn_carve_b")
+                        else:
+                            st.warning(f"Could not carve **{pick_cmp}** from GeoJSON.")
 
-        if not map_df.empty and value_col:
-            st.caption(f"Map metric: **{value_col}** · white (low) → blue (high)")
-            left, right = st.columns([1.35, 1], gap="medium")
-            with left:
-                with st.spinner("Building Tamil Nadu district map..."):
+                # Optional: pair inside full TN
+                with st.expander("Show pair inside full Tamil Nadu (context)", expanded=False):
+                    fig_ctx = plot_tn_compare_districts(
+                        selected_districts,
+                        df=_mdf,
+                        value_col=_vc,
+                        name_col=name_col,
+                        title=f"{pick_dist} vs {pick_cmp}",
+                        mode="context",
+                    )
+                    if fig_ctx is not None:
+                        st.plotly_chart(fig_ctx, use_container_width=True, key="tn_compare_context")
+            else:
+                st.caption(
+                    f"**{pick_dist}** carved out alone. "
+                    f"Set **{t('Compare with')}** to carve a second district side-by-side."
+                )
+                with st.spinner(f"Carving {pick_dist}…"):
+                    if plot_district_carved_out is not None:
+                        fig_solo = plot_district_carved_out(
+                            pick_dist,
+                            color=COMPARE_PALETTE[0],
+                            df=_mdf,
+                            value_col=_vc,
+                            name_col=name_col,
+                            title=pick_dist,
+                            height=440,
+                        )
+                    else:
+                        fig_solo = plot_tn_compare_districts(
+                            [pick_dist],
+                            df=_mdf,
+                            value_col=_vc,
+                            name_col=name_col,
+                            title=pick_dist,
+                            mode="carved",
+                        )
+                if fig_solo is not None:
+                    st.plotly_chart(fig_solo, use_container_width=True, key="tn_carve_solo")
+                else:
+                    st.warning(f"Could not carve **{pick_dist}** — see tables below.")
+
+            # Optional full heat map (collapsed for speed)
+            with st.expander("Full TN heat map (all districts · white → blue)", expanded=False):
+                if not map_df.empty and value_col:
                     fig_map = plot_tn_choropleth(
                         map_df,
                         value_col=value_col,
@@ -3169,276 +3760,284 @@ def main():
                         title=f"TN districts · {value_col}",
                         color_scale=HEAT_WHITE_BLUE,
                         colorbar_title="Value",
+                        fill_nulls_from_media=(map_source == "Media news volume"),
                     )
-                if fig_map is not None:
-                    st.plotly_chart(fig_map, use_container_width=True, key="tn_choropleth")
+                    if fig_map is not None:
+                        st.plotly_chart(fig_map, use_container_width=True, key="tn_choropleth")
                 else:
-                    st.warning("GeoJSON unavailable — ranking bars.")
-                    fig = px.bar(
-                        map_df.sort_values(value_col, ascending=True).tail(25),
-                        x=value_col,
-                        y=name_col,
-                        orientation="h",
-                        color=value_col,
-                        color_continuous_scale=HEAT_WHITE_BLUE,
-                        template="plotly_dark",
-                        title="District ranking (map fallback)",
-                    )
-                    fig.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="#0e0e12",
-                        height=520,
-                    )
-                    st.plotly_chart(fig, use_container_width=True, key="geo_fallback_bar")
+                    st.caption("No metric data for full heat map yet.")
 
-            with right:
-                st.markdown(f"**Scoreboard · high → low · {rank_metric}**")
-                if not board.empty:
-                    show_b = board.copy()
-                    for c in show_b.select_dtypes(include=[np.number]).columns:
-                        if c != "rank":
-                            show_b[c] = pd.to_numeric(show_b[c], errors="coerce").round(2)
-                    st.dataframe(show_b.head(25), use_container_width=True, hide_index=True)
-                    heat_col = rank_metric if rank_metric in board.columns else "news_90d"
-                    if heat_col in board.columns:
-                        render_district_heat(
-                            board,
-                            heat_col,
-                            "district",
-                            "risk_level" if "risk_level" in board.columns else None,
-                            top_n=15,
-                        )
-                else:
-                    lcol = "risk_level" if "risk_level" in map_df.columns else None
-                    render_district_heat(map_df, value_col, name_col, lcol, top_n=18)
+        # --- DATA BELOW MAP: side-by-side cards + table + charts ---
+        st.markdown("#### Data below map")
+        st.caption(t("Official vs media") + " · selected district(s)")
 
-        st.markdown("### District detail (scorecard)")
-        d1, d2, d3 = st.columns([2, 2, 1])
-        with d1:
-            pick_dist = st.selectbox(
-                "Focus district (list order = high → low on scoreboard)",
-                district_opts,
-                key="geo_focus_district",
-            )
-        with d2:
-            compare_opts = [d for d in district_opts if d != pick_dist]
-            pick_cmp = st.selectbox(
-                "Compare with",
-                ["— none —"] + compare_opts,
-                key="geo_compare_district",
-            )
-        with d3:
-            st.write("")
-            show_2026 = st.checkbox("2026 detail", value=True, key="geo_show_2026")
-
-        def _render_geo_card(dist: str) -> None:
+        def _render_geo_card(dist: str, *, key_suffix: str = "", accent: str | None = None) -> dict:
             card = build_district_scorecard(
                 dist, ml_data, news_df, harvest_df, rape_2026_df, sentiment_df
             )
             st.markdown(f"#### {dist}")
+            if accent:
+                st.markdown(
+                    f"<div style='height:4px;width:48px;background:{accent};"
+                    f"border-radius:2px;margin:-6px 0 8px 0;'></div>",
+                    unsafe_allow_html=True,
+                )
             mcols = st.columns(4)
             with mcols[0]:
-                st.metric("Murder rate", f"{card['murder_rate']:.2f}" if "murder_rate" in card else "—")
+                st.metric(
+                    t("Murder rate"),
+                    f"{card['murder_rate']:.2f}" if "murder_rate" in card else "—",
+                )
             with mcols[1]:
-                st.metric("Rape rate", f"{card['rape_rate']:.2f}" if "rape_rate" in card else "—")
+                st.metric(
+                    t("Rape rate"),
+                    f"{card['rape_rate']:.2f}" if "rape_rate" in card else "—",
+                )
             with mcols[2]:
-                st.metric("News 90d", f"{card['news_90d']:.1f}" if "news_90d" in card else "—")
+                st.metric(
+                    t("News 90d"),
+                    f"{card['news_90d']:.1f}" if "news_90d" in card else "—",
+                )
             with mcols[3]:
                 st.metric(
-                    "2026 rape forecast",
-                    f"{card['forecast_2026_rape']:.1f}" if "forecast_2026_rape" in card else "—",
+                    "Complaints",
+                    f"{card['complaints']:.0f}" if "complaints" in card else "—",
                 )
             st.caption(
-                f"Risk: {card.get('risk_level', '—')} · rank news: #{card.get('news_rank', '—')} · year: {card.get('year', '—')}"
+                f"News rank #{card.get('news_rank', '—')} · data year {card.get('year', '—')} · "
+                f"{data_freshness_caption()}"
             )
+            extras = []
+            if "forecast_2026_rape" in card:
+                extras.append(f"2026 rape forecast: **{card['forecast_2026_rape']:.1f}**")
+            if card.get("risk_level"):
+                extras.append(f"Risk: **{card['risk_level']}**")
+            if "sentiment_polarity" in card:
+                extras.append(f"Sentiment: **{card['sentiment_polarity']:.2f}**")
+            if extras:
+                st.markdown(" · ".join(extras))
             if card.get("headlines"):
-                with st.expander("Recent headlines"):
+                with st.expander(t("Recent headlines") + f" · {dist}"):
                     for hl in card["headlines"]:
                         st.markdown(f"- {hl}")
+            drivers = explain_prediction_drivers(
+                dist, "murder_homicide_murder_rate", ml_data, news_df, harvest_df, None
+            )
+            if drivers:
+                with st.expander(f"Why {dist} stands out"):
+                    for line in drivers[:6]:
+                        st.markdown(f"- {line}")
+            html = district_brief_html(card, drivers)
+            st.download_button(
+                f"⬇️ {t('Export brief')} · {dist}",
+                data=html.encode("utf-8"),
+                file_name=f"CRIMECAST_{dist.replace(' ', '_')}_brief.html",
+                mime="text/html",
+                key=f"geo_dl_brief_{key_suffix or dist}",
+                help="Open HTML → Ctrl+P → Save as PDF",
+            )
+            return card
 
-        if pick_cmp and pick_cmp != "— none —":
+        cards: dict[str, dict] = {}
+        if comparing:
             lc, rc = st.columns(2)
             with lc:
-                _render_geo_card(pick_dist)
+                cards[pick_dist] = _render_geo_card(
+                    pick_dist, key_suffix="a", accent=COMPARE_PALETTE[0]
+                )
             with rc:
-                _render_geo_card(pick_cmp)
+                cards[pick_cmp] = _render_geo_card(
+                    pick_cmp, key_suffix="b", accent=COMPARE_PALETTE[1]
+                )
         else:
-            _render_geo_card(pick_dist)
+            cards[pick_dist] = _render_geo_card(
+                pick_dist, key_suffix="solo", accent=COMPARE_PALETTE[0]
+            )
 
-        # ML history for focus district
-        if not ml_data.empty and "district_city" in ml_data.columns:
-            hist = ml_data[
-                ml_data["district_city"].astype(str).str.casefold() == pick_dist.casefold()
-            ].copy()
-            if hist.empty:
+        # Side-by-side metrics table + bar chart when comparing
+        if comparing and pick_dist in cards and pick_cmp in cards:
+            c1, c2 = cards[pick_dist], cards[pick_cmp]
+            rows = []
+            chart_rows = []
+            for k, label in [
+                ("murder_rate", "Murder rate"),
+                ("rape_rate", "Rape rate"),
+                ("news_90d", "News 90d"),
+                ("complaints", "Complaints"),
+                ("murder_incidence", "Murder incidence"),
+                ("rape_incidents", "Rape incidents"),
+                ("forecast_2026_rape", "2026 rape forecast"),
+                ("sentiment_polarity", "Sentiment polarity"),
+            ]:
+                if k in c1 or k in c2:
+                    v1, v2 = c1.get(k, "—"), c2.get(k, "—")
+                    rows.append({"Metric": label, pick_dist: v1, pick_cmp: v2})
+                    try:
+                        f1 = float(v1) if v1 is not None and v1 != "—" else None
+                        f2 = float(v2) if v2 is not None and v2 != "—" else None
+                    except Exception:
+                        f1 = f2 = None
+                    if f1 is not None:
+                        chart_rows.append({"Metric": label, "District": pick_dist, "Value": f1})
+                    if f2 is not None:
+                        chart_rows.append({"Metric": label, "District": pick_cmp, "Value": f2})
+            if rows:
+                st.markdown(f"##### Side-by-side · {pick_dist} vs {pick_cmp}")
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            if chart_rows:
+                fig_bars = px.bar(
+                    pd.DataFrame(chart_rows),
+                    x="Metric",
+                    y="Value",
+                    color="District",
+                    barmode="group",
+                    title=f"{pick_dist} vs {pick_cmp}",
+                    template="plotly_dark",
+                    color_discrete_map={
+                        pick_dist: COMPARE_PALETTE[0],
+                        pick_cmp: COMPARE_PALETTE[1],
+                    },
+                )
+                fig_bars.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="#0e0e12",
+                    height=380,
+                    legend_title_text="",
+                )
+                st.plotly_chart(fig_bars, use_container_width=True, key="geo_compare_bars")
+
+            # Multi-year murder rate history for the pair
+            if not ml_data.empty and "murder_homicide_murder_rate" in ml_data.columns:
+                pair_cf = {pick_dist.casefold(), pick_cmp.casefold()}
                 hist = ml_data[
-                    ml_data["district_city"].astype(str).str.contains(
-                        pick_dist, case=False, na=False
-                    )
+                    ml_data["district_city"].astype(str).str.casefold().isin(pair_cf)
+                    & ml_data["year"].notna()
                 ].copy()
-            if not hist.empty and "year" in hist.columns:
-                rate_cols = [
-                    c
-                    for c in (
-                        "murder_homicide_murder_rate",
-                        "women_crimes_rape_r",
-                        "complaints_rate_of_cognizable_crime_ipc_sll",
+                # Also match partial names (Chennai City, etc.)
+                if hist.empty:
+                    hist = ml_data[
+                        ml_data["district_city"].astype(str).str.casefold().str.contains(
+                            pick_dist.casefold()[:6], na=False
+                        )
+                        | ml_data["district_city"].astype(str).str.casefold().str.contains(
+                            pick_cmp.casefold()[:6], na=False
+                        )
+                    ].copy()
+                if not hist.empty:
+                    hist["murder_homicide_murder_rate"] = pd.to_numeric(
+                        hist["murder_homicide_murder_rate"], errors="coerce"
                     )
-                    if c in hist.columns
-                ]
-                if rate_cols:
-                    long = []
-                    for _, r in hist.iterrows():
-                        for c in rate_cols:
-                            if pd.notna(r.get(c)):
-                                long.append({
-                                    "year": int(r["year"]) if pd.notna(r["year"]) else None,
-                                    "metric": c,
-                                    "value": float(r[c]),
-                                })
-                    if long:
-                        fig_h = px.line(
-                            pd.DataFrame(long),
-                            x="year",
-                            y="value",
-                            color="metric",
-                            markers=True,
-                            title=f"{pick_dist} · official/ML trend",
-                            template="plotly_dark",
-                        )
-                        fig_h.update_layout(
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="#0e0e12",
-                            height=320,
-                        )
-                        st.plotly_chart(fig_h, use_container_width=True, key="geo_focus_hist")
-
-        if show_2026 and not rape_2026_df.empty:
-            st.markdown(f"#### 2026 prediction · **{pick_dist}**")
-            rnc = "district" if "district" in rape_2026_df.columns else "district_city"
-            r26 = rape_2026_df[
-                rape_2026_df[rnc].astype(str).str.casefold() == pick_dist.casefold()
-            ]
-            if r26.empty:
-                r26 = rape_2026_df[
-                    rape_2026_df[rnc].astype(str).str.contains(pick_dist, case=False, na=False)
-                ]
-            if not r26.empty:
-                row = r26.iloc[0]
-                c26 = st.columns(5)
-                pairs = [
-                    ("Predicted 2026", "predicted_2026_rape_incidents"),
-                    ("Low", "pred_low"),
-                    ("High", "pred_high"),
-                    ("Risk index", "rape_risk_index"),
-                    ("Risk level", "risk_level"),
-                ]
-                for i, (lab, col) in enumerate(pairs):
-                    with c26[i]:
-                        v = row.get(col, "—")
-                        if isinstance(v, (int, float, np.floating)) and pd.notna(v):
-                            st.metric(
-                                lab,
-                                f"{float(v):.2f}" if abs(float(v)) < 1000 else f"{float(v):.0f}",
-                            )
-                        else:
-                            st.metric(lab, str(v) if pd.notna(v) else "—")
-                st.dataframe(r26, use_container_width=True, hide_index=True)
-                cmp_names = [pick_dist]
-                if pick_cmp and pick_cmp != "— none —":
-                    cmp_names.append(pick_cmp)
-                r26_cmp = rape_2026_df[rape_2026_df[rnc].astype(str).isin(cmp_names)]
-                if not r26_cmp.empty and "predicted_2026_rape_incidents" in r26_cmp.columns:
-                    fig_cmp = px.bar(
-                        r26_cmp,
-                        x=rnc,
-                        y="predicted_2026_rape_incidents",
-                        color=rnc,
-                        title=f"2026 forecast · {pick_dist}"
-                        + (f" vs {pick_cmp}" if pick_cmp and pick_cmp != "— none —" else ""),
+                    fig_h = px.line(
+                        hist.sort_values("year"),
+                        x="year",
+                        y="murder_homicide_murder_rate",
+                        color="district_city",
+                        markers=True,
+                        title=f"Murder rate over years · {pick_dist} vs {pick_cmp}",
                         template="plotly_dark",
-                        color_discrete_sequence=["#0ea5e9", "#a855f7"],
+                        color_discrete_sequence=COMPARE_PALETTE[:2],
                     )
-                    fig_cmp.update_layout(
+                    fig_h.update_layout(
                         paper_bgcolor="rgba(0,0,0,0)",
                         plot_bgcolor="#0e0e12",
-                        height=300,
-                        showlegend=False,
+                        height=320,
                     )
-                    st.plotly_chart(fig_cmp, use_container_width=True, key="geo_2026_cmp")
-            else:
-                st.info(f"No 2026 forecast for **{pick_dist}**. Run option 7 / Forecasts tab.")
+                    st.plotly_chart(fig_h, use_container_width=True, key="geo_compare_murder_hist")
 
-    # ============ HEAT MAP (matrix) ============
-    elif page == "🔥 Heat Map":
-        from tn_map import plot_district_heatmap_matrix, plot_tn_choropleth
-
-        ops_topbar("Heat Map — districts × metrics")
-        st.caption(
-            "Matrix heatmap (z-scored) + TN map. Colour scale **white (low) → blue (high)**."
-        )
-
-        source = st.radio("Source", ["ML-ready data", "2026 forecasts"], horizontal=True)
-        if source == "2026 forecasts" and not rape_2026_df.empty:
-            hm_df = rape_2026_df.copy()
-            name_c = "district" if "district" in hm_df.columns else "district_city"
-        elif not ml_data.empty:
-            hm_df = ml_data.copy()
-            name_c = "district_city"
-        else:
-            hm_df = pd.DataFrame()
-            name_c = "district_city"
-
-        if hm_df.empty:
-            st.warning("No data. Run `python app.py` option 1 (and option 7 for 2026).")
-        else:
-            num_opts = [
-                c for c in hm_df.select_dtypes(include=[np.number]).columns
-                if c not in ("year", "year_centered", "is_latest_year", "rank", "Sl No", "sl_no")
-            ]
-            # Prefer crime-ish columns first
-            preferred = [c for c in num_opts if any(k in c.lower() for k in ("rape", "murder", "complaint", "risk", "news", "sentiment"))]
-            default_sel = preferred[:5] if preferred else num_opts[:5]
-            selected_metrics = st.multiselect(
-                "Metrics in heatmap",
-                options=num_opts,
-                default=default_sel,
-            )
-            if selected_metrics:
-                fig_hm = plot_district_heatmap_matrix(
-                    hm_df,
-                    value_cols=selected_metrics,
-                    name_col=name_c,
-                    title="District × metric heat map (z-score)",
-                    top_n=28,
+        # Scoreboard + ranking (filtered to selection first)
+        st.markdown(f"##### Scoreboard · high → low · {rank_metric}")
+        left, right = st.columns([1.2, 1], gap="medium")
+        with left:
+            if not map_df.empty and value_col:
+                # When comparing, put selected districts on the ranking bar chart
+                plot_rank = map_df.copy()
+                if comparing and name_col in plot_rank.columns:
+                    sel_cf = {d.casefold() for d in selected_districts}
+                    plot_rank["_sel"] = plot_rank[name_col].astype(str).str.casefold().isin(sel_cf)
+                    # Show top 18 + always include selected
+                    top = plot_rank.nlargest(18, value_col) if value_col in plot_rank.columns else plot_rank
+                    extra = plot_rank[plot_rank["_sel"]]
+                    plot_rank = pd.concat([top, extra]).drop_duplicates(subset=[name_col])
+                fig = px.bar(
+                    plot_rank.sort_values(value_col, ascending=True).tail(20),
+                    x=value_col,
+                    y=name_col,
+                    orientation="h",
+                    color=value_col,
+                    color_continuous_scale=HEAT_WHITE_BLUE,
+                    template="plotly_dark",
+                    title="District ranking (high → low)",
                 )
-                if fig_hm:
-                    st.plotly_chart(fig_hm, use_container_width=True, key="matrix_heatmap")
-
-                # Also show map for first selected metric
-                st.markdown("### Map view (first selected metric) · white → blue")
-                fig_m = plot_tn_choropleth(
-                    hm_df.sort_values("year").groupby(name_c).tail(1) if "year" in hm_df.columns else hm_df,
-                    value_col=selected_metrics[0],
-                    name_col=name_c,
-                    title=f"TN map — {selected_metrics[0]}",
+                fig.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="#0e0e12",
+                    height=420,
                 )
-                if fig_m:
-                    st.plotly_chart(fig_m, use_container_width=True, key="heatmap_map")
+                st.plotly_chart(fig, use_container_width=True, key="geo_fallback_bar")
+        with right:
+            if not board.empty:
+                show_b = board.copy()
+                # Pin selected districts to the top of the table for visibility
+                if selected_districts:
+                    sel_cf = {d.casefold() for d in selected_districts}
+                    show_b["_pin"] = show_b["district"].astype(str).str.casefold().isin(sel_cf)
+                    show_b = show_b.sort_values(
+                        ["_pin", "rank"] if "rank" in show_b.columns else ["_pin"],
+                        ascending=[False, True],
+                    ).drop(columns=["_pin"], errors="ignore")
+                for c in show_b.select_dtypes(include=[np.number]).columns:
+                    if c != "rank":
+                        show_b[c] = pd.to_numeric(show_b[c], errors="coerce").round(2)
+                st.dataframe(show_b.head(25), use_container_width=True, hide_index=True)
+                heat_col = rank_metric if rank_metric in board.columns else "news_90d"
+                if heat_col in board.columns:
+                    render_district_heat(
+                        board,
+                        heat_col,
+                        "district",
+                        "risk_level" if "risk_level" in board.columns else None,
+                        top_n=15,
+                    )
+            elif not map_df.empty and value_col:
+                lcol = "risk_level" if "risk_level" in map_df.columns else None
+                render_district_heat(map_df, value_col, name_col, lcol, top_n=18)
+
+        # Official vs media for focus (+ compare if set)
+        st.markdown(f"### {t('Official vs media')} · before/after view")
+        if comparing:
+            oc1, oc2 = st.columns(2)
+            with oc1:
+                fig_om = plot_official_vs_news_chart(pick_dist, ml_data, harvest_df, news_df)
+                if fig_om is not None:
+                    st.plotly_chart(fig_om, use_container_width=True, key="geo_official_vs_news_a")
                 else:
-                    st.info("TN map GeoJSON not available offline yet — matrix heatmap above still works.")
+                    st.caption(f"No official/news chart yet for {pick_dist}.")
+            with oc2:
+                fig_om2 = plot_official_vs_news_chart(pick_cmp, ml_data, harvest_df, news_df)
+                if fig_om2 is not None:
+                    st.plotly_chart(fig_om2, use_container_width=True, key="geo_official_vs_news_b")
+                else:
+                    st.caption(f"No official/news chart yet for {pick_cmp}.")
+        else:
+            fig_om = plot_official_vs_news_chart(pick_dist, ml_data, harvest_df, news_df)
+            if fig_om is not None:
+                st.plotly_chart(fig_om, use_container_width=True, key="geo_official_vs_news")
+                st.caption(
+                    "Official rates and news heat use **different units** — hybrid story, not equal numbers."
+                )
             else:
-                st.info("Select at least one metric.")
+                st.caption("Not enough official/news metrics for this district yet.")
 
     # ============ MAKE PREDICTION ============
     elif page == "🔮 Predict":
         from tn_map import plot_tn_choropleth, HEAT_WHITE_BLUE
         from predict import predict_for_area
 
-        ops_topbar("Predict — murder · rape · cognizable rates · TN map")
+        ops_topbar(f"{t('Predict')} — murder · rape · cognizable · TN map")
         st.caption(
-            "Targets: **Murder rate**, **Rape rate**, **Cognizable crime rate**. "
-            "Map shows predicted value for all districts (white → blue)."
+            f"{t('Targets')}: **{t('Murder rate')}**, **{t('Rape rate')}**, Cognizable. "
+            "Model estimate + history blend — not FIR truth. "
+            f"{data_freshness_caption()}"
         )
 
         predict_many, TARGET_ALIASES, TARGET_CONFIGS, resolve_target = get_predict_functions()
@@ -3799,12 +4398,17 @@ def main():
     elif page == "📅 2026 Forecasts":
         from tn_map import plot_tn_choropleth, HEAT_WHITE_BLUE
 
-        ops_topbar("2026 Forecasts — rape trend · interactive TN map")
+        ops_topbar(f"{t('2026 Forecasts')} — rape trend · interactive TN map")
+        st.warning(
+            f"**{t('Scenario only')}** — model/trend estimate for discussion. "
+            "Not an official SCRB forecast and not a fact about future crime."
+        )
         st.caption(
-            "District-level Section 376 forecasts. Map uses white → blue intensity."
+            "District-level Section 376 scenario map · white → blue. "
+            f"{data_freshness_caption()}"
         )
 
-        if st.button("Generate / Refresh 2026 Forecasts", type="primary"):
+        if st.button("Generate / Refresh 2026 Forecasts · புதுப்பி", type="primary"):
             with st.spinner("Running 2026 prediction (trend engine, no sklearn)..."):
                 preds = None
                 err_msg = None
@@ -4019,17 +4623,6 @@ def main():
         if not sentiment_df.empty:
             st.subheader("Sentiment Scores")
             st.dataframe(sentiment_df.head(15), use_container_width=True)
-
-    # Footer
-    st.sidebar.markdown("---")
-    st.sidebar.caption(
-        f"Media: {n_media} signals · {n_harvest} headlines · models {n_models}"
-    )
-    st.sidebar.caption("Health: `python health_check.py`")
-    st.sidebar.caption("Launch: `START_DASHBOARD.bat` · `streamlit run dashboard.py`")
-    st.sidebar.caption("Guide: docs/MAKING_IT_USABLE.md")
-
-
 
 if __name__ == "__main__":
     main()

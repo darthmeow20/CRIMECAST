@@ -23,14 +23,12 @@ from typing import Any
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Optional heavy deps — never crash import if transformers missing
+# Optional heavy deps — never top-level import transformers (Streamlit file
+# watcher probes vision models → needs torchvision; CRIMECAST only uses text NLP).
 # ---------------------------------------------------------------------------
-HAS_TRANSFORMERS = False
-try:
-    import transformers  # noqa: F401
-    HAS_TRANSFORMERS = True
-except ImportError:
-    pass
+import importlib.util
+
+HAS_TRANSFORMERS = importlib.util.find_spec("transformers") is not None
 
 _SENTIMENT_PIPE = None
 _ZERO_SHOT_PIPE = None
@@ -257,6 +255,36 @@ def run_trend_llm(text: str) -> dict[str, Any]:
         }
     except Exception:
         return _lexicon_trend(text)
+
+
+def analyze_crime_text_light(text: str) -> dict[str, Any]:
+    """
+    Lexicon-only EN+TA scoring — never loads transformers/torch.
+    Used by dashboard news refresh to avoid torchvision/Streamlit watcher noise.
+    """
+    text = (text or "").strip()
+    if not text:
+        return {
+            "polarity": 0.0,
+            "sentiment_label": "neutral",
+            "confidence": 0.0,
+            "crime_type": "other crime",
+            "crime_type_score": 0.0,
+            "trend_label": "stable situation",
+            "trend_score": 0.0,
+            "nlp_models_used": 0,
+            "pipeline": "lexicon_light",
+        }
+    s = _lexicon_sentiment(text)
+    c = _lexicon_crime_type(text)
+    t = _lexicon_trend(text)
+    return {
+        **s,
+        **c,
+        **t,
+        "nlp_models_used": 0,
+        "pipeline": "lexicon_light",
+    }
 
 
 def analyze_crime_text(text: str) -> dict[str, Any]:

@@ -27,20 +27,12 @@ DEFAULT_MODEL_FILE = MODEL_DIR / "sentiment_tfidf_logistic.joblib"
 DEFAULT_METRICS_FILE = OUTPUT_DIR / "sentiment_metrics.json"
 SENTIMENT_REPORT = OUTPUT_DIR / "sentiment_analysis_report.txt"
 
-HAS_DISTILBERT = False
-HAS_TEXTBLOB = False
+import importlib.util
 
-try:
-    import transformers  # noqa: F401
-    HAS_DISTILBERT = True
-except ImportError:
-    HAS_DISTILBERT = False
-
-try:
-    import textblob as _textblob  # noqa: F401
-    HAS_TEXTBLOB = True
-except ImportError:
-    HAS_TEXTBLOB = False
+# Do NOT `import transformers` at module load — Streamlit's sources watcher
+# walks transformers.models.* and crashes on missing torchvision (vision only).
+HAS_DISTILBERT = importlib.util.find_spec("transformers") is not None
+HAS_TEXTBLOB = importlib.util.find_spec("textblob") is not None
 
 _distilbert_pipeline = None  # lazy loaded
 

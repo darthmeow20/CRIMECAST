@@ -1,8 +1,25 @@
 # CRIMECAST
 
-Crime analysis, ML forecasting, and DistilBERT sentiment for **Tamil Nadu districts**.
+**College project** — usable TN district crime **prototype**: SCRB-style tables + news media + ML forecasts + Streamlit dashboard.
 
-**Official rates lag** → news/media is support data for current affairs. Predictions are research tools, not legal evidence.
+Not a live police system. **Official rates** (when tagged SCRB/NCRB) vs **media** (current affairs support). Predictions are research estimates, not legal evidence.
+
+### Who can “use” it (realistically)
+
+| Audience | Usable as |
+|----------|-----------|
+| **You / viva / examiners** | End-to-end demo: maps, feed, predict, 2026 |
+| **Study / research cell (concept)** | District compare + media radar idea |
+| **Police ops (production)** | No — needs official CCTNS/SCRB feed + security |
+
+### Demo path (usable)
+
+1. `START_DASHBOARD.bat` or `streamlit run dashboard.py`
+2. **Live Feed** — news window + district ranking  
+3. **District Map & Scoreboard** — pick district, compare  
+4. **Predict** — murder / rape / cognizable rate  
+5. **2026 Forecasts** — trend map  
+
 
 ## Fastest path (usable demo)
 

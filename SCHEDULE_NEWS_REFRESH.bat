@@ -10,6 +10,6 @@ if not defined PY if exist "C:\Python311\python.exe" set "PY=C:\Python311\python
 if not defined PY set "PY=python"
 
 echo [%DATE% %TIME%] CRIMECAST news refresh starting...
-"%PY%" -B "%~dp0acquire_news_signals.py" --refresh-new --max-items 22
+"%PY%" -B "%~dp0acquire_news_signals.py" --refresh-new --light-score --max-items 22
 echo [%DATE% %TIME%] Exit code %ERRORLEVEL%
 exit /b %ERRORLEVEL%

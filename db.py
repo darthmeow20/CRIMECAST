@@ -110,6 +110,15 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
             payload_json TEXT,
             updated_at TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS alert_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            level TEXT,
+            title TEXT,
+            detail TEXT,
+            UNIQUE(level, title, detail)
+        );
         """
     )
     conn.commit()
@@ -406,6 +415,57 @@ def sync_from_csv_outputs() -> dict[str, Any]:
     return stats
 
 
+def log_alerts(alerts: list[dict[str, str]]) -> int:
+    """Persist unique HIGH/MED alerts with timestamp. Returns rows inserted."""
+    if not alerts:
+        return 0
+    init_db()
+    conn = connect()
+    now = datetime.now().isoformat(timespec="seconds")
+    n = 0
+    for a in alerts:
+        level = str(a.get("level") or "MED")
+        title = str(a.get("title") or "")[:300]
+        detail = str(a.get("detail") or "")[:800]
+        if not title:
+            continue
+        try:
+            cur = conn.execute(
+                """
+                INSERT OR IGNORE INTO alert_log(created_at, level, title, detail)
+                VALUES (?,?,?,?)
+                """,
+                (now, level, title, detail),
+            )
+            n += int(cur.rowcount or 0)
+        except Exception:
+            continue
+    conn.commit()
+    if n:
+        set_meta("last_alert_log", now, conn)
+    conn.close()
+    return n
+
+
+def load_alert_log(limit: int = 40) -> pd.DataFrame:
+    init_db()
+    conn = connect()
+    try:
+        return pd.read_sql_query(
+            f"""
+            SELECT created_at, level, title, detail
+            FROM alert_log
+            ORDER BY id DESC
+            LIMIT {int(limit)}
+            """,
+            conn,
+        )
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
 def db_status() -> dict[str, Any]:
     init_db()
     conn = connect()
@@ -414,6 +474,10 @@ def db_status() -> dict[str, Any]:
         scored_n = conn.execute("SELECT COUNT(*) AS n FROM news_headlines WHERE scored=1").fetchone()["n"]
         dist_n = conn.execute("SELECT COUNT(*) AS n FROM district_sentiment").fetchone()["n"]
         rape_n = conn.execute("SELECT COUNT(*) AS n FROM rape_2026").fetchone()["n"]
+        try:
+            alert_n = conn.execute("SELECT COUNT(*) AS n FROM alert_log").fetchone()["n"]
+        except Exception:
+            alert_n = 0
     finally:
         conn.close()
     return {
@@ -423,6 +487,7 @@ def db_status() -> dict[str, Any]:
         "scored_headlines": int(scored_n),
         "district_sentiment_rows": int(dist_n),
         "rape_2026_rows": int(rape_n),
+        "alert_log_rows": int(alert_n),
         "last_sync": get_meta("last_full_sync"),
         "last_sentiment": get_meta("last_district_sentiment"),
     }

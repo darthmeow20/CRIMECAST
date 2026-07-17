@@ -1,6 +1,9 @@
 # Making CRIMECAST usable, reliable, and useful
 
-Honest assessment + practical ops guide for demos, academic submission, and real use.
+**Framing for college:** a **usable prototype** (maps, feed, ranks, predict) you can demo and explain —
+not a replacement for police SCRB/CCTNS. Usable = clear workflow + honest data labels + works offline after setup.
+
+Honest assessment + practical ops guide for demos, academic submission, and light real-world *concept* use.
 
 ## What the project is good at today
 
