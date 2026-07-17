@@ -17,8 +17,20 @@ DEFAULT_YEAR = 2023
 ML_READY_FILENAME = "crimecast_ml_ready.csv"
 
 KEY_COLUMNS = ["year", "district_city", "area_type"]
+# Optional provenance (SCRB/NCRB vs media proxy) — carried into ml_ready when present
+PROVENANCE_COLUMNS = ["data_source"]
 SPECIAL_UNITS = {"Railway Chennai", "Railway Trichy", "Cyber Cell", "Other Units"}
 CITY_UNITS = {"Chennai", "Avadi", "Tambaram"}
+
+# Official source tags (see config/official_data_policy.json)
+OFFICIAL_SOURCES = {
+    "scrb", "ncrb", "scrb_ncrb", "official", "tn_police_table", "tn_scrb",
+}
+MEDIA_PROXY_SOURCES = {
+    "media_proxy", "news_scaled", "twitter_proxy", "media",
+}
+# Legacy: if no data_source, years ≤ this were treated as official TN tables
+LEGACY_OFFICIAL_MAX_YEAR = 2023
 
 
 @dataclass(frozen=True)
@@ -97,7 +109,7 @@ def convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
     cleaned = df.copy()
 
     for column in cleaned.columns:
-        if column in KEY_COLUMNS:
+        if column in KEY_COLUMNS or column in PROVENANCE_COLUMNS or column == "data_source":
             continue
 
         series = cleaned[column]
@@ -245,18 +257,33 @@ def add_ml_features(df: pd.DataFrame) -> pd.DataFrame:
         if numerator in enriched.columns and denominator in enriched.columns:
             enriched[output_column] = safe_ratio(enriched, numerator, denominator)
 
-    # --- Accuracy improvements: explicit time + population features ---
-    # Official TN tables currently cover ≤2023; later years are media-proxy fills.
-    OFFICIAL_MAX_YEAR = 2023
+    # --- Time + official vs media-proxy (SCRB/NCRB can include pre-2022 and 2025–2026) ---
     if "year" in enriched.columns:
-        # Center year for better trend extrapolation (helps when feeding future years)
-        enriched["year_centered"] = enriched["year"].astype(float) - 2022.5
-        # Binary for latest year (useful with only 2 years)
-        enriched["is_latest_year"] = (enriched["year"] == enriched["year"].max()).astype(int)
-        # Flags for train_model: only official years are used as y labels
         ynum = pd.to_numeric(enriched["year"], errors="coerce")
-        enriched["is_official_year"] = (ynum <= OFFICIAL_MAX_YEAR).astype(int)
-        enriched["is_media_proxy_year"] = (ynum > OFFICIAL_MAX_YEAR).astype(int)
+        enriched["year_centered"] = ynum.astype(float) - 2022.5
+        enriched["is_latest_year"] = (ynum == ynum.max()).astype(int)
+
+        # Coalesce data_source from any prefixed merge columns
+        src = pd.Series([""] * len(enriched), index=enriched.index, dtype=object)
+        for col in list(enriched.columns):
+            if col == "data_source" or str(col).endswith("_data_source"):
+                part = enriched[col].fillna("").astype(str).replace({"nan": "", "None": ""})
+                take = src.astype(str).str.len().eq(0) & part.str.len().gt(0)
+                src = src.where(~take, part)
+        enriched["data_source"] = src.replace("", np.nan)
+        src_l = enriched["data_source"].fillna("").astype(str).str.strip().str.lower()
+        is_official_src = src_l.isin(OFFICIAL_SOURCES)
+        is_media_src = src_l.isin(MEDIA_PROXY_SOURCES)
+        # Official = SCRB/NCRB tag (any year, incl. 2025/2026) OR legacy year≤2023 without media tag
+        enriched["is_official_year"] = (
+            is_official_src | ((ynum <= LEGACY_OFFICIAL_MAX_YEAR) & ~is_media_src)
+        ).astype(int)
+        enriched["is_media_proxy_year"] = (
+            is_media_src | ((ynum > LEGACY_OFFICIAL_MAX_YEAR) & ~is_official_src)
+        ).astype(int)
+        # SCRB/NCRB always wins over media flag (e.g. official 2025 drop-in)
+        both = enriched["is_official_year"].astype(bool) & enriched["is_media_proxy_year"].astype(bool)
+        enriched.loc[both, "is_media_proxy_year"] = 0
 
     # Forward key population if present (from complaints) for per-capita awareness
     pop_col = None
@@ -429,8 +456,14 @@ def build_ml_ready_dataset(cleaned_datasets: dict[str, pd.DataFrame]) -> pd.Data
     for name, df in cleaned_datasets.items():
         # Media-proxy files sometimes contain duplicate district rows per year
         df = dedupe_on_keys(df)
-        feature_columns = [column for column in df.columns if column not in KEY_COLUMNS]
+        # Keep data_source unprefixed for official/SCRB coalescing after merge
+        preserve = set(KEY_COLUMNS) | {"data_source"}
+        feature_columns = [column for column in df.columns if column not in preserve]
         prefixed = df.rename(columns={column: f"{name}_{column}" for column in feature_columns})
+        # If multiple frames bring data_source, suffix then coalesce later in add_ml_features
+        if "data_source" in prefixed.columns and name:
+            # leave as data_source; outer merge will create data_source_x/y if clash
+            pass
 
         if merged is None:
             merged = prefixed
@@ -448,6 +481,21 @@ def build_ml_ready_dataset(cleaned_datasets: dict[str, pd.DataFrame]) -> pd.Data
         raise ValueError("No cleaned datasets were available to merge")
 
     merged = dedupe_on_keys(merged)
+    # Coalesce merge artifacts data_source_x / data_source_y
+    ds_cols = [c for c in merged.columns if c == "data_source" or str(c).startswith("data_source")]
+    if len(ds_cols) > 1:
+        coalesced = merged[ds_cols[0]]
+        for c in ds_cols[1:]:
+            coalesced = coalesced.fillna(merged[c])
+            # Prefer SCRB/NCRB over media when both present as strings
+            a = coalesced.astype(str).str.lower()
+            b = merged[c].astype(str).str.lower()
+            prefer_b = b.isin(OFFICIAL_SOURCES) & ~a.isin(OFFICIAL_SOURCES)
+            coalesced = coalesced.where(~prefer_b, merged[c])
+        merged["data_source"] = coalesced
+        for c in ds_cols:
+            if c != "data_source" and c in merged.columns:
+                merged = merged.drop(columns=[c])
     merged = add_ml_features(merged)
     merged = enrich_with_sentiment(merged)
     merged = enrich_with_news_signals(merged)

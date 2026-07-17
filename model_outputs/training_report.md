@@ -3,7 +3,7 @@
 - Dataset: `C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\dataset\cleaned\crimecast_ml_ready.csv`
 - Dataset rows: 253
 - Dataset years (full table): 2022, 2023, 2024, 2025, 2026
-- **Training labels**: official years only (≤ 2023) — media-proxy years excluded as y
+- **Training labels**: `is_official_year==1` (SCRB/NCRB any year, incl. pre-2022 & 2025–2026) — media-proxy excluded; legacy cap if no flags: ≤ 2023
 - Models directory: `C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\models`
 - Trained targets: 6
 

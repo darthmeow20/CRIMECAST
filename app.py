@@ -265,6 +265,10 @@ def interactive_menu() -> None:
         print("     Mode 2 = NEW headlines only (same as dashboard refresh)")
         print("     Mode 3 = Demo offline | Mode 4 = Live single query")
         print()
+        print("OFFICIAL SCRB / NCRB")
+        print("  s. SCRB/NCRB official ingest  [acquire_scrb_ncrb.py]")
+        print("     Pre-2022 OpenCity tables + drop-ins for 2025/2026")
+        print()
         print("SENTIMENT ANALYSIS")
         print("  4. Run sentiment scoring")
         print("  5. Sentiment by state/district")
@@ -294,6 +298,29 @@ def interactive_menu() -> None:
         elif choice == "3":
             outputs = create_visualizations()
             print(f"[OK] Charts: {outputs['figure_dir']}")
+        elif choice == "s":
+            print("\nSCRB/NCRB mode:")
+            print("  1 = Download OpenCity (2019–2021) + stage + apply + rebuild ML")
+            print("  2 = Tag existing tn_2025/tn_2026 as SCRB official + rebuild")
+            print("  3 = Stage only (no copy to dataset/)")
+            sub = input("Mode [1]: ").strip() or "1"
+            try:
+                if sub == "2":
+                    cmd = [
+                        sys.executable, "-B", str(ROOT / "acquire_scrb_ncrb.py"),
+                        "--tag-years", "2025", "2026", "--apply", "--rebuild-ml",
+                    ]
+                elif sub == "3":
+                    cmd = [sys.executable, "-B", str(ROOT / "acquire_scrb_ncrb.py")]
+                else:
+                    cmd = [
+                        sys.executable, "-B", str(ROOT / "acquire_scrb_ncrb.py"),
+                        "--apply", "--rebuild-ml",
+                    ]
+                subprocess.run(cmd, cwd=str(ROOT), check=False)
+            except Exception as e:
+                print(f"[ERROR] {e}")
+                print("Tip: python acquire_scrb_ncrb.py --apply --rebuild-ml")
         elif choice == "n":
             print("\nNews mode:")
             print("  1 = ONE-TIME bulk populate 2024+2025+2026 (full acquire)")
@@ -376,7 +403,7 @@ def interactive_menu() -> None:
             print("\n[OK] Goodbye!\n")
             return
         else:
-            print("[ERROR] Invalid choice. Use 0-9, n, t, or c.")
+            print("[ERROR] Invalid choice. Use 0-9, n, s, t, or c.")
 
 
 def parse_args() -> argparse.Namespace:

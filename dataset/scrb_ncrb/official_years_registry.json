@@ -1,0 +1,16 @@
+{
+  "official_years": {
+    "2019": [
+      "tn_2019_complaints.csv"
+    ],
+    "2020": [
+      "tn_2020_complaints.csv"
+    ],
+    "2021": [
+      "tn_2021_complaints.csv",
+      "tn_2021_crimes_against_women.csv",
+      "tn_2021_muder_homicide.csv"
+    ]
+  },
+  "note": "Years listed here are SCRB/NCRB-class for training labels"
+}

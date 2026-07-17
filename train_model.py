@@ -31,12 +31,16 @@ MODEL_DIR = PROJECT_ROOT / "models"
 OUTPUT_DIR = PROJECT_ROOT / "model_outputs"
 RANDOM_STATE = 42
 
-# Years with official TN crime tables used as *labels* for training.
-# Media-proxy years (2024+) stay in ml_ready for prediction templates / news fusion,
-# but must NOT supervise the model (fake FIR-scale targets).
+# Legacy fallback if is_official_year column missing.
+# Prefer is_official_year==1 (SCRB/NCRB can include pre-2022 and 2025–2026).
 OFFICIAL_LABEL_MAX_YEAR = 2023
 
-IDENTIFIER_COLUMNS = {"district_city", "is_media_proxy_year", "is_official_year"}
+IDENTIFIER_COLUMNS = {
+    "district_city",
+    "is_media_proxy_year",
+    "is_official_year",
+    "data_source",
+}
 TARGET_CONFIGS = {
     "complaints_total_complaints": {
         "label": "Total complaints",
@@ -342,9 +346,8 @@ def filter_official_label_rows(
     """
     Keep only official-era rows as supervised training examples.
 
-    Media-proxy years (typically > official_max_year) remain in the full ML
-    table for prediction templates and news features, but their crime counts/
-    rates are NOT used as y labels (they were scaled from news, not FIRs).
+    Prefer is_official_year==1 (SCRB/NCRB including pre-2022 and 2025–2026).
+    Media-proxy rows stay in ml_ready for templates/news but never supervise y.
     """
     meta: dict[str, Any] = {
         "official_max_year": official_max_year,
@@ -352,6 +355,7 @@ def filter_official_label_rows(
         "rows_before": 0,
         "rows_after": 0,
         "years_used": [],
+        "filter_mode": "none",
     }
     base = df.loc[df[target].notna()].copy()
     meta["rows_before"] = int(len(base))
@@ -359,13 +363,30 @@ def filter_official_label_rows(
     if base.empty:
         return base, meta
 
-    if "is_official_year" in base.columns:
+    if "is_official_year" in base.columns and base["is_official_year"].astype(bool).any():
         official = base.loc[base["is_official_year"].astype(bool)]
+        meta["filter_mode"] = "is_official_year"
+        meta["used_official_filter"] = True
+    elif "data_source" in base.columns:
+        src = base["data_source"].fillna("").astype(str).str.lower()
+        official_tags = {"scrb", "ncrb", "scrb_ncrb", "official", "tn_police_table", "tn_scrb"}
+        official = base.loc[src.isin(official_tags)]
+        if official.empty and "year" in base.columns:
+            years = pd.to_numeric(base["year"], errors="coerce")
+            official = base.loc[years <= float(official_max_year)]
+            meta["filter_mode"] = "legacy_year_cap"
+        else:
+            meta["filter_mode"] = "data_source"
+        meta["used_official_filter"] = True
     elif "is_media_proxy_year" in base.columns:
         official = base.loc[~base["is_media_proxy_year"].astype(bool)]
+        meta["filter_mode"] = "not_media_proxy"
+        meta["used_official_filter"] = True
     elif "year" in base.columns:
         years = pd.to_numeric(base["year"], errors="coerce")
         official = base.loc[years <= float(official_max_year)]
+        meta["filter_mode"] = "legacy_year_cap"
+        meta["used_official_filter"] = True
     else:
         official = base
 
@@ -533,7 +554,8 @@ def write_training_report(
         f"- Dataset: `{data_path}`",
         f"- Dataset rows: {dataset_rows}",
         f"- Dataset years (full table): {', '.join(str(year) for year in dataset_years)}",
-        f"- **Training labels**: official years only (≤ {OFFICIAL_LABEL_MAX_YEAR}) — media-proxy years excluded as y",
+        f"- **Training labels**: `is_official_year==1` (SCRB/NCRB any year, incl. pre-2022 & 2025–2026) "
+        f"— media-proxy excluded; legacy cap if no flags: ≤ {OFFICIAL_LABEL_MAX_YEAR}",
         f"- Models directory: `{model_dir}`",
         f"- Trained targets: {len(best_rows)}",
         "",

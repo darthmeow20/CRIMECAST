@@ -1,2 +1,2 @@
 area,year,area_type,target,target_label,model_name,prediction,model_raw,history_baseline,actual,overrides,district_city,sentiment_polarity,crime_intensity,district_city_news,news_negative_share,news_count,news_intensity,risk_index,risk_label,sentiment_polarity_used,news_negative_share_used,news_count_used
-Kallakurichi,2026,district,complaints_total_complaints,Total complaints,gradient_boosting_log,22811.419649871743,21208.6456,25788.0,24747.0,{},,,,,,,,0.114,LOW,,,
+Chennai,2026,city,women_crimes_rape_r,Rape rate,ridge_log,0.7570895940731412,0.4423,0.95,0.7,{},Chennai,-0.9961,1,Chennai,0.8507462686567164,67,5.835820895522388,0.264,LOW,-0.9961,0.8507462686567164,67

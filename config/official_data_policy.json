@@ -1,0 +1,22 @@
+{
+  "description": "CRIMECAST official vs media-proxy policy for SCRB/NCRB",
+  "sources_official": [
+    "scrb",
+    "ncrb",
+    "scrb_ncrb",
+    "official",
+    "tn_police_table"
+  ],
+  "sources_media_proxy": [
+    "media_proxy",
+    "news_scaled",
+    "twitter_proxy"
+  ],
+  "legacy_official_max_year_if_no_source_col": 2023,
+  "prefer_scrb_dropin_over_media": true,
+  "notes": [
+    "Any year with data_source in sources_official is usable as a training label (including 2025/2026).",
+    "Drop SCRB/NCRB CSVs into dataset/scrb_ncrb/dropin/ as tn_YYYY_*.csv then run: python acquire_scrb_ncrb.py --apply",
+    "OpenCity TN tables (2019–2021) are ingested as SCRB-class official history."
+  ]
+}

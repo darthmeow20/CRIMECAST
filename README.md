@@ -1,6 +1,19 @@
 # CRIMECAST
 
-Crime analysis, ML forecasting, and DistilBERT sentiment for Tamil Nadu districts.
+Crime analysis, ML forecasting, and DistilBERT sentiment for **Tamil Nadu districts**.
+
+**Official rates lag** → news/media is support data for current affairs. Predictions are research tools, not legal evidence.
+
+## Fastest path (usable demo)
+
+```bash
+pip install -r requirements.txt
+python health_check.py          # fix any FAIL first
+# Windows: double-click START_DASHBOARD.bat
+streamlit run dashboard.py
+```
+
+Usability / reliability guide: **[docs/MAKING_IT_USABLE.md](docs/MAKING_IT_USABLE.md)**.
 
 ## How to run
 
@@ -8,19 +21,25 @@ Crime analysis, ML forecasting, and DistilBERT sentiment for Tamil Nadu district
 # Install
 pip install -r requirements.txt
 
+# Health (models, data, news age)
+python health_check.py
+
 # Interactive CLI menu
 python app.py
 
 # Web dashboard
 streamlit run dashboard.py
+# or START_DASHBOARD.bat
 
 # Full pipeline (clean → train → visualize → sentiment)
 python main.py
 # or: python app.py  → option 1
 
+# News refresh (NEW headlines only)
+python acquire_news_signals.py --refresh-new
+
 # Option 7 — 2026 rape forecasts (all districts)
 python predict_2026_rape_all_districts.py
-# or: RUN_OPTION7.bat
 # or: python app.py → option 7
 
 # Tests
@@ -51,7 +70,10 @@ Full documentation index: **[docs/README.md](docs/README.md)**.
 | `sentiment_visualize*.py` | Sentiment charts |
 | `nlp_pipeline.py` | 3-LLM crime text NLP |
 | `acquire_news_signals.py` | News/media signal harvest |
+| `acquire_scrb_ncrb.py` | SCRB/NCRB official tables (pre-2022 + 2025/2026 drop-ins) |
 | `tn_map.py` | TN map helpers |
+| `health_check.py` | System health before demos |
+| `db.py` | SQLite local store |
 
 ## Layout
 

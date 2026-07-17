@@ -365,7 +365,7 @@ def _official_history_baseline(
     *,
     prefer_max_year: int = 2023,
 ) -> float | None:
-    """Mean of official-era values (prefer year<=2023) for ranking-stable predictions.
+    """Mean of official-era values (prefer is_official_year or year<=prefer_max_year).
 
     Example: Thoothukudi murder rate ~4.0–4.5 vs Madurai ~2.9–3.0 should stay ordered.
     """
@@ -375,7 +375,9 @@ def _official_history_baseline(
     sub = df.loc[mask]
     if sub.empty:
         return None
-    if "year" in sub.columns:
+    if "is_official_year" in sub.columns and sub["is_official_year"].astype(bool).any():
+        sub = sub.loc[sub["is_official_year"].astype(bool)]
+    elif "year" in sub.columns:
         years = pd.to_numeric(sub["year"], errors="coerce")
         official = sub.loc[years <= prefer_max_year]
         if not official.empty:
