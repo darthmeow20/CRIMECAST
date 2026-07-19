@@ -1,27 +1,27 @@
 ======================================================================
 2026 RAPE CRIME PREDICTION REPORT - TAMIL NADU
-Engine: FIXED-NO-SKLEARN-v4 (NO sklearn)
+Engine: FIXED-NO-SKLEARN-v5-TN38 (NO sklearn · TN38 only)
 ======================================================================
-Total areas: 50
-Total predicted incidents: 340
-Average: 6.8
-Highest: Thiruvannamalai (40.0)
-Lowest: Villupuram (0.0)
+Total districts (TN38): 38
+Total predicted incidents: 308
+Average: 8.1
+Highest: Salem (43.0)
+Lowest: Viluppuram (0.0)
 
 TOP 10:
-   1. Thiruvannamalai               40.0
-   2. Salem City                    22.0
-   3. Salem                         21.0
-   4. Ariyalur                      19.0
-   5. Dharmapuri                    19.0
-   6. Dindigul                      18.0
-   7. Madurai City                  17.0
-   8. Kallakurichi                  16.0
-   9. Thanjavur                     16.0
-  10. Krishnagiri                   15.0
+   1. Salem                         43.0
+   2. Tiruvannamalai                40.0
+   3. Ariyalur                      19.0
+   4. Dharmapuri                    19.0
+   5. Dindigul                      18.0
+   6. Kallakurichi                  16.0
+   7. Thanjavur                     16.0
+   8. Krishnagiri                   15.0
+   9. Pudukkottai                   14.0
+  10. Vellore                       14.0
 
 Method: linear trend on fitted actual rape counts → 2026
-If you saw ColumnTransformer / dataframe column errors before, those
-came from an OLD script. This engine cannot produce that error.
-Generated: 2026-07-18 00:38:41
+City units rolled into parent districts (Madurai City→Madurai, Avadi→Chennai).
+Junk units (Railway / Cyber Cell / Other) excluded.
+Generated: 2026-07-19 14:10:55
 ======================================================================

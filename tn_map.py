@@ -34,9 +34,18 @@ def _normalize_name(name: str) -> str:
     # Common aliases
     aliases = {
         "chennai city": "chennai",
+        # City units → parent district polygon
+        "avadi": "chennai",
+        "tambaram": "chennai",
+        "tamabram": "chennai",
+        "thambaram": "chennai",
+        "avadi city": "chennai",
+        "tambaram city": "chennai",
+        "greater chennai": "chennai",
         "madurai city": "madurai",
         "coimbatore city": "coimbatore",
         "salem city": "salem",
+        "tiruppur city": "tiruppur",
         "tirunelveli city": "tirunelveli",
         "thirunelveli": "tirunelveli",
         "thirunelveli city": "tirunelveli",
@@ -240,20 +249,41 @@ def prepare_map_dataframe(
             if raw:
                 all_norms[_normalize_name(raw)] = raw
 
-    media = load_media_fill_series() if fill_nulls_from_media else pd.Series(dtype=float)
-    # Baseline so zeros still show on map (tiny floor from media or small constant)
+    existing = set(data["district_norm"].tolist()) if not data.empty else set()
+    filled = []
+
+    if not fill_nulls_from_media:
+        # Prediction / official-only maps: NEVER paint news volume into empty cells
+        for norm, label in all_norms.items():
+            if norm in existing:
+                row = data.loc[data["district_norm"] == norm].iloc[0]
+                val = float(row["value"]) if pd.notna(row["value"]) else np.nan
+                filled.append({
+                    "district_norm": norm,
+                    "district_label": str(row["district_label"]),
+                    "value": val,
+                    "value_source": "data" if pd.notna(val) else "missing",
+                })
+            else:
+                filled.append({
+                    "district_norm": norm,
+                    "district_label": label,
+                    "value": np.nan,
+                    "value_source": "missing",
+                })
+        return pd.DataFrame(filled)
+
+    # Live / density maps: optional news proxy fill for zeros & missing districts
+    media = load_media_fill_series()
     media_mean = float(media.mean()) if len(media) else 1.0
     if media_mean <= 0:
         media_mean = 1.0
 
-    existing = set(data["district_norm"].tolist()) if not data.empty else set()
-    filled = []
     for norm, label in all_norms.items():
         if norm in existing:
             row = data.loc[data["district_norm"] == norm].iloc[0]
             val = float(row["value"]) if pd.notna(row["value"]) else np.nan
             if pd.isna(val) or val == 0:
-                # Zero / null → populate from news & media
                 mval = float(media.get(norm, media_mean * 0.35))
                 if mval <= 0:
                     mval = media_mean * 0.25
@@ -281,8 +311,7 @@ def prepare_map_dataframe(
                 "value_source": "media_fill",
             })
 
-    out = pd.DataFrame(filled)
-    return out
+    return pd.DataFrame(filled)
 
 
 # White → light blue → deep blue (clear low→high differentiation)
@@ -299,6 +328,20 @@ HEAT_WHITE_BLUE = [
     "#0c4a6e",
 ]
 
+# Density map: pale → amber → red (crime intensity per population)
+HEAT_DENSITY = [
+    "#fff7ed",
+    "#ffedd5",
+    "#fed7aa",
+    "#fdba74",
+    "#fb923c",
+    "#f97316",
+    "#ea580c",
+    "#c2410c",
+    "#9a3412",
+    "#7c2d12",
+]
+
 # Plotly sequential colorscale pairs for heatmap matrix
 HEAT_WHITE_BLUE_PLOTLY = [
     [0.0, "#ffffff"],
@@ -307,6 +350,15 @@ HEAT_WHITE_BLUE_PLOTLY = [
     [0.55, "#0ea5e9"],
     [0.75, "#0369a1"],
     [1.0, "#0c4a6e"],
+]
+
+HEAT_DENSITY_PLOTLY = [
+    [0.0, "#fff7ed"],
+    [0.2, "#fed7aa"],
+    [0.4, "#fb923c"],
+    [0.65, "#ea580c"],
+    [0.85, "#c2410c"],
+    [1.0, "#7c2d12"],
 ]
 
 

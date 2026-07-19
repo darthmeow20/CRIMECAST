@@ -1,0 +1,71 @@
+{
+  "datasets": {
+    "ml_ready": {
+      "status": "ok",
+      "rows": 253,
+      "cols": 92,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\dataset\\cleaned\\crimecast_ml_ready.csv"
+    },
+    "media_harvest": {
+      "status": "ok",
+      "rows": 1797,
+      "cols": 9,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\media_harvest_tn_crime_latest.csv"
+    },
+    "news_signals": {
+      "status": "ok",
+      "rows": 232,
+      "cols": 6,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\news_signals.csv"
+    },
+    "sentiment_scores": {
+      "status": "ok",
+      "rows": 10,
+      "cols": 17,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\sentiment_scores.csv"
+    },
+    "crime_predictions": {
+      "status": "ok",
+      "rows": 1,
+      "cols": 23,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\crime_predictions.csv"
+    },
+    "rape_2026": {
+      "status": "ok",
+      "rows": 38,
+      "cols": 18,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\rape_predictions_2026_all_districts.csv"
+    },
+    "training_metrics": {
+      "status": "ok",
+      "rows": 24,
+      "cols": 19,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\training_metrics.csv"
+    },
+    "fitted_predictions": {
+      "status": "ok",
+      "rows": 528,
+      "cols": 9,
+      "csv": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\model_outputs\\fitted_predictions.csv"
+    },
+    "forecast_murder": {
+      "status": "skip",
+      "reason": "missing forecast_2026_murder_incidence.csv"
+    },
+    "forecast_complaints": {
+      "status": "skip",
+      "reason": "missing forecast_2026_total_complaints.csv"
+    }
+  },
+  "errors": [],
+  "db_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\data\\crimecast.db",
+  "structured": {
+    "news": 5226,
+    "sentiment_raw": 1611,
+    "rape_2026": 38,
+    "db_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\data\\crimecast.db",
+    "backend": "sqlite"
+  },
+  "last_csv_migrate": "2026-07-19T14:55:08",
+  "backend": "sqlite"
+}

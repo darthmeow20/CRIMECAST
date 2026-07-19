@@ -1,9 +1,13 @@
 """
 CRIMECAST Interactive Dashboard
 Run with: streamlit run dashboard.py
+
+BUILD_ID must match the Live Feed status line (proves Streamlit loaded this file).
 """
 
 from __future__ import annotations
+
+BUILD_ID = "classic-dashboard"
 
 import streamlit as st
 import pandas as pd
@@ -15,6 +19,22 @@ from PIL import Image
 import os
 import warnings
 import logging
+
+
+def _safe_live_status(n_models, n_media, n_harvest, high_count, metric, window) -> None:
+    """Bottom Live Feed status — no HTML ticker, no fragile open_alerts f-string."""
+    try:
+        med = int(n_media or 0) or int(n_harvest or 0)
+    except Exception:
+        med = 0
+    try:
+        hi = int(high_count or 0)
+    except Exception:
+        hi = 0
+    st.caption(
+        f"Status {BUILD_ID} · models {n_models} · media {med} · HIGH {hi} · "
+        f"{metric} · {window}"
+    )
 
 # Suppress the common "missing ScriptRunContext" warning when running in bare mode
 # or during certain import/caching phases. This is harmless.
@@ -229,13 +249,6 @@ def apply_custom_theme():
         color: #9ca3af; font-size: 0.72rem; font-weight: 700;
         letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px;
     }
-
-    .ticker {
-        background: #0c0c0f; border-top: 1px solid #1f1f28;
-        padding: 8px 12px; border-radius: 0 0 12px 12px;
-        font-size: 0.72rem; color: #9ca3af; margin-top: 8px;
-    }
-    .ticker .live { color: #f87171; font-weight: 700; }
 
     div[data-testid="stSidebarNav"] { display: none; }
     </style>
@@ -554,35 +567,175 @@ def _latest_media_harvest_path() -> Path | None:
     return None
 
 
-# Cache heavy loads
+# Cache heavy loads — prefer SQLite (data/crimecast.db), fall back to CSV
 @st.cache_data
 def load_ml_data():
+    try:
+        from db import load_dataset_or_csv
+
+        df = load_dataset_or_csv("ml_ready", ML_READY_FILE)
+        if not df.empty:
+            return df
+    except Exception:
+        pass
     if ML_READY_FILE.exists():
         return pd.read_csv(ML_READY_FILE)
     return pd.DataFrame()
 
 @st.cache_data
 def load_sentiment_scores():
+    try:
+        from db import load_dataset_or_csv
+
+        df = load_dataset_or_csv("sentiment_scores", SENTIMENT_SCORES)
+        if not df.empty:
+            return df
+    except Exception:
+        pass
     if SENTIMENT_SCORES.exists():
         return pd.read_csv(SENTIMENT_SCORES)
     return pd.DataFrame()
 
 @st.cache_data
 def load_crime_predictions():
+    try:
+        from db import load_dataset_or_csv
+
+        df = load_dataset_or_csv("crime_predictions", CRIME_PREDICTIONS)
+        if not df.empty:
+            return df
+    except Exception:
+        pass
     if CRIME_PREDICTIONS.exists():
         return pd.read_csv(CRIME_PREDICTIONS)
     return pd.DataFrame()
 
+def normalize_2026_forecast_df(raw: pd.DataFrame) -> pd.DataFrame:
+    """
+    Roll city units into TN38 parents, drop junk, re-rank.
+    Madurai City→Madurai, Avadi/Tambaram→Chennai. Never fills from news.
+    """
+    if raw is None or not isinstance(raw, pd.DataFrame) or raw.empty:
+        return pd.DataFrame()
+    df = raw.copy()
+    rnc = "district" if "district" in df.columns else (
+        "district_city" if "district_city" in df.columns else None
+    )
+    if not rnc:
+        return df
+    try:
+        from district_entities import to_tn38, TN38
+    except Exception:
+        to_tn38 = None  # type: ignore
+        TN38 = []  # type: ignore
+
+    if to_tn38 is not None:
+        df["_d38"] = df[rnc].astype(str).map(lambda x: to_tn38(x, default=None))
+    else:
+        df["_d38"] = df[rnc].astype(str)
+    # Drop junk / unmapped (Railway, Cyber Cell, Other Units, …)
+    df = df[df["_d38"].notna() & (df["_d38"].astype(str).str.strip() != "")].copy()
+    if df.empty:
+        return pd.DataFrame()
+
+    skip = {
+        "district", "district_city", "_d38", "risk_level", "method", "model",
+        "confidence", "rank", "is_fallback",
+    }
+    num_cols = [
+        c for c in df.columns
+        if c not in skip and pd.api.types.is_numeric_dtype(df[c])
+    ]
+    sum_keys = ("incident", "pred_low", "pred_high", "width", "data_point")
+    agg: dict[str, str] = {}
+    for c in num_cols:
+        cl = c.lower()
+        agg[c] = "sum" if any(k in cl for k in sum_keys) else "mean"
+    keep_first = [c for c in ("method", "model", "confidence") if c in df.columns]
+    g = df.groupby("_d38", as_index=False)
+    if agg:
+        out = g.agg({**agg, **{c: "first" for c in keep_first}}) if keep_first else g.agg(agg)
+    else:
+        cols = ["_d38"] + keep_first
+        out = df.drop_duplicates(subset=["_d38"], keep="first")[cols]
+    out = out.rename(columns={"_d38": "district"})
+
+    # Ensure full TN38 (missing → NaN forecast — map must not paint news)
+    if TN38:
+        base = pd.DataFrame({"district": list(TN38)})
+        out = base.merge(out, on="district", how="left")
+
+    metric = None
+    for cand in ("predicted_2026_rape_incidents", "predicted_value"):
+        if cand in out.columns:
+            metric = cand
+            break
+    if metric:
+        out[metric] = pd.to_numeric(out[metric], errors="coerce")
+        # Keep both column names for map/radio compatibility
+        if metric == "predicted_value" and "predicted_2026_rape_incidents" not in out.columns:
+            out["predicted_2026_rape_incidents"] = out[metric]
+        if metric == "predicted_2026_rape_incidents" and "predicted_value" not in out.columns:
+            out["predicted_value"] = out[metric]
+
+        def _risk(v):
+            try:
+                p = float(v) if pd.notna(v) else 0.0
+            except Exception:
+                p = 0.0
+            r = round(min(1.0, 0.7 * min(max(p, 0.0) / 25.0, 1.0)), 3)
+            lv = "HIGH" if r > 0.65 else ("MEDIUM" if r > 0.35 else "LOW")
+            return r, lv
+
+        risks, levels = zip(*(_risk(v) for v in out[metric])) if len(out) else ([], [])
+        if len(out):
+            out["rape_risk_index"] = list(risks)
+            out["risk_level"] = list(levels)
+        out = out.sort_values(metric, ascending=False, na_position="last").reset_index(drop=True)
+        out["rank"] = range(1, len(out) + 1)
+    return out
+
+
 @st.cache_data
 def load_rape_2026():
-    if RAPE_2026.exists():
-        return pd.read_csv(RAPE_2026)
-    return pd.DataFrame()
+    raw = None
+    try:
+        from db import load_dataset_or_csv, load_rape_2026 as _db_rape
+
+        raw = load_dataset_or_csv("rape_2026", RAPE_2026)
+        if raw is None or raw.empty:
+            raw = _db_rape()
+            # structured table may use payload_json only — keep full CSV prefer
+            if raw is not None and not raw.empty and "predicted_2026_rape_incidents" not in raw.columns:
+                if RAPE_2026.exists():
+                    raw = pd.read_csv(RAPE_2026)
+    except Exception:
+        raw = None
+    if raw is None or (isinstance(raw, pd.DataFrame) and raw.empty):
+        if RAPE_2026.exists():
+            try:
+                raw = pd.read_csv(RAPE_2026)
+            except Exception:
+                return pd.DataFrame()
+        else:
+            return pd.DataFrame()
+    try:
+        return normalize_2026_forecast_df(raw)
+    except Exception:
+        return raw if isinstance(raw, pd.DataFrame) else pd.DataFrame()
 
 
 @st.cache_data
 def load_news_signals():
     news_path = OUTPUT_DIR / "news_signals.csv"
+    try:
+        from db import load_dataset_or_csv
+
+        df = load_dataset_or_csv("news_signals", news_path)
+        if not df.empty:
+            return df
+    except Exception:
+        pass
     if news_path.exists():
         return pd.read_csv(news_path)
     return pd.DataFrame()
@@ -591,6 +744,14 @@ def load_news_signals():
 @st.cache_data
 def load_media_harvest():
     path = _latest_media_harvest_path()
+    try:
+        from db import load_dataset_or_csv
+
+        df = load_dataset_or_csv("media_harvest", path)
+        if not df.empty:
+            return df
+    except Exception:
+        pass
     if path is not None and path.exists():
         return pd.read_csv(path)
     raw = OUTPUT_DIR / "news_signals_raw.csv"
@@ -665,6 +826,11 @@ UI_EN: dict[str, str] = {
     "Predict": "Predict",
     "Sentiment": "Sentiment",
     "2026 Forecasts": "2026 Forecasts",
+    "Word Clouds": "Word Clouds",
+    "District Compare": "District Compare",
+    "Risk Explain": "Risk Explain",
+    "Health": "Health",
+    "How it works": "How it works",
     "Refresh news": "Refresh news",
     "News time window": "News time window",
     "Live view": "Live view",
@@ -702,6 +868,11 @@ UI_TA: dict[str, str] = {
     "Predict": "கணிப்பு",
     "Sentiment": "உணர்வுப் பகுப்பாய்வு",
     "2026 Forecasts": "2026 கணிப்புகள்",
+    "Word Clouds": "சொல் மேகங்கள்",
+    "District Compare": "மாவட்ட ஒப்பீடு",
+    "Risk Explain": "இடர் விளக்கம்",
+    "Health": "ஆரோக்கியம்",
+    "How it works": "எப்படி வேலை செய்கிறது",
     "Refresh news": "செய்தி புதுப்பி",
     "News time window": "செய்தி கால அளவு",
     "Live view": "நேரடி பார்வை",
@@ -1051,11 +1222,99 @@ def build_current_affairs_heat(
 
 
 def _latest_ml_by_district(ml_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Latest year per district, constrained to **38 TN districts**.
+    Merges city units (Madurai City → Madurai, Avadi → Chennai, …).
+    Always fills population_lakhs (estimate if missing/zero).
+    """
     if ml_data is None or ml_data.empty or "district_city" not in ml_data.columns:
         return pd.DataFrame()
     m = ml_data.copy()
     if "year" in m.columns:
         m = m.sort_values("year").groupby("district_city", as_index=False).tail(1)
+
+    try:
+        from district_entities import to_tn38, TN38, fill_population_lakhs_series
+    except Exception:
+        TN38 = []
+
+        def to_tn38(x: str, default=None):  # type: ignore
+            return str(x)
+
+        def fill_population_lakhs_series(names, existing=None):  # type: ignore
+            return [15.0] * len(list(names))
+
+    m["_d38"] = m["district_city"].astype(str).map(lambda x: to_tn38(x, default=None))
+    m = m[m["_d38"].notna()].copy()
+    if m.empty:
+        return pd.DataFrame()
+    m["district_city"] = m["_d38"]
+    m = m.drop(columns=["_d38"], errors="ignore")
+
+    # Collapse duplicates after merge (Madurai + Madurai City → one row)
+    num_cols = m.select_dtypes(include=[np.number]).columns.tolist()
+    year_col = "year" if "year" in m.columns else None
+    pop_col = None
+    for c in ("population_lakhs", "complaints_projected_population_lakhs"):
+        if c in m.columns:
+            pop_col = c
+            break
+
+    out_rows = []
+    for dist, g in m.groupby("district_city"):
+        row: dict[str, Any] = {"district_city": dist}
+        if year_col:
+            row[year_col] = pd.to_numeric(g[year_col], errors="coerce").max()
+        if "area_type" in g.columns:
+            row["area_type"] = g["area_type"].iloc[0]
+
+        pop_vals = None
+        if pop_col:
+            pop_vals = pd.to_numeric(g[pop_col], errors="coerce")
+        elif "population_lakhs" in g.columns:
+            pop_vals = pd.to_numeric(g["population_lakhs"], errors="coerce")
+        if pop_vals is not None:
+            # sum positive pops only (city+district); zeros ignored for estimate later
+            pos = pop_vals[pop_vals > 0.05]
+            row["population_lakhs"] = float(pos.sum()) if len(pos) else np.nan
+        else:
+            row["population_lakhs"] = np.nan
+
+        for c in num_cols:
+            if c in (year_col, pop_col, "population_lakhs", "log_population"):
+                continue
+            s = pd.to_numeric(g[c], errors="coerce")
+            cl = c.lower()
+            if any(
+                k in cl
+                for k in ("incidence", "incidents", "complaints", "victims", "news_count", "count")
+            ) and "rate" not in cl and "share" not in cl and "ratio" not in cl:
+                row[c] = float(s.sum(skipna=True)) if s.notna().any() else np.nan
+            elif "rate" in cl or cl.endswith("_r") or "polarity" in cl or "intensity" in cl:
+                w = pop_vals if pop_vals is not None else None
+                if w is not None and w.fillna(0).sum() > 0 and s.notna().any():
+                    ww = w.reindex(s.index).fillna(0).clip(lower=0)
+                    if ww.sum() > 0:
+                        row[c] = float((s.fillna(0) * ww).sum() / ww.sum())
+                    else:
+                        row[c] = float(s.mean(skipna=True))
+                else:
+                    row[c] = float(s.mean(skipna=True)) if s.notna().any() else np.nan
+            else:
+                row[c] = float(s.mean(skipna=True)) if s.notna().any() else np.nan
+        out_rows.append(row)
+
+    m = pd.DataFrame(out_rows)
+    # Force population estimates for zeros / missing
+    m["population_lakhs"] = fill_population_lakhs_series(
+        m["district_city"].astype(str).tolist(),
+        pd.to_numeric(m["population_lakhs"], errors="coerce"),
+    )
+    m["population_lakhs"] = pd.to_numeric(m["population_lakhs"], errors="coerce")
+    m["log_population"] = np.log1p(m["population_lakhs"].clip(lower=0))
+    # Ensure only TN38 (max 38 rows)
+    if TN38:
+        m = m[m["district_city"].isin(TN38)]
     return m.reset_index(drop=True)
 
 
@@ -1631,28 +1890,53 @@ def district_brief_html(card: dict[str, Any], drivers: list[str]) -> str:
     dist = card.get("district", "District")
     lines = "\n".join(f"<li>{d}</li>" for d in drivers)
     hls = "\n".join(f"<li>{h}</li>" for h in card.get("headlines", [])[:8])
+
+    def _fmt(v, nd=2):
+        if v is None or (isinstance(v, float) and (v != v)):
+            return "—"
+        try:
+            return f"{float(v):.{nd}f}"
+        except Exception:
+            return str(v)
+
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <title>CRIMECAST — {dist}</title>
 <style>
- body {{ font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #111; }}
- h1 {{ color: #b91c1c; }}
- .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
- .box {{ border: 1px solid #ddd; border-radius: 8px; padding: 12px; }}
- .k {{ color: #666; font-size: 12px; text-transform: uppercase; }}
- .v {{ font-size: 22px; font-weight: 700; }}
+ body {{ font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #111; max-width: 900px; }}
+ h1 {{ color: #b91c1c; margin-bottom: 4px; }}
+ .sub {{ color: #555; margin-top: 0; }}
+ .grid {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }}
+ .box {{ border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; }}
+ .k {{ color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }}
+ .v {{ font-size: 20px; font-weight: 700; margin-top: 4px; }}
+ .risk {{ display: inline-block; padding: 4px 10px; border-radius: 6px; background: #fee2e2; color: #991b1b; font-weight: 700; }}
+ .pipe {{ font-size: 13px; color: #444; border-left: 3px solid #b91c1c; padding-left: 12px; margin: 16px 0; }}
 </style></head><body>
 <h1>CRIMECAST District Brief — {dist}</h1>
-<p><b>CRIMECAST college prototype</b> — district brief for Tamil Nadu
- (official rates + news media). Not a live police system.</p>
+<p class="sub"><b>College prototype</b> · Tamil Nadu · official rates + news media.
+ Not a live police / SCRB system.</p>
+<p>Risk level: <span class="risk">{card.get('risk_level', '—')}</span>
+ &nbsp;·&nbsp; Data year: <b>{card.get('year', '—')}</b>
+ &nbsp;·&nbsp; News rank 90d: <b>#{card.get('news_rank', '—')}</b></p>
 <div class="grid">
- <div class="box"><div class="k">Murder rate · கொலை</div><div class="v">{card.get('murder_rate', '—')}</div></div>
- <div class="box"><div class="k">Rape rate · பாலியல்</div><div class="v">{card.get('rape_rate', '—')}</div></div>
- <div class="box"><div class="k">News 90d · செய்தி</div><div class="v">{card.get('news_90d', '—')}</div></div>
- <div class="box"><div class="k">Complaints</div><div class="v">{card.get('complaints', '—')}</div></div>
+ <div class="box"><div class="k">Population (lakh) · மக்கள் தொகை</div><div class="v">{_fmt(card.get('population_lakhs'), 1)}</div></div>
+ <div class="box"><div class="k">Murder rate · கொலை</div><div class="v">{_fmt(card.get('murder_rate'))}</div></div>
+ <div class="box"><div class="k">Rape rate · பாலியல்</div><div class="v">{_fmt(card.get('rape_rate'))}</div></div>
+ <div class="box"><div class="k">Murder / lakh</div><div class="v">{_fmt(card.get('murder_per_lakh'))}</div></div>
+ <div class="box"><div class="k">Rape / lakh</div><div class="v">{_fmt(card.get('rape_per_lakh'))}</div></div>
+ <div class="box"><div class="k">Complaints / lakh</div><div class="v">{_fmt(card.get('complaints_per_lakh'))}</div></div>
+ <div class="box"><div class="k">News 90d · செய்தி</div><div class="v">{_fmt(card.get('news_90d'), 0)}</div></div>
+ <div class="box"><div class="k">News / lakh</div><div class="v">{_fmt(card.get('news_per_lakh'))}</div></div>
+ <div class="box"><div class="k">Complaints (raw)</div><div class="v">{_fmt(card.get('complaints'), 0)}</div></div>
+ <div class="box"><div class="k">2026 rape forecast</div><div class="v">{_fmt(card.get('forecast_2026_rape'), 1)}</div></div>
+ <div class="box"><div class="k">2026 risk index</div><div class="v">{_fmt(card.get('rape_risk_index'), 3)}</div></div>
+ <div class="box"><div class="k">Sentiment polarity</div><div class="v">{_fmt(card.get('sentiment_polarity'), 3)}</div></div>
 </div>
-<p><b>News rank:</b> #{card.get('news_rank', '—')}
- &nbsp;·&nbsp; <b>Year:</b> {card.get('year', '—')}</p>
+<div class="pipe">
+ <b>How to read:</b> Rates / per-lakh are fairer across big vs small districts.
+ News is media volume, not FIRs. 2026 numbers are <i>scenario trends</i>, not facts.
+</div>
 <h2>Why this district stands out · முக்கியம்</h2>
 <ul>{lines}</ul>
 <h2>Recent headlines · தலைப்புகள்</h2>
@@ -1883,6 +2167,159 @@ def build_media_news_volume_by_district(
     return pd.DataFrame(columns=["district", "news_volume"])
 
 
+def build_crime_density_frame(
+    ml_data: pd.DataFrame,
+    harvest_df: pd.DataFrame | None = None,
+    news_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """
+    District-level crime density for choropleth (population-aware).
+
+    Columns:
+      district, population_lakhs,
+      murder_rate, rape_rate, cognizable_rate (official rates — already density-like),
+      murder_per_lakh, rape_per_lakh, complaints_per_lakh, news_per_lakh,
+      density_index (0–100 composite of available rates / per-lakh metrics)
+    """
+    latest = _latest_ml_by_district(ml_data)
+    if latest.empty and (harvest_df is None or harvest_df.empty):
+        return pd.DataFrame()
+
+    if not latest.empty and "district_city" in latest.columns:
+        d = latest.copy()
+        d["district"] = d["district_city"].astype(str)
+    else:
+        d = pd.DataFrame({"district": []})
+
+    # Population — always re-estimate zeros (latest may still carry 0 after merge)
+    if not d.empty:
+        if "population_lakhs" not in d.columns:
+            d["population_lakhs"] = np.nan
+        try:
+            from district_entities import fill_population_lakhs_series, to_tn38, TN38
+
+            d["district"] = d["district"].map(lambda x: to_tn38(str(x), default=None))
+            d = d[d["district"].notna()].copy()
+            d["population_lakhs"] = fill_population_lakhs_series(
+                d["district"].astype(str).tolist(),
+                pd.to_numeric(d["population_lakhs"], errors="coerce"),
+            )
+            d["population_lakhs"] = pd.to_numeric(d["population_lakhs"], errors="coerce")
+            if TN38:
+                # ensure one row per TN38 present
+                d = d.drop_duplicates(subset=["district"], keep="first")
+        except Exception:
+            pass
+
+    # Official rates (SCRB-style — already population-normalised)
+    rate_map = {
+        "murder_rate": "murder_homicide_murder_rate",
+        "rape_rate": "women_crimes_rape_r",
+        "cognizable_rate": "complaints_rate_of_cognizable_crime_ipc_sll",
+    }
+    if not latest.empty:
+        for out_k, col in rate_map.items():
+            if col in latest.columns:
+                d[out_k] = pd.to_numeric(latest[col], errors="coerce").values
+
+    # Counts → per lakh
+    count_map = {
+        "murder_incidence": "murder_homicide_murder_incidence",
+        "rape_incidents": "women_crimes_rape_sec_376_i",
+        "complaints": "complaints_total_complaints",
+    }
+    if not latest.empty:
+        for out_k, col in count_map.items():
+            if col in latest.columns:
+                d[out_k] = pd.to_numeric(latest[col], errors="coerce").values
+
+    pop_s = pd.to_numeric(d.get("population_lakhs"), errors="coerce").replace(0, np.nan)
+    if "murder_incidence" in d.columns:
+        d["murder_per_lakh"] = d["murder_incidence"] / pop_s
+    if "rape_incidents" in d.columns:
+        d["rape_per_lakh"] = d["rape_incidents"] / pop_s
+    if "complaints" in d.columns:
+        d["complaints_per_lakh"] = d["complaints"] / pop_s
+
+    # News density (headlines / population)
+    heat, vcol, _ = get_current_affairs_heat(recent_days=90)
+    if not heat.empty and vcol in heat.columns:
+        h = heat[["district", vcol]].copy()
+        h = h.rename(columns={vcol: "news_90d"})
+        h["district"] = h["district"].astype(str)
+        d["district"] = d["district"].astype(str)
+        d = d.merge(h, on="district", how="outer")
+        # Re-fill population for any districts only present in news
+        try:
+            from district_entities import fill_population_lakhs_series
+
+            d["population_lakhs"] = fill_population_lakhs_series(
+                d["district"].astype(str).tolist(),
+                pd.to_numeric(d.get("population_lakhs"), errors="coerce"),
+            )
+        except Exception:
+            pass
+        pop2 = pd.to_numeric(d.get("population_lakhs"), errors="coerce").replace(0, np.nan)
+        d["news_per_lakh"] = pd.to_numeric(d["news_90d"], errors="coerce") / pop2
+
+    # Prefer official rate when present; else per-lakh count
+    if "murder_rate" not in d.columns and "murder_per_lakh" in d.columns:
+        d["murder_rate"] = d["murder_per_lakh"]
+    if "rape_rate" not in d.columns and "rape_per_lakh" in d.columns:
+        d["rape_rate"] = d["rape_per_lakh"]
+
+    # Composite density index 0–100 (mean of available z-scored metrics)
+    dens_cols = [
+        c
+        for c in (
+            "murder_rate",
+            "rape_rate",
+            "news_90d",
+        )
+        if c in d.columns and pd.to_numeric(d[c], errors="coerce").notna().any()
+    ]
+    if dens_cols:
+        z_parts = []
+        for c in dens_cols:
+            s = pd.to_numeric(d[c], errors="coerce")
+            mu, sd = s.mean(), s.std(ddof=0)
+            if sd and sd > 0:
+                z_parts.append((s - mu) / sd)
+            else:
+                z_parts.append(s * 0.0)
+        zmean = sum(z_parts) / len(z_parts)
+        # Map roughly to 0–100 via percentile rank
+        d["density_index"] = zmean.rank(pct=True, method="average") * 100.0
+    else:
+        d["density_index"] = np.nan
+
+    d = d[d["district"].notna() & (d["district"].astype(str).str.len() > 1)]
+    d = d[~d["district"].astype(str).str.casefold().isin({"nan", "none", ""})]
+
+    # Keep a lean frame only (latest.copy() is huge and can confuse select_dtypes)
+    keep = [
+        "district",
+        "population_lakhs",
+        "murder_rate",
+        "rape_rate",
+        "cognizable_rate",
+        "murder_incidence",
+        "rape_incidents",
+        "complaints",
+        "murder_per_lakh",
+        "rape_per_lakh",
+        "complaints_per_lakh",
+        "news_90d",
+        "news_per_lakh",
+        "density_index",
+    ]
+    keep = [c for c in keep if c in d.columns]
+    # Drop duplicate column names if any (merge / rename edge cases)
+    out = d.loc[:, keep].copy()
+    out = out.loc[:, ~out.columns.duplicated()].copy()
+    return out.reset_index(drop=True)
+
+
 def build_district_scoreboard_table(
     ml_data: pd.DataFrame,
     harvest_df: pd.DataFrame,
@@ -1907,9 +2344,16 @@ def build_district_scoreboard_table(
             ("murder_rate", "murder_homicide_murder_rate"),
             ("rape_rate", "women_crimes_rape_r"),
             ("complaints", "complaints_total_complaints"),
+            ("population_lakhs", "population_lakhs"),
         ]:
             if col in latest.columns:
                 board[key] = pd.to_numeric(latest[col], errors="coerce").values
+        # Fallback population column name from complaints
+        if "population_lakhs" not in board.columns or board["population_lakhs"].isna().all():
+            if "complaints_projected_population_lakhs" in latest.columns:
+                board["population_lakhs"] = pd.to_numeric(
+                    latest["complaints_projected_population_lakhs"], errors="coerce"
+                ).values
     elif not heat.empty:
         board = heat[["district"]].copy()
         board["district"] = board["district"].astype(str)
@@ -1919,14 +2363,44 @@ def build_district_scoreboard_table(
 
     board = board.drop_duplicates(subset=["district"], keep="first")
 
+    # Fill zero/missing population with TN district estimates
+    try:
+        from district_entities import fill_population_lakhs_series
+
+        board["population_lakhs"] = fill_population_lakhs_series(
+            board["district"].astype(str).tolist(),
+            pd.to_numeric(board["population_lakhs"], errors="coerce")
+            if "population_lakhs" in board.columns
+            else None,
+        )
+    except Exception:
+        board["population_lakhs"] = 15.0  # mid-TN fallback if estimate helper fails
+
     # News 90d (one heat build, left-join)
     if not heat.empty and vcol in heat.columns:
         h = heat[["district", vcol]].copy()
         h = h.rename(columns={vcol: "news_90d"})
         h["district"] = h["district"].astype(str)
         board = board.merge(h, on="district", how="outer")
+        try:
+            from district_entities import fill_population_lakhs_series
+
+            board["population_lakhs"] = fill_population_lakhs_series(
+                board["district"].astype(str).tolist(),
+                pd.to_numeric(board["population_lakhs"], errors="coerce"),
+            )
+        except Exception:
+            pass
     else:
         board["news_90d"] = np.nan
+
+    # Per-lakh helpers (fairer compare across big vs small districts)
+    if "population_lakhs" in board.columns:
+        pop = pd.to_numeric(board["population_lakhs"], errors="coerce")
+        if "complaints" in board.columns:
+            board["complaints_per_lakh"] = pd.to_numeric(board["complaints"], errors="coerce") / pop.replace(0, np.nan)
+        if "news_90d" in board.columns:
+            board["news_per_lakh"] = pd.to_numeric(board["news_90d"], errors="coerce") / pop.replace(0, np.nan)
 
     # 2026 forecast join
     if rape_2026_df is not None and not rape_2026_df.empty:
@@ -1948,11 +2422,56 @@ def build_district_scoreboard_table(
     board = board[board["district"].notna() & (board["district"].astype(str).str.len() > 1)]
     board = board[~board["district"].astype(str).str.casefold().isin({"nan", "none", ""})]
 
+    # Constrain to 38 TN districts; merge city duplicates
+    try:
+        from district_entities import to_tn38, TN38, fill_population_lakhs_series
+
+        board["district"] = board["district"].map(lambda x: to_tn38(str(x), default=None))
+        board = board[board["district"].notna()]
+        # re-aggregate numeric cols if city+district both existed
+        if not board.empty and board["district"].duplicated().any():
+            num_b = [
+                c
+                for c in board.select_dtypes(include=[np.number]).columns.tolist()
+                if c != "rank"
+            ]
+            if num_b:
+                agg = {c: "mean" for c in num_b}
+                for c in num_b:
+                    cl = c.lower()
+                    if any(
+                        k in cl
+                        for k in ("count", "news_90d", "complaints", "incidence", "forecast")
+                    ):
+                        agg[c] = "sum"
+                board = board.groupby("district", as_index=False).agg(agg)
+            else:
+                board = board.drop_duplicates(subset=["district"], keep="first")
+        if TN38 and not board.empty:
+            board = board[board["district"].isin(TN38)]
+        if not board.empty:
+            board["population_lakhs"] = fill_population_lakhs_series(
+                board["district"].astype(str).tolist(),
+                pd.to_numeric(board["population_lakhs"], errors="coerce")
+                if "population_lakhs" in board.columns
+                else None,
+            )
+            board["population_lakhs"] = pd.to_numeric(
+                board["population_lakhs"], errors="coerce"
+            )
+    except Exception:
+        pass
+
+    if board.empty:
+        return pd.DataFrame()
+
     sort_col = rank_by if rank_by in board.columns else "news_90d"
     if sort_col not in board.columns:
         nums = board.select_dtypes(include=[np.number]).columns.tolist()
         sort_col = nums[0] if nums else "district"
     board = board.sort_values(sort_col, ascending=False, na_position="last").reset_index(drop=True)
+    if "rank" in board.columns:
+        board = board.drop(columns=["rank"])
     board.insert(0, "rank", range(1, len(board) + 1))
     return board
 
@@ -1984,12 +2503,47 @@ def build_district_scorecard(
                 ("rape_rate", "women_crimes_rape_r"),
                 ("rape_incidents", "women_crimes_rape_sec_376_i"),
                 ("complaints", "complaints_total_complaints"),
+                ("cognizable_rate", "complaints_rate_of_cognizable_crime_ipc_sll"),
             ]:
                 if col in r.index and pd.notna(r[col]):
                     try:
                         card[key] = float(r[col])
                     except Exception:
                         pass
+
+            # Population (lakhs) — SCRB if present, else district estimate
+            for pop_col in (
+                "population_lakhs",
+                "complaints_projected_population_lakhs",
+            ):
+                if pop_col in r.index and pd.notna(r[pop_col]):
+                    try:
+                        v = float(r[pop_col])
+                        if v > 0:
+                            card["population_lakhs"] = v
+                            break
+                    except Exception:
+                        pass
+            if "population_lakhs" not in card or not card.get("population_lakhs"):
+                try:
+                    from district_entities import estimate_population_lakhs
+
+                    est = estimate_population_lakhs(area)
+                    if est:
+                        card["population_lakhs"] = float(est)
+                        card["population_source"] = "estimate"
+                except Exception:
+                    pass
+
+            # Derived per-lakh (kept for optional expanders; not shown on heat map)
+            pop = card.get("population_lakhs")
+            if pop and pop > 0:
+                if "murder_incidence" in card and "murder_per_lakh" not in card:
+                    card["murder_per_lakh"] = round(float(card["murder_incidence"]) / pop, 3)
+                if "rape_incidents" in card and "rape_per_lakh" not in card:
+                    card["rape_per_lakh"] = round(float(card["rape_incidents"]) / pop, 3)
+                if "complaints" in card and "complaints_per_lakh" not in card:
+                    card["complaints_per_lakh"] = round(float(card["complaints"]) / pop, 2)
 
     heat, vcol, _ = get_current_affairs_heat(recent_days=90)
     if not heat.empty and vcol in heat.columns:
@@ -1999,6 +2553,10 @@ def build_district_scorecard(
         if not m.empty:
             card["news_90d"] = float(m.iloc[0][vcol])
             card["news_rank"] = int((heat[vcol] > m.iloc[0][vcol]).sum()) + 1
+            # News volume per lakh people (fairer Chennai vs small district)
+            pop = card.get("population_lakhs")
+            if pop and pop > 0:
+                card["news_per_lakh"] = round(float(card["news_90d"]) / pop, 3)
 
     if rape_2026_df is not None and not rape_2026_df.empty:
         r26 = rape_2026_df
@@ -2170,13 +2728,18 @@ def build_news_sentiment_by_district(
     need_score = rescore or not has_pol
 
     scored_rows = []
+    try:
+        from district_entities import resolve_district, to_tn38
+    except Exception:
+        resolve_district = None
+        def to_tn38(x, default=None):  # type: ignore
+            return x if x and str(x) not in ("Other / Statewide", "nan") else default
+
     if need_score:
         try:
             from sentiment_analysis import score_text
-            from district_entities import resolve_district
         except Exception:
             score_text = None
-            resolve_district = None
 
         sample = raw.head(max_score)
         for _, r in sample.iterrows():
@@ -2209,11 +2772,12 @@ def build_news_sentiment_by_district(
             dist = str(r.get("district") or r.get("district_city") or "")
             if (not dist or dist.lower() in ("nan", "none", "")) and resolve_district:
                 try:
-                    dist = resolve_district(text, default="Other / Statewide")
+                    dist = resolve_district(text, default="")
                 except Exception:
-                    dist = "Other / Statewide"
-            elif not dist:
-                dist = "Other / Statewide"
+                    dist = ""
+            dist = to_tn38(dist, default=None) if dist else None
+            if not dist:
+                continue  # drop non-TN38 / junk
             try:
                 pol = float(res.get("polarity", 0) or 0)
             except (TypeError, ValueError):
@@ -2240,7 +2804,15 @@ def build_news_sentiment_by_district(
                 pol = float(r.get("polarity"))
             except (TypeError, ValueError):
                 continue
-            dist = str(r.get("district") or r.get("district_city") or "Other / Statewide")
+            dist = str(r.get("district") or r.get("district_city") or "")
+            if resolve_district and (not dist or dist.lower() in ("nan", "none", "other / statewide")):
+                try:
+                    dist = resolve_district(text, default="")
+                except Exception:
+                    dist = ""
+            dist = to_tn38(dist, default=None) if dist else None
+            if not dist:
+                continue
             scored_rows.append({
                 "headline": text[:300],
                 "date": str(r.get("date") or "")[:12],
@@ -2258,6 +2830,12 @@ def build_news_sentiment_by_district(
     if scored.empty:
         return pd.DataFrame(), scored
 
+    # Only TN38 districts in headlines
+    scored["district"] = scored["district"].map(lambda x: to_tn38(str(x), default=None))
+    scored = scored[scored["district"].notna()].copy()
+    if scored.empty:
+        return pd.DataFrame(), scored
+
     # Persist headlines
     try:
         from db import upsert_headlines, save_district_sentiment
@@ -2266,7 +2844,7 @@ def build_news_sentiment_by_district(
     except Exception:
         save_district_sentiment = None  # type: ignore
 
-    # District aggregates
+    # District aggregates (TN38 only)
     agg_rows = []
     for dist, g in scored.groupby("district"):
         n = len(g)
@@ -2325,13 +2903,23 @@ def get_2026_functions():
         return None, None
 
 def main():
+    """Full classic CRIMECAST dashboard UI."""
     st.set_page_config(
         page_title="CRIMECAST",
         page_icon="🔺",
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    try:
+        _main_impl()
+    except Exception as e:
+        import traceback
 
+        st.error(f"**{type(e).__name__}**: {e}")
+        st.code(traceback.format_exc())
+
+
+def _main_impl():
     apply_custom_theme()
 
     # ---- Sidebar brand: CRIMECAST ----
@@ -2360,6 +2948,9 @@ def main():
         ("pred", "🔮", "Predict"),
         ("sent", "💬", "Sentiment"),
         ("f2026", "📅", "2026 Forecasts"),
+        ("compare", "⚖️", "District Compare"),
+        ("explain", "🔍", "Risk Explain"),
+        ("health", "🩺", "Health"),
     ]
     _nav_labels = [f"{emoji} {t(key)}" for _, emoji, key in _NAV]
     _nav_ix = st.sidebar.radio(
@@ -2376,6 +2967,9 @@ def main():
         "pred": "🔮 Predict",
         "sent": "💬 Sentiment",
         "f2026": "📅 2026 Forecasts",
+        "compare": "⚖️ District Compare",
+        "explain": "🔍 Risk Explain",
+        "health": "🩺 Health",
     }[_NAV[_nav_ix][0]]
 
     # Shared Live Feed controls (news heat only) — set defaults once
@@ -2431,6 +3025,9 @@ def main():
         "💬 Sentiment",
         "✅ Accuracy Check",
         "🔮 Predict",
+        "⚖️ District Compare",
+        "🔍 Risk Explain",
+        "🩺 Health",
     )
     if _need_news:
         news_df = load_news_signals()
@@ -2482,13 +3079,12 @@ def main():
         if shown == 0:
             st.caption("No alerts at this level.")
 
-    # ============ LIVE FEED (+ nested Feed Controls) ============
+    # ============ LIVE FEED (classic ops UI) ============
     if page == "🔴 Live Feed":
         tb1, tb2 = st.columns([20, 1])
         with tb1:
             ops_topbar("CRIMECAST — Tamil Nadu Live Intelligence")
         with tb2:
-            st.markdown('<div class="refresh-icon-wrap" style="padding-top:6px;">', unsafe_allow_html=True)
             if st.button("🔄", type="secondary", key="live_refresh_news", help="Refresh news"):
                 with st.spinner("Fetching news…"):
                     ok, msg = run_acquire_news_refresh()
@@ -2497,11 +3093,52 @@ def main():
                     st.rerun()
                 else:
                     st.toast("Refresh failed", icon="⚠️")
-            st.markdown("</div>", unsafe_allow_html=True)
 
         st.caption(data_freshness_caption())
 
-        # Sub-nav: Live view vs Feed Controls
+        # Always define before any UI uses them (prevents open_alerts NameError)
+        map_metric = "News (time window)"
+        time_window = st.session_state.get("live_news_window", "90 days")
+        open_alerts = 0
+        high_alerts: list = []
+
+        # ---- How it works + health strip (demo / viva) ----
+        with st.expander(f"📘 {t('How it works')} · pipeline", expanded=False):
+            st.markdown(
+                """
+**CRIMECAST data → model → map**
+
+1. **Official tables** (SCRB-style complaints / murder / women crimes) → `clean_data` → ML-ready CSV  
+2. **Train** only on **official-era years (≤2023)** — media years are not training labels  
+3. **News harvest** (Tamil + English) → Live heat, sentiment, word clouds (support layer)  
+4. **Predict** district rates/counts · **blend** with history for sticky rates  
+5. **2026 scenarios** — linear / last-year / blend trends (not SCRB forecasts)  
+6. **Explain** — composite risk + LIME-style / SHAP-proxy  
+
+| Layer | Is it “fact”? |
+|-------|----------------|
+| Official rates (≤2023) | Best available stats in this prototype |
+| News heat / sentiment | Media volume & tone — **not FIRs** |
+| 2026 forecast | **Scenario only** for discussion |
+
+Demo path: Live → Map → Accuracy → Predict → 2026 → Sentiment → Explain · see `docs/DEMO_SCRIPT.md`
+"""
+            )
+        try:
+            from health_check import run_health_check
+
+            _hc = run_health_check()
+            _bits = []
+            for c in _hc.get("checks", [])[:6]:
+                mark = {"ok": "🟢", "warn": "🟡", "fail": "🔴"}.get(c["status"], "⚪")
+                _bits.append(f"{mark} **{c['name']}**")
+            st.caption(
+                " · ".join(_bits)
+                + f"  · overall **{_hc.get('overall', '?')}** · full page: **🩺 Health**"
+            )
+        except Exception:
+            st.caption("Health strip unavailable — open **🩺 Health** or run `python health_check.py`")
+
         _live_subs = [t("Live view"), t("Feed controls")]
         live_sub_ix = st.radio(
             "Live Feed section",
@@ -2514,44 +3151,48 @@ def main():
 
         from tn_map import plot_tn_choropleth, HEAT_WHITE_BLUE
 
-        # ---- nested Feed Controls ----
-        if live_sub_ix == 1:
-            st.markdown(f"### {t('Feed controls')}")
-            st.caption("Time window, MED+HIGH alerts, language split, alert log.")
-            map_metric = "News (time window)"
-            st.session_state["live_map_metric"] = map_metric
-            st.radio(
-                t("News time window"),
-                ["30 days", "90 days", "YTD", "All time"],
-                horizontal=True,
-                key="live_news_window",
-            )
+        st.radio(
+            t("News time window"),
+            ["30 days", "90 days", "YTD", "All time"],
+            horizontal=True,
+            key="live_news_window",
+        )
+        time_window = st.session_state.get("live_news_window", "90 days")
+        recent_days = _live_window_days(time_window)
+        live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
+            map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
+        )
 
-            time_window = st.session_state.get("live_news_window", "90 days")
-            recent_days = _live_window_days(time_window)
-            live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
-                map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
-            )
-            st.info(
-                f"**Live view:** news heat · window **{time_window}** "
-                f"({recent_days}d) · {map_caption}"
-            )
-
-            st.markdown("### Alerts (MEDIUM + HIGH)")
+        try:
             alerts, alert_log = persist_and_load_alerts(
                 ml_data, harvest_df, news_df, rape_2026_df
             )
+        except Exception:
+            alerts, alert_log = [], pd.DataFrame()
+        high_alerts = [a for a in (alerts or []) if a.get("level") == "HIGH"]
+        open_alerts = len(high_alerts)
+
+        if live_sub_ix == 1:
+            st.markdown(f"### {t('Feed controls')}")
+            st.caption("Time window, MED+HIGH alerts, language split, alert log.")
+            st.markdown("### Alerts (MEDIUM + HIGH)")
             if alerts:
                 _render_alert_cards(alerts, levels={"HIGH", "MED"}, max_n=20)
             else:
                 st.caption("No MED or HIGH alerts right now.")
-
             st.markdown(f"### {t('Alert log')}")
+            st.caption("Persisted in SQLite (`alert_log`) — unique HIGH/MED rules with timestamps.")
             if alert_log is not None and not alert_log.empty:
                 st.dataframe(alert_log, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "Download alert log CSV",
+                    alert_log.to_csv(index=False).encode("utf-8"),
+                    "crimecast_alert_log.csv",
+                    "text/csv",
+                    key="live_alert_log_dl",
+                )
             else:
                 st.caption("No saved alerts yet — open Live view once to log them.")
-
             st.markdown(f"### {t('News language split')}")
             lang_df = news_lang_split(harvest_df)
             if not lang_df.empty:
@@ -2563,46 +3204,20 @@ def main():
                         lang_df,
                         names="language",
                         values="headlines",
-                        title="Tamil vs English · தமிழ் / English",
+                        title="Tamil vs English",
                         template="plotly_dark",
                         color_discrete_sequence=["#ef4444", "#3b82f6", "#9ca3af"],
                     )
                     fig_lang.update_layout(
                         paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(0,0,0,0)",
                         height=280,
                         margin=dict(l=10, r=10, t=40, b=10),
                     )
                     st.plotly_chart(fig_lang, use_container_width=True, key="controls_lang_pie")
-            else:
-                st.caption("No language data — refresh news.")
-
             if not live_map_df.empty and live_vcol:
                 st.markdown(f"### {t('Preview top districts')}")
                 render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=15)
-
-        # ---- Live view ----
         else:
-            st.radio(
-                t("News time window"),
-                ["30 days", "90 days", "YTD", "All time"],
-                horizontal=True,
-                key="live_news_window",
-            )
-
-            map_metric = "News (time window)"
-            st.session_state["live_map_metric"] = map_metric
-            time_window = st.session_state.get("live_news_window", "90 days")
-            recent_days = _live_window_days(time_window)
-
-            live_map_df, live_vcol, live_ncol, map_caption = build_map_metric_frame(
-                map_metric, harvest_df, news_df, ml_data, rape_2026_df, recent_days=recent_days
-            )
-
-            alerts, alert_log = persist_and_load_alerts(
-                ml_data, harvest_df, news_df, rape_2026_df
-            )
-            high_alerts = [a for a in alerts if a.get("level") == "HIGH"]
             if high_alerts:
                 st.markdown(f"**{t('HIGH alerts')}**")
                 _render_alert_cards(high_alerts, levels={"HIGH"}, max_n=6)
@@ -2615,20 +3230,18 @@ def main():
                 else:
                     st.caption("Empty — alerts are saved when Live Feed runs.")
 
-            m1, m2, m3, m4, m5 = st.columns(5)
+            m1, m2, m3, m4 = st.columns(4)
             with m1:
                 st.metric("EVENTS / MODELS", n_models)
             with m2:
-                st.metric("SENTIMENT ROWS", n_sent)
-            with m3:
                 st.metric("MEDIA HEADLINES", n_harvest or n_media)
-            with m4:
+            with m3:
                 active = 0
                 if not live_map_df.empty and live_vcol in live_map_df.columns:
                     active = int((live_map_df[live_vcol] >= 1).sum())
                 st.metric("ACTIVE (window)", active)
-            with m5:
-                open_alerts = len(high_alerts)
+            with m4:
+                hot = 0
                 if not live_map_df.empty and live_vcol in live_map_df.columns:
                     thr = (
                         live_map_df[live_vcol].quantile(0.75)
@@ -2636,8 +3249,6 @@ def main():
                         else live_map_df[live_vcol].median()
                     )
                     hot = int((live_map_df[live_vcol] >= thr).sum())
-                else:
-                    hot = 0
                 st.metric("HOT DISTRICTS", hot)
 
             left, right = st.columns([1.05, 1.15], gap="medium")
@@ -2687,12 +3298,10 @@ def main():
                     unsafe_allow_html=True,
                 )
                 if not live_map_df.empty and live_vcol:
-                    # Prefer fast bar ranking; map is optional (geojson is heavy)
                     show_map = st.checkbox(
                         "Show TN map (slower)",
                         value=False,
                         key="live_show_choropleth",
-                        help="Choropleth loads GeoJSON — leave off for speed",
                     )
                     if show_map:
                         with st.spinner("Loading map…"):
@@ -2706,11 +3315,7 @@ def main():
                             )
                         if fig_live is not None:
                             fig_live.update_layout(height=400, margin=dict(l=0, r=0, t=40, b=0))
-                            st.plotly_chart(
-                                fig_live, use_container_width=True, key="live_tn_map"
-                            )
-                        else:
-                            st.caption("Map unavailable — ranking only.")
+                            st.plotly_chart(fig_live, use_container_width=True, key="live_tn_map")
                     fig_fb = px.bar(
                         live_map_df.sort_values(live_vcol, ascending=True).tail(15),
                         x=live_vcol,
@@ -2729,24 +3334,20 @@ def main():
                     )
                     st.plotly_chart(fig_fb, use_container_width=True, key="live_map_bars")
                     st.caption(map_caption)
+                    render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=12)
                 else:
-                    st.info("No map data. Refresh news or change metric.")
+                    st.info("No map data. Refresh news.")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-                if not live_map_df.empty and live_vcol:
-                    st.caption(f"District ranking · {map_metric} · {time_window}")
-                    render_district_heat(live_map_df, live_vcol, live_ncol, None, top_n=12)
-
-            st.markdown(
-                f"""
-                <div class="ticker">
-                    <span class="live">● LIVE WIRE</span>
-                    &nbsp; Models {n_models} · Media {n_media or n_harvest}
-                    · HIGH {open_alerts} · {map_metric} · {time_window}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        # Status footer — open_alerts always defined above (no NameError)
+        _safe_live_status(
+            n_models,
+            n_media,
+            n_harvest,
+            open_alerts,
+            map_metric,
+            time_window,
+        )
 
     # ============ STATE ADMINISTRATION COMPARISON — DMK vs TVK ============
     elif page == "🏛️ State Administration Comparison":
@@ -2807,28 +3408,14 @@ def main():
             comb_winner = news_verdict.get("winner") or verdict.get("winner") or "—"
             comb_reason = news_verdict.get("reason") or verdict.get("reason") or ""
 
-        st.markdown(
-            f"""
-            <div style="background:linear-gradient(135deg,#1a1a22,#14141a);border:1px solid #2a2a36;
-            border-radius:14px;padding:16px 18px;margin-bottom:14px;">
-              <div style="color:#9ca3af;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;">
-                DMK vs TVK · FROM OUR DATA (OFFICIAL + MEDIA SUPPORT)
-              </div>
-              <div style="color:#f3f4f6;font-size:1.35rem;font-weight:800;margin-top:6px;">
-                {comb_winner}
-              </div>
-              <div style="color:#c8c8d0;font-size:0.92rem;margin-top:8px;line-height:1.45;">
-                {comb_reason}
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        # Plain Streamlit (no f-string HTML — braces in reason text used to crash)
+        st.subheader("DMK vs TVK · from our data")
+        st.markdown(f"### {comb_winner}")
+        if comb_reason:
+            st.write(comb_reason)
         st.info(
-            "**Data design:** Official/ML rates lag (best through ~2023). "
-            "Media harvest bridges the gap and is the **only** statewide party signal for **TVK** "
-            "(no CM term). Combined score weights official **65%** + media **35%** for DMK; "
-            "TVK uses media only."
+            "Official/ML rates lag (best through ~2023). "
+            "Media is support data; TVK has media-only signal until a CM term exists."
         )
 
         st.markdown("### Scoreboard · DMK vs TVK")
@@ -2853,24 +3440,14 @@ def main():
                         if pd.notna(r0.get("media_clean_score"))
                         else "—"
                     )
-                    st.markdown(
-                        f"""
-                        <div style="background:#14141a;border:1px solid #2a2a36;border-radius:12px;
-                        padding:14px;border-top:3px solid {PARTY_COLORS.get(p, '#666')};">
-                          <div style="font-weight:800;color:#f3f4f6;font-size:1.1rem;">{p}</div>
-                          <div style="color:#9ca3af;font-size:0.75rem;margin:4px 0 8px 0;">{r0.get('role','')}</div>
-                          <div style="color:#e5e7eb;font-size:1.6rem;font-weight:800;">{comb_s}</div>
-                          <div style="color:#6b7280;font-size:0.72rem;">combined / 100</div>
-                          <div style="margin-top:10px;font-size:0.8rem;color:#c8c8d0;line-height:1.5;">
-                            Official safety: {rs}<br/>
-                            Media support: {ms}<br/>
-                            Neg news: {int(r0.get('news_negative') or 0)} / {int(r0.get('news_mentions') or 0)}<br/>
-                            <span style="color:#6b7280">{r0.get('data_basis','')}</span>
-                          </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
+                    st.markdown(f"**{p}** · {r0.get('role', '')}")
+                    st.metric("Combined / 100", comb_s)
+                    st.caption(
+                        f"Official safety: {rs} · Media: {ms} · "
+                        f"Neg news: {int(r0.get('news_negative') or 0)} / {int(r0.get('news_mentions') or 0)}"
                     )
+                    if r0.get("data_basis"):
+                        st.caption(str(r0.get("data_basis")))
 
             show_b = board.copy()
             for c in ("official_safety_score", "media_clean_score", "combined_score"):
@@ -3339,15 +3916,81 @@ def main():
         else:
             _render_card(area)
 
-    # ============ ACCURACY CHECK (Tier-2 · polished) ============
+    # ============ ACCURACY CHECK (Tier-2 · polished + story + backtest) ============
     elif page == "✅ Accuracy Check":
-        ops_topbar(f"{t('Accuracy Check')} — official vs model vs blend")
+        ops_topbar(f"{t('Accuracy Check')} — metrics · claims · blend · backtest")
         st.caption(
-            f"{t('Official vs media')} honesty check: **official history mean**, **model raw**, "
-            "**blended prediction**. Blend should usually sit closer to official history for sticky rates."
+            f"{t('Official vs media')} honesty check: **training metrics**, **official vs model vs blend**, "
+            "optional **holdout backtest**. Temporal R² can be weak — we show it."
         )
         st.caption(data_freshness_caption())
 
+        # ---- Training metrics (best models) ----
+        st.markdown("### Training metrics (best models)")
+        try:
+            from forecast_engine import load_training_metrics_best
+
+            tm = load_training_metrics_best()
+        except Exception:
+            tm = pd.DataFrame()
+            p = OUTPUT_DIR / "training_metrics.csv"
+            if p.exists():
+                tm = pd.read_csv(p)
+                if "is_best" in tm.columns:
+                    tm = tm[tm["is_best"].astype(str).str.lower().isin(("true", "1"))]
+        if not tm.empty:
+            show_tm = tm.copy()
+            prefer = [
+                c
+                for c in (
+                    "target_label", "model_name", "test_mae", "test_r2",
+                    "cv_r2", "temporal_mae", "temporal_r2", "official_label_max_year",
+                )
+                if c in show_tm.columns
+            ]
+            st.dataframe(
+                show_tm[prefer] if prefer else show_tm,
+                use_container_width=True,
+                hide_index=True,
+            )
+            if "test_r2" in show_tm.columns:
+                try:
+                    st.caption(
+                        f"Median test R² (best models): "
+                        f"**{float(pd.to_numeric(show_tm['test_r2'], errors='coerce').median()):.3f}**"
+                    )
+                except Exception:
+                    pass
+        else:
+            st.info("No `training_metrics.csv` — run `python train_model.py`.")
+
+        with st.expander("What we claim / don’t claim", expanded=True):
+            c_a, c_b = st.columns(2)
+            with c_a:
+                st.markdown(
+                    """
+**We claim**
+- Models trained mainly on **official-era labels (≤2023)**
+- Holdout / CV metrics from `training_metrics.csv`
+- **Blend** often closer to multi-year district history for sticky *rates*
+- Live map = **news volume**, labelled as such
+- 2026 = **scenario trend**, with uncertainty bands
+"""
+                )
+            with c_b:
+                st.markdown(
+                    """
+**We do not claim**
+- Official SCRB forecast authority
+- Media headlines = FIRs / court facts
+- Perfect temporal generalization (see temporal R²)
+- Real-time police dispatch accuracy
+- Causality (“X causes crime”)
+"""
+                )
+
+        # ---- Official vs model vs blend ----
+        st.markdown("### Official history vs model raw vs blend")
         tgt_opts = {
             "Murder rate · கொலை விகிதம்": "murder_homicide_murder_rate",
             "Rape rate · பாலியல் குற்ற விகிதம்": "women_crimes_rape_r",
@@ -3355,7 +3998,6 @@ def main():
             "Rape incidents": "women_crimes_rape_sec_376_i",
             "Cognizable crime rate": "complaints_rate_of_cognizable_crime_ipc_sll",
         }
-        # Only options that exist in data
         tgt_opts = {k: v for k, v in tgt_opts.items() if ml_data.empty or v in ml_data.columns}
         pick = st.multiselect(
             t("Targets"),
@@ -3378,24 +4020,17 @@ def main():
 
         acc = st.session_state.get("accuracy_table")
         if acc is not None and isinstance(acc, pd.DataFrame) and not acc.empty:
-            # Summary metrics
             s1, s2, s3, s4 = st.columns(4)
             with s1:
                 st.metric("Rows", len(acc))
             with s2:
                 if "abs_err_blend" in acc.columns and acc["abs_err_blend"].notna().any():
-                    st.metric(
-                        "Mean |err| blend",
-                        f"{float(acc['abs_err_blend'].mean()):.3f}",
-                    )
+                    st.metric("Mean |err| blend", f"{float(acc['abs_err_blend'].mean()):.3f}")
                 else:
                     st.metric("Mean |err| blend", "—")
             with s3:
                 if "abs_err_raw" in acc.columns and acc["abs_err_raw"].notna().any():
-                    st.metric(
-                        "Mean |err| raw",
-                        f"{float(acc['abs_err_raw'].mean()):.3f}",
-                    )
+                    st.metric("Mean |err| raw", f"{float(acc['abs_err_raw'].mean()):.3f}")
                 else:
                     st.metric("Mean |err| raw", "—")
             with s4:
@@ -3415,7 +4050,6 @@ def main():
                     f"({100 * better / total:.0f}%)."
                 )
 
-            # Error comparison chart (polished)
             if {"abs_err_raw", "abs_err_blend", "district"}.issubset(acc.columns):
                 chart_acc = acc.dropna(subset=["abs_err_raw", "abs_err_blend"]).copy()
                 if not chart_acc.empty:
@@ -3451,14 +4085,12 @@ def main():
                     st.plotly_chart(fig_e, use_container_width=True, key="acc_err_chart")
 
             st.dataframe(acc, use_container_width=True, hide_index=True)
-
             spot = acc[acc["district"].astype(str).isin(
                 ["Thoothukudi", "Madurai", "Madurai City", "Chennai"]
             )]
             if not spot.empty:
                 st.markdown("#### Spotlight · Thoothukudi / Madurai / Chennai")
                 st.dataframe(spot, use_container_width=True, hide_index=True)
-
             st.download_button(
                 "⬇️ Download accuracy CSV",
                 data=acc.to_csv(index=False).encode("utf-8"),
@@ -3468,6 +4100,81 @@ def main():
             )
         else:
             st.info("Click **Build accuracy table** to compare official vs model vs blend.")
+
+        # ---- Holdout backtest (linear trend) ----
+        st.markdown("### Holdout backtest (linear trend)")
+        st.caption(
+            "Fit linear trend on years **before** holdout year from `fitted_predictions.csv`, "
+            "compare to actual when present. Honest check when multi-year labels exist."
+        )
+        bt1, bt2, bt3 = st.columns([1.2, 1, 1])
+        with bt1:
+            bt_tgt = st.selectbox(
+                "Backtest target",
+                [
+                    ("Rape incidents", "women_crimes_rape_sec_376_i"),
+                    ("Murder incidence", "murder_homicide_murder_incidence"),
+                    ("Total complaints", "complaints_total_complaints"),
+                ],
+                format_func=lambda x: x[0],
+                key="acc_bt_tgt",
+            )
+        with bt2:
+            bt_year = st.number_input(
+                "Holdout year", min_value=2022, max_value=2026, value=2024, key="acc_bt_year"
+            )
+        with bt3:
+            bt_n = st.slider("Max districts", 8, 38, 20, key="acc_bt_n")
+        if st.button("Run holdout backtest", type="secondary", key="acc_bt_run"):
+            with st.spinner("Backtesting…"):
+                try:
+                    from forecast_engine import backtest_year
+
+                    bdf = backtest_year(bt_tgt[1], int(bt_year), max_districts=int(bt_n))
+                    st.session_state["acc_backtest"] = bdf
+                except Exception as e:
+                    st.error(str(e))
+                    st.session_state["acc_backtest"] = pd.DataFrame()
+        bdf = st.session_state.get("acc_backtest")
+        if isinstance(bdf, pd.DataFrame) and not bdf.empty:
+            if "abs_error" in bdf.columns and bdf["abs_error"].notna().any():
+                st.metric("Mean |error| (rows with actual)", f"{float(bdf['abs_error'].mean()):.3f}")
+            st.dataframe(bdf, use_container_width=True, hide_index=True)
+            if {"district", "predicted", "actual"}.issubset(bdf.columns):
+                plot_b = bdf.dropna(subset=["actual"]).head(15)
+                if not plot_b.empty:
+                    long_b = []
+                    for _, r in plot_b.iterrows():
+                        long_b.append({"district": r["district"], "value": r["predicted"], "kind": "Predicted"})
+                        long_b.append({"district": r["district"], "value": r["actual"], "kind": "Actual"})
+                    fig_bt = px.bar(
+                        pd.DataFrame(long_b),
+                        x="district",
+                        y="value",
+                        color="kind",
+                        barmode="group",
+                        template="plotly_dark",
+                        title=f"Holdout {int(bt_year)} · predicted vs actual",
+                    )
+                    fig_bt.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="#0e0e12",
+                        height=360,
+                        xaxis_tickangle=-35,
+                    )
+                    st.plotly_chart(fig_bt, use_container_width=True, key="acc_bt_chart")
+            st.download_button(
+                "Download backtest CSV",
+                bdf.to_csv(index=False).encode("utf-8"),
+                f"backtest_{int(bt_year)}.csv",
+                "text/csv",
+                key="acc_bt_dl",
+            )
+        elif bdf is not None and isinstance(bdf, pd.DataFrame):
+            st.warning(
+                "No backtest rows with actuals — fitted history may lack that holdout year. "
+                "Training metrics temporal columns are still informative."
+            )
 
     # ============ ANALYTICS ============
     elif page == "📊 Analytics":
@@ -3508,525 +4215,405 @@ def main():
             fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#121218", font_color="#d1d5db")
             st.plotly_chart(fig, use_container_width=True, key="analytics_news")
 
-    # ============ DISTRICT MAP & SCOREBOARD (Geography + Scorecard combined) ============
+    # ============ DISTRICT MAP & SCOREBOARD (simplified · 3 tabs) ============
     elif page == "🗺️ District Map & Scoreboard":
         import importlib
         import sys
 
-        # Force fresh load so Streamlit never keeps a stale tn_map without compare helpers
         if "tn_map" in sys.modules:
             importlib.reload(sys.modules["tn_map"])
         import tn_map as _tn_map
-
-        plot_tn_choropleth = _tn_map.plot_tn_choropleth
-        HEAT_WHITE_BLUE = _tn_map.HEAT_WHITE_BLUE
-        COMPARE_PALETTE = getattr(
-            _tn_map, "COMPARE_PALETTE", ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7"]
-        )
-        plot_tn_compare_districts = getattr(_tn_map, "plot_tn_compare_districts", None)
-        plot_district_carved_out = getattr(_tn_map, "plot_district_carved_out", None)
-        if plot_tn_compare_districts is None:
-            st.error(
-                "tn_map is outdated (missing plot_tn_compare_districts). "
-                "Stop Streamlit fully and restart with START_DASHBOARD.bat "
-                "(delete `__pycache__/tn_map*.pyc` if it still fails)."
-            )
-            st.stop()
-
-        ops_topbar("District Map & Scoreboard — carved-out compare + data below")
-        st.caption(
-            "Pick **Focus** and **Compare** (e.g. Chennai vs Chengalpattu). "
-            "Each district is **carved out** as its own zoomed shape, then shown together. "
-            "Metrics and tables sit under the maps. Media volume = **news headlines**."
-        )
-
-        # --- Scoreboard first (feeds district list) ---
-        rank_metric = st.selectbox(
-            t("Scoreboard rank by"),
-            ["news_90d", "murder_rate", "rape_rate", "complaints"],
-            key="geo_rank_by",
-        )
-        board = build_district_scoreboard_table(
-            ml_data, harvest_df, news_df, rape_2026_df, rank_by=rank_metric
-        )
-
-        # Canonical TN names first so Chengalpattu/Chennai always appear
         from tn_map import TN_DISTRICT_CANONICAL
 
-        district_opts: list[str] = []
-        if not board.empty:
-            district_opts = board["district"].astype(str).tolist()
-        # Merge canonical names not already in board (spelling variants)
-        seen_cf = {d.casefold() for d in district_opts}
-        for d in TN_DISTRICT_CANONICAL:
-            if d.casefold() not in seen_cf:
-                district_opts.append(d)
-                seen_cf.add(d.casefold())
-        if not district_opts:
-            district_opts = list(TN_DISTRICT_CANONICAL)
-
-        # --- District comparison selectors (drive map + detail) ---
-        st.markdown(f"### {t('District detail')} · map comparison")
-        d1, d2, d3 = st.columns([2, 2, 1.2])
-        with d1:
-            default_ix = 0
-            for prefer in ("Chennai", "Madurai", "Thoothukkudi", "Coimbatore"):
-                for i, d in enumerate(district_opts):
-                    if d.casefold() == prefer.casefold():
-                        default_ix = i
-                        break
-                else:
-                    continue
-                break
-            pick_dist = st.selectbox(
-                t("Focus district"),
-                district_opts,
-                index=min(default_ix, len(district_opts) - 1),
-                key="geo_focus_district",
-            )
-        with d2:
-            compare_opts = [d for d in district_opts if d.casefold() != str(pick_dist).casefold()]
-            # Prefer Chengalpattu as default compare when focus is Chennai
-            cmp_default = 0  # "none"
-            _none_label = t("none")
-            cmp_choices = [_none_label] + compare_opts
-            if str(pick_dist).casefold() == "chennai":
-                for i, d in enumerate(compare_opts):
-                    if "chengalpattu" in d.casefold() or "chengalpet" in d.casefold():
-                        cmp_default = i + 1
-                        break
-            pick_cmp = st.selectbox(
-                t("Compare with"),
-                cmp_choices,
-                index=min(cmp_default, len(cmp_choices) - 1),
-                key="geo_compare_district",
-            )
-        with d3:
-            show_geo_map = st.checkbox(
-                t("Show map"),
-                value=True,
-                key="geo_show_map",
-                help="Comparison map highlights selected districts. Full heat map is optional below.",
-            )
-
-        _none = t("none")
-        comparing = bool(pick_cmp and pick_cmp != _none and pick_cmp != "— none —")
-        selected_districts = [pick_dist] + ([pick_cmp] if comparing else [])
-
-        # --- Map data source / metric ---
-        _map_src_opts = [t("Media news volume"), t("ML-ready")]
-        map_source_ix = st.radio(
-            t("Map data source"),
-            [0, 1],
-            format_func=lambda i: _map_src_opts[i],
-            horizontal=True,
-            key="geo_map_source_ix",
+        plot_tn_choropleth = _tn_map.plot_tn_choropleth
+        plot_district_heatmap_matrix = getattr(_tn_map, "plot_district_heatmap_matrix", None)
+        HEAT_DENSITY = getattr(_tn_map, "HEAT_DENSITY", ["#fff7ed", "#fb923c", "#c2410c"])
+        HEAT_WHITE_BLUE = getattr(
+            _tn_map,
+            "HEAT_WHITE_BLUE",
+            ["#ffffff", "#7dd3fc", "#0284c7", "#0c4a6e"],
         )
-        map_source = "Media news volume" if map_source_ix == 0 else "ML-ready (latest year)"
+        HEAT_DENSITY_PLOTLY = getattr(
+            _tn_map,
+            "HEAT_DENSITY_PLOTLY",
+            [[0, "#fff7ed"], [0.5, "#fb923c"], [1, "#7c2d12"]],
+        )
+        COMPARE_PALETTE = getattr(
+            _tn_map, "COMPARE_PALETTE", ["#ef4444", "#3b82f6", "#22c55e"]
+        )
+        plot_district_carved_out = getattr(_tn_map, "plot_district_carved_out", None)
 
-        map_df = pd.DataFrame()
-        value_col = ""
-        name_col = "district"
+        ops_topbar("District Map — choropleth · heat · scoreboard")
 
-        if map_source == "Media news volume":
-            map_df = build_media_news_volume_by_district(harvest_df, news_df)
-            value_col = "news_volume"
-            name_col = "district"
-            if map_df.empty:
-                st.warning("No news harvest yet. Click **🔄** in the sidebar to refresh media.")
-        elif not ml_data.empty:
-            map_df = (
-                ml_data.sort_values("year").groupby("district_city").tail(1)
-                if "year" in ml_data.columns
-                else ml_data
+        density_df = build_crime_density_frame(ml_data, harvest_df, news_df)
+        # Default rank: population-normalised murder rate when available
+        board = build_district_scoreboard_table(
+            ml_data, harvest_df, news_df, rape_2026_df, rank_by="murder_per_lakh"
+        )
+        if board.empty or "murder_per_lakh" not in board.columns:
+            board = build_district_scoreboard_table(
+                ml_data, harvest_df, news_df, rape_2026_df, rank_by="murder_rate"
             )
-            name_col = "district_city"
-            prefer = [
-                c for c in (
-                    "murder_homicide_murder_rate",
-                    "women_crimes_rape_r",
-                    "complaints_rate_of_cognizable_crime_ipc_sll",
+
+        # Strict 38 TN districts only
+        try:
+            from district_entities import TN38, to_tn38
+        except Exception:
+            TN38 = list(TN_DISTRICT_CANONICAL)
+            def to_tn38(x, default=None):  # type: ignore
+                return x
+
+        district_opts = list(TN38) if TN38 else list(TN_DISTRICT_CANONICAL)
+        if not board.empty and "district" in board.columns:
+            board = board.copy()
+            board["district"] = board["district"].map(lambda x: to_tn38(str(x), default=None))
+            board = board[board["district"].notna()]
+            board = board.drop_duplicates(subset=["district"], keep="first")
+
+        # Compare lives on sidebar ⚖️ District Compare (merged map carve + full metrics)
+        tab_choro, tab_heat, tab_board = st.tabs(
+            ["🗺️ Choropleth", "▦ Heat map", "📋 Scoreboard"]
+        )
+        st.caption(
+            "Side-by-side district comparison (carve maps, rates, 2026, ML) → "
+            "**⚖️ District Compare** in the sidebar."
+        )
+
+        # ---- TAB 1: DISTRICT CHOROPLETH (full TN · every district polygon) ----
+        with tab_choro:
+            st.markdown("#### Tamil Nadu district choropleth")
+            choro_metric_labels = {
+                "density_index": "Composite density (0–100)",
+                "murder_rate": "Murder rate",
+                "rape_rate": "Rape rate",
+                "news_90d": "News headlines (90d)",
+            }
+            choro_available = [
+                k
+                for k in choro_metric_labels
+                if not density_df.empty
+                and k in density_df.columns
+                and pd.to_numeric(density_df[k], errors="coerce").notna().any()
+            ]
+            if not choro_available:
+                choro_available = ["density_index"]
+
+            c_left, c_right = st.columns([2, 1])
+            with c_left:
+                choro_pick = st.selectbox(
+                    "Colour districts by",
+                    choro_available,
+                    format_func=lambda k: choro_metric_labels.get(k, k),
+                    key="geo_choropleth_metric",
                 )
-                if c in map_df.columns
-            ]
-            candidates = prefer or [
-                c
-                for c in map_df.columns
-                if any(k in c.lower() for k in ("rape", "murder", "complaint", "risk"))
-                and np.issubdtype(map_df[c].dtype, np.number)
-            ]
-            value_col = st.selectbox(
-                "Metric (hover on map + ranking bars)",
-                candidates or map_df.select_dtypes(include=[np.number]).columns.tolist()[:12],
-                key="geo_metric_pick",
+            with c_right:
+                choro_scale_name = st.selectbox(
+                    "Colour scale",
+                    ["Orange–red (density)", "White–blue"],
+                    key="geo_choropleth_scale",
+                )
+            color_scale = (
+                HEAT_WHITE_BLUE
+                if choro_scale_name.startswith("White")
+                else HEAT_DENSITY
             )
-        else:
-            st.warning("No data for map. Run pipeline (option 1) and optionally option 7 for 2026.")
 
-        # --- MAP: carve selected districts out of TN (separate polygons) ---
-        if show_geo_map:
-            st.markdown("#### Map · carved-out districts")
-            _mdf = map_df if not map_df.empty else None
-            _vc = value_col if value_col else None
-
-            if comparing:
-                st.caption(
-                    f"**{pick_dist}** and **{pick_cmp}** carved out separately "
-                    "(only those shapes — rest of TN removed)."
+            if density_df.empty or choro_pick not in density_df.columns:
+                st.warning(
+                    "No district metrics yet — run clean pipeline for rates + population. "
+                    "GeoJSON still needs data to colour polygons."
                 )
-                # Side-by-side: each district alone, full zoom (no A/B labels)
-                if plot_district_carved_out is not None:
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        with st.spinner(f"Carving {pick_dist}…"):
-                            fig_a = plot_district_carved_out(
-                                pick_dist,
-                                color=COMPARE_PALETTE[0],
-                                df=_mdf,
-                                value_col=_vc,
-                                name_col=name_col,
-                                title=pick_dist,
-                                height=400,
-                            )
-                        if fig_a is not None:
-                            st.plotly_chart(fig_a, use_container_width=True, key="tn_carve_a")
-                        else:
-                            st.warning(f"Could not carve **{pick_dist}** from GeoJSON.")
-                    with col_b:
-                        with st.spinner(f"Carving {pick_cmp}…"):
-                            fig_b = plot_district_carved_out(
-                                pick_cmp,
-                                color=COMPARE_PALETTE[1],
-                                df=_mdf,
-                                value_col=_vc,
-                                name_col=name_col,
-                                title=pick_cmp,
-                                height=400,
-                            )
-                        if fig_b is not None:
-                            st.plotly_chart(fig_b, use_container_width=True, key="tn_carve_b")
-                        else:
-                            st.warning(f"Could not carve **{pick_cmp}** from GeoJSON.")
-
-                # Optional: pair inside full TN
-                with st.expander("Show pair inside full Tamil Nadu (context)", expanded=False):
-                    fig_ctx = plot_tn_compare_districts(
-                        selected_districts,
-                        df=_mdf,
-                        value_col=_vc,
-                        name_col=name_col,
-                        title=f"{pick_dist} vs {pick_cmp}",
-                        mode="context",
-                    )
-                    if fig_ctx is not None:
-                        st.plotly_chart(fig_ctx, use_container_width=True, key="tn_compare_context")
             else:
-                st.caption(
-                    f"**{pick_dist}** carved out alone. "
-                    f"Set **{t('Compare with')}** to carve a second district side-by-side."
+                ranked = density_df.copy()
+                ranked[choro_pick] = pd.to_numeric(ranked[choro_pick], errors="coerce")
+                ranked = ranked.dropna(subset=[choro_pick]).sort_values(
+                    choro_pick, ascending=False
                 )
-                with st.spinner(f"Carving {pick_dist}…"):
-                    if plot_district_carved_out is not None:
-                        fig_solo = plot_district_carved_out(
-                            pick_dist,
-                            color=COMPARE_PALETTE[0],
-                            df=_mdf,
-                            value_col=_vc,
-                            name_col=name_col,
-                            title=pick_dist,
-                            height=440,
+                n_dist = int(ranked["district"].nunique()) if "district" in ranked.columns else len(ranked)
+                top3 = ranked.head(3)
+                mcols = st.columns(4)
+                with mcols[0]:
+                    st.metric("Districts on map", n_dist)
+                for i, (_, row) in enumerate(top3.iterrows()):
+                    with mcols[min(i + 1, 3)]:
+                        st.metric(
+                            f"#{i + 1} {row['district']}",
+                            f"{float(row[choro_pick]):.2f}",
                         )
+
+                with st.spinner("Building district choropleth…"):
+                    fig_choro = plot_tn_choropleth(
+                        density_df,
+                        value_col=choro_pick,
+                        name_col="district",
+                        title=(
+                            f"TN district choropleth · "
+                            f"{choro_metric_labels.get(choro_pick, choro_pick)}"
+                        ),
+                        color_scale=color_scale,
+                        colorbar_title=choro_metric_labels.get(choro_pick, "Value"),
+                        fill_nulls_from_media=False,
+                    )
+                if fig_choro is not None:
+                    st.plotly_chart(
+                        fig_choro, use_container_width=True, key="tn_district_choropleth"
+                    )
+                    st.caption(
+                        "Hover a district for value. Missing metrics stay low/unfilled — "
+                        "not the same as zero crime."
+                    )
+                else:
+                    st.warning(
+                        "Choropleth unavailable (missing `assets/tamil_nadu_districts.geojson`). "
+                        "Re-open the page once online so GeoJSON can cache."
+                    )
+
+                with st.expander("Top districts + table", expanded=False):
+                    bar_df = ranked.head(15).sort_values(choro_pick, ascending=True)
+                    if not bar_df.empty:
+                        fig_db = px.bar(
+                            bar_df,
+                            x=choro_pick,
+                            y="district",
+                            orientation="h",
+                            color=choro_pick,
+                            color_continuous_scale=color_scale,
+                            template="plotly_dark",
+                            title="Top districts (same metric)",
+                        )
+                        fig_db.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=360,
+                            showlegend=False,
+                        )
+                        st.plotly_chart(fig_db, use_container_width=True, key="tn_choro_bars")
+                    show_cols = []
+                    for c in (
+                        "district",
+                        "population_lakhs",
+                        choro_pick,
+                        "murder_rate",
+                        "rape_rate",
+                    ):
+                        if c in density_df.columns and c not in show_cols:
+                            show_cols.append(c)
+                    tbl = density_df.loc[:, show_cols].copy()
+                    tbl = tbl.loc[:, ~tbl.columns.duplicated()]
+                    for c in list(tbl.columns):
+                        if c == "district":
+                            continue
+                        ser = tbl[c]
+                        if isinstance(ser, pd.DataFrame):
+                            ser = ser.iloc[:, 0]
+                        tbl[c] = pd.to_numeric(ser, errors="coerce").round(2)
+                    if choro_pick in tbl.columns:
+                        tbl = tbl.sort_values(choro_pick, ascending=False, na_position="last")
+                    st.dataframe(tbl, use_container_width=True, hide_index=True)
+
+        # ---- TAB 2: HEAT MAP (district × metric grid) ----
+        with tab_heat:
+            st.caption("Rows = districts · columns = rates / news only (z-score colours).")
+            heat_top_n = st.slider("Districts shown", 10, 38, 20, key="geo_heat_top_n")
+
+            # Prefer lean density frame; else latest ML
+            heat_src = density_df.copy() if not density_df.empty else pd.DataFrame()
+            if heat_src.empty and not ml_data.empty:
+                heat_src = _latest_ml_by_district(ml_data)
+                if "district_city" in heat_src.columns and "district" not in heat_src.columns:
+                    heat_src = heat_src.rename(columns={"district_city": "district"})
+
+            # Allowed heat metrics only (no per-lakh, no population, no complaints, no cognizable)
+            _HEAT_ALLOWED = (
+                "murder_rate",
+                "rape_rate",
+                "density_index",
+                "news_90d",
+            )
+            heat_metric_opts = [
+                c
+                for c in _HEAT_ALLOWED
+                if not heat_src.empty and c in heat_src.columns
+            ]
+            # Fallback from raw ML column names
+            if len(heat_metric_opts) < 2 and not ml_data.empty:
+                latest = _latest_ml_by_district(ml_data)
+                heat_src = latest.copy()
+                if "district_city" in heat_src.columns:
+                    heat_src["district"] = heat_src["district_city"].astype(str)
+                for src, dst in [
+                    ("murder_homicide_murder_rate", "murder_rate"),
+                    ("women_crimes_rape_r", "rape_rate"),
+                ]:
+                    if src in heat_src.columns and dst not in heat_src.columns:
+                        heat_src[dst] = pd.to_numeric(heat_src[src], errors="coerce")
+                heat_metric_opts = [c for c in _HEAT_ALLOWED if c in heat_src.columns]
+
+            if heat_src.empty or len(heat_metric_opts) < 1:
+                st.warning("No numeric metrics for heat map yet.")
+            else:
+                default_heat = [c for c in ("murder_rate", "rape_rate", "news_90d", "density_index") if c in heat_metric_opts]
+                heat_cols = st.multiselect(
+                    "Metrics (columns)",
+                    heat_metric_opts,
+                    default=default_heat or heat_metric_opts[:3],
+                    key="geo_heat_metrics",
+                )
+                # Hard filter in case session state still has old metrics
+                heat_cols = [
+                    c
+                    for c in heat_cols
+                    if c in _HEAT_ALLOWED and "per_lakh" not in c and c not in (
+                        "population_lakhs",
+                        "complaints",
+                        "cognizable_rate",
+                        "complaints_per_lakh",
+                        "news_per_lakh",
+                        "murder_per_lakh",
+                        "rape_per_lakh",
+                    )
+                ]
+                if not heat_cols:
+                    st.info("Pick at least one metric.")
+                else:
+                    # Sort districts by first selected metric
+                    work = heat_src.copy()
+                    if "district" not in work.columns and "district_city" in work.columns:
+                        work["district"] = work["district_city"].astype(str)
+                    for c in heat_cols:
+                        work[c] = pd.to_numeric(work[c], errors="coerce")
+                    sort_c = heat_cols[0]
+                    work = work.dropna(subset=[sort_c], how="all")
+                    work = work.sort_values(sort_c, ascending=False).head(heat_top_n)
+
+                    fig_hm = None
+                    if plot_district_heatmap_matrix is not None:
+                        fig_hm = plot_district_heatmap_matrix(
+                            work,
+                            value_cols=heat_cols,
+                            name_col="district",
+                            title="District × metric heat map (z-score)",
+                            top_n=heat_top_n,
+                        )
+                    # Fallback inline heatmap if helper fails
+                    if fig_hm is None and not work.empty:
+                        mat = work.set_index("district")[heat_cols]
+                        z = (mat - mat.mean()) / mat.std(ddof=0).replace(0, 1)
+                        z = z.fillna(0)
+                        fig_hm = go.Figure(
+                            data=go.Heatmap(
+                                z=z.values,
+                                x=[c.replace("_", " ") for c in z.columns],
+                                y=list(z.index),
+                                colorscale=HEAT_DENSITY_PLOTLY,
+                                colorbar=dict(title="z-score"),
+                                hovertemplate="%{y}<br>%{x}: %{z:.2f}<extra></extra>",
+                            )
+                        )
+                        fig_hm.update_layout(
+                            title="District × metric heat map (z-score)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            font_color="#d1d5db",
+                            height=max(380, 22 * len(z)),
+                            margin=dict(l=10, r=10, t=48, b=10),
+                            yaxis=dict(autorange="reversed"),
+                        )
+                    if fig_hm is not None:
+                        # Prefer density colour scale for heat tab look
+                        try:
+                            fig_hm.update_traces(colorscale=HEAT_DENSITY_PLOTLY)
+                        except Exception:
+                            pass
+                        st.plotly_chart(fig_hm, use_container_width=True, key="tn_heatmap_matrix")
                     else:
-                        fig_solo = plot_tn_compare_districts(
-                            [pick_dist],
-                            df=_mdf,
-                            value_col=_vc,
-                            name_col=name_col,
-                            title=pick_dist,
-                            mode="carved",
-                        )
-                if fig_solo is not None:
-                    st.plotly_chart(fig_solo, use_container_width=True, key="tn_carve_solo")
-                else:
-                    st.warning(f"Could not carve **{pick_dist}** — see tables below.")
+                        st.warning("Could not build heat map.")
 
-            # Optional full heat map (collapsed for speed)
-            with st.expander("Full TN heat map (all districts · white → blue)", expanded=False):
-                if not map_df.empty and value_col:
-                    fig_map = plot_tn_choropleth(
-                        map_df,
-                        value_col=value_col,
-                        name_col=name_col,
-                        title=f"TN districts · {value_col}",
-                        color_scale=HEAT_WHITE_BLUE,
-                        colorbar_title="Value",
-                        fill_nulls_from_media=(map_source == "Media news volume"),
-                    )
-                    if fig_map is not None:
-                        st.plotly_chart(fig_map, use_container_width=True, key="tn_choropleth")
-                else:
-                    st.caption("No metric data for full heat map yet.")
+                    with st.expander("Raw values (not z-score)", expanded=False):
+                        raw = work[["district"] + heat_cols].copy()
+                        for c in heat_cols:
+                            raw[c] = pd.to_numeric(raw[c], errors="coerce").round(2)
+                        st.dataframe(raw, use_container_width=True, hide_index=True)
 
-        # --- DATA BELOW MAP: side-by-side cards + table + charts ---
-        st.markdown("#### Data below map")
-        st.caption(t("Official vs media") + " · selected district(s)")
-
-        def _render_geo_card(dist: str, *, key_suffix: str = "", accent: str | None = None) -> dict:
-            card = build_district_scorecard(
-                dist, ml_data, news_df, harvest_df, rape_2026_df, sentiment_df
-            )
-            st.markdown(f"#### {dist}")
-            if accent:
-                st.markdown(
-                    f"<div style='height:4px;width:48px;background:{accent};"
-                    f"border-radius:2px;margin:-6px 0 8px 0;'></div>",
-                    unsafe_allow_html=True,
-                )
-            mcols = st.columns(4)
-            with mcols[0]:
-                st.metric(
-                    t("Murder rate"),
-                    f"{card['murder_rate']:.2f}" if "murder_rate" in card else "—",
-                )
-            with mcols[1]:
-                st.metric(
-                    t("Rape rate"),
-                    f"{card['rape_rate']:.2f}" if "rape_rate" in card else "—",
-                )
-            with mcols[2]:
-                st.metric(
-                    t("News 90d"),
-                    f"{card['news_90d']:.1f}" if "news_90d" in card else "—",
-                )
-            with mcols[3]:
-                st.metric(
-                    "Complaints",
-                    f"{card['complaints']:.0f}" if "complaints" in card else "—",
-                )
+        # ---- TAB: SCOREBOARD ----
+        with tab_board:
             st.caption(
-                f"News rank #{card.get('news_rank', '—')} · data year {card.get('year', '—')} · "
-                f"{data_freshness_caption()}"
+                "Default sort prefers **per-lakh** metrics so large districts are not "
+                "always top just by size. Switch to raw counts if needed."
             )
-            extras = []
-            if "forecast_2026_rape" in card:
-                extras.append(f"2026 rape forecast: **{card['forecast_2026_rape']:.1f}**")
-            if card.get("risk_level"):
-                extras.append(f"Risk: **{card['risk_level']}**")
-            if "sentiment_polarity" in card:
-                extras.append(f"Sentiment: **{card['sentiment_polarity']:.2f}**")
-            if extras:
-                st.markdown(" · ".join(extras))
-            if card.get("headlines"):
-                with st.expander(t("Recent headlines") + f" · {dist}"):
-                    for hl in card["headlines"]:
-                        st.markdown(f"- {hl}")
-            drivers = explain_prediction_drivers(
-                dist, "murder_homicide_murder_rate", ml_data, news_df, harvest_df, None
+            _rank_opts = [
+                "murder_per_lakh",
+                "rape_per_lakh",
+                "news_per_lakh",
+                "complaints_per_lakh",
+                "murder_rate",
+                "rape_rate",
+                "news_90d",
+                "complaints",
+                "population_lakhs",
+            ]
+            # Keep only columns that will exist after build (allow all; empty cols sort gracefully)
+            rank_metric = st.selectbox(
+                t("Scoreboard rank by"),
+                _rank_opts,
+                index=0,
+                key="geo_rank_by",
             )
-            if drivers:
-                with st.expander(f"Why {dist} stands out"):
-                    for line in drivers[:6]:
-                        st.markdown(f"- {line}")
-            html = district_brief_html(card, drivers)
-            st.download_button(
-                f"⬇️ {t('Export brief')} · {dist}",
-                data=html.encode("utf-8"),
-                file_name=f"CRIMECAST_{dist.replace(' ', '_')}_brief.html",
-                mime="text/html",
-                key=f"geo_dl_brief_{key_suffix or dist}",
-                help="Open HTML → Ctrl+P → Save as PDF",
+            board2 = build_district_scoreboard_table(
+                ml_data, harvest_df, news_df, rape_2026_df, rank_by=rank_metric
             )
-            return card
-
-        cards: dict[str, dict] = {}
-        if comparing:
-            lc, rc = st.columns(2)
-            with lc:
-                cards[pick_dist] = _render_geo_card(
-                    pick_dist, key_suffix="a", accent=COMPARE_PALETTE[0]
-                )
-            with rc:
-                cards[pick_cmp] = _render_geo_card(
-                    pick_cmp, key_suffix="b", accent=COMPARE_PALETTE[1]
-                )
-        else:
-            cards[pick_dist] = _render_geo_card(
-                pick_dist, key_suffix="solo", accent=COMPARE_PALETTE[0]
-            )
-
-        # Side-by-side metrics table + bar chart when comparing
-        if comparing and pick_dist in cards and pick_cmp in cards:
-            c1, c2 = cards[pick_dist], cards[pick_cmp]
-            rows = []
-            chart_rows = []
-            for k, label in [
-                ("murder_rate", "Murder rate"),
-                ("rape_rate", "Rape rate"),
-                ("news_90d", "News 90d"),
-                ("complaints", "Complaints"),
-                ("murder_incidence", "Murder incidence"),
-                ("rape_incidents", "Rape incidents"),
-                ("forecast_2026_rape", "2026 rape forecast"),
-                ("sentiment_polarity", "Sentiment polarity"),
-            ]:
-                if k in c1 or k in c2:
-                    v1, v2 = c1.get(k, "—"), c2.get(k, "—")
-                    rows.append({"Metric": label, pick_dist: v1, pick_cmp: v2})
-                    try:
-                        f1 = float(v1) if v1 is not None and v1 != "—" else None
-                        f2 = float(v2) if v2 is not None and v2 != "—" else None
-                    except Exception:
-                        f1 = f2 = None
-                    if f1 is not None:
-                        chart_rows.append({"Metric": label, "District": pick_dist, "Value": f1})
-                    if f2 is not None:
-                        chart_rows.append({"Metric": label, "District": pick_cmp, "Value": f2})
-            if rows:
-                st.markdown(f"##### Side-by-side · {pick_dist} vs {pick_cmp}")
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            if chart_rows:
-                fig_bars = px.bar(
-                    pd.DataFrame(chart_rows),
-                    x="Metric",
-                    y="Value",
-                    color="District",
-                    barmode="group",
-                    title=f"{pick_dist} vs {pick_cmp}",
-                    template="plotly_dark",
-                    color_discrete_map={
-                        pick_dist: COMPARE_PALETTE[0],
-                        pick_cmp: COMPARE_PALETTE[1],
-                    },
-                )
-                fig_bars.update_layout(
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="#0e0e12",
-                    height=380,
-                    legend_title_text="",
-                )
-                st.plotly_chart(fig_bars, use_container_width=True, key="geo_compare_bars")
-
-            # Multi-year murder rate history for the pair
-            if not ml_data.empty and "murder_homicide_murder_rate" in ml_data.columns:
-                pair_cf = {pick_dist.casefold(), pick_cmp.casefold()}
-                hist = ml_data[
-                    ml_data["district_city"].astype(str).str.casefold().isin(pair_cf)
-                    & ml_data["year"].notna()
-                ].copy()
-                # Also match partial names (Chennai City, etc.)
-                if hist.empty:
-                    hist = ml_data[
-                        ml_data["district_city"].astype(str).str.casefold().str.contains(
-                            pick_dist.casefold()[:6], na=False
-                        )
-                        | ml_data["district_city"].astype(str).str.casefold().str.contains(
-                            pick_cmp.casefold()[:6], na=False
-                        )
-                    ].copy()
-                if not hist.empty:
-                    hist["murder_homicide_murder_rate"] = pd.to_numeric(
-                        hist["murder_homicide_murder_rate"], errors="coerce"
-                    )
-                    fig_h = px.line(
-                        hist.sort_values("year"),
-                        x="year",
-                        y="murder_homicide_murder_rate",
-                        color="district_city",
-                        markers=True,
-                        title=f"Murder rate over years · {pick_dist} vs {pick_cmp}",
-                        template="plotly_dark",
-                        color_discrete_sequence=COMPARE_PALETTE[:2],
-                    )
-                    fig_h.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="#0e0e12",
-                        height=320,
-                    )
-                    st.plotly_chart(fig_h, use_container_width=True, key="geo_compare_murder_hist")
-
-        # Scoreboard + ranking (filtered to selection first)
-        st.markdown(f"##### Scoreboard · high → low · {rank_metric}")
-        left, right = st.columns([1.2, 1], gap="medium")
-        with left:
-            if not map_df.empty and value_col:
-                # When comparing, put selected districts on the ranking bar chart
-                plot_rank = map_df.copy()
-                if comparing and name_col in plot_rank.columns:
-                    sel_cf = {d.casefold() for d in selected_districts}
-                    plot_rank["_sel"] = plot_rank[name_col].astype(str).str.casefold().isin(sel_cf)
-                    # Show top 18 + always include selected
-                    top = plot_rank.nlargest(18, value_col) if value_col in plot_rank.columns else plot_rank
-                    extra = plot_rank[plot_rank["_sel"]]
-                    plot_rank = pd.concat([top, extra]).drop_duplicates(subset=[name_col])
-                fig = px.bar(
-                    plot_rank.sort_values(value_col, ascending=True).tail(20),
-                    x=value_col,
-                    y=name_col,
-                    orientation="h",
-                    color=value_col,
-                    color_continuous_scale=HEAT_WHITE_BLUE,
-                    template="plotly_dark",
-                    title="District ranking (high → low)",
-                )
-                fig.update_layout(
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="#0e0e12",
-                    height=420,
-                )
-                st.plotly_chart(fig, use_container_width=True, key="geo_fallback_bar")
-        with right:
-            if not board.empty:
-                show_b = board.copy()
-                # Pin selected districts to the top of the table for visibility
-                if selected_districts:
-                    sel_cf = {d.casefold() for d in selected_districts}
-                    show_b["_pin"] = show_b["district"].astype(str).str.casefold().isin(sel_cf)
-                    show_b = show_b.sort_values(
-                        ["_pin", "rank"] if "rank" in show_b.columns else ["_pin"],
-                        ascending=[False, True],
-                    ).drop(columns=["_pin"], errors="ignore")
+            if board2.empty:
+                st.info("No scoreboard rows yet.")
+            else:
+                show_b = board2.copy()
                 for c in show_b.select_dtypes(include=[np.number]).columns:
                     if c != "rank":
                         show_b[c] = pd.to_numeric(show_b[c], errors="coerce").round(2)
-                st.dataframe(show_b.head(25), use_container_width=True, hide_index=True)
-                heat_col = rank_metric if rank_metric in board.columns else "news_90d"
-                if heat_col in board.columns:
-                    render_district_heat(
-                        board,
-                        heat_col,
+                # Compact columns
+                prefer_cols = [
+                    c
+                    for c in (
+                        "rank",
                         "district",
-                        "risk_level" if "risk_level" in board.columns else None,
-                        top_n=15,
+                        "population_lakhs",
+                        rank_metric,
+                        "murder_rate",
+                        "rape_rate",
+                        "news_90d",
                     )
-            elif not map_df.empty and value_col:
-                lcol = "risk_level" if "risk_level" in map_df.columns else None
-                render_district_heat(map_df, value_col, name_col, lcol, top_n=18)
-
-        # Official vs media for focus (+ compare if set)
-        st.markdown(f"### {t('Official vs media')} · before/after view")
-        if comparing:
-            oc1, oc2 = st.columns(2)
-            with oc1:
-                fig_om = plot_official_vs_news_chart(pick_dist, ml_data, harvest_df, news_df)
-                if fig_om is not None:
-                    st.plotly_chart(fig_om, use_container_width=True, key="geo_official_vs_news_a")
-                else:
-                    st.caption(f"No official/news chart yet for {pick_dist}.")
-            with oc2:
-                fig_om2 = plot_official_vs_news_chart(pick_cmp, ml_data, harvest_df, news_df)
-                if fig_om2 is not None:
-                    st.plotly_chart(fig_om2, use_container_width=True, key="geo_official_vs_news_b")
-                else:
-                    st.caption(f"No official/news chart yet for {pick_cmp}.")
-        else:
-            fig_om = plot_official_vs_news_chart(pick_dist, ml_data, harvest_df, news_df)
-            if fig_om is not None:
-                st.plotly_chart(fig_om, use_container_width=True, key="geo_official_vs_news")
-                st.caption(
-                    "Official rates and news heat use **different units** — hybrid story, not equal numbers."
+                    if c in show_b.columns
+                ]
+                # unique preserve order
+                seen = set()
+                cols = []
+                for c in prefer_cols:
+                    if c not in seen:
+                        cols.append(c)
+                        seen.add(c)
+                st.dataframe(
+                    show_b[cols].head(30),
+                    use_container_width=True,
+                    hide_index=True,
                 )
-            else:
-                st.caption("Not enough official/news metrics for this district yet.")
+                if rank_metric in board2.columns:
+                    top = board2.dropna(subset=[rank_metric]).head(12)
+                    if not top.empty:
+                        fig_b = px.bar(
+                            top.sort_values(rank_metric, ascending=True),
+                            x=rank_metric,
+                            y="district",
+                            orientation="h",
+                            template="plotly_dark",
+                            color=rank_metric,
+                            color_continuous_scale=HEAT_DENSITY,
+                        )
+                        fig_b.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=380,
+                            showlegend=False,
+                        )
+                        st.plotly_chart(fig_b, use_container_width=True, key="geo_board_bars")
 
     # ============ MAKE PREDICTION ============
     elif page == "🔮 Predict":
@@ -4074,16 +4661,21 @@ def main():
                 "Year", min_value=2022, max_value=2030, value=2026, step=1, key="pred_year"
             )
 
-        run_map = st.checkbox("Build interactive map for all districts", value=True, key="pred_map_all")
-        max_map_n = st.slider("Max districts on map", 10, 60, 40, 5, key="pred_map_n") if run_map else 0
+        run_map = st.checkbox(
+            "Populate all-district prediction map (TN38)",
+            value=True,
+            key="pred_map_all",
+            help="Runs model for every district and colours the map (no news fill).",
+        )
+        max_map_n = st.slider("Max districts on map", 10, 40, 38, 1, key="pred_map_n") if run_map else 38
 
-        if st.button("🚀 Predict", type="primary", key="pred_run"):
-            with st.spinner("Running prediction…"):
+        if st.button("🚀 Predict & populate map", type="primary", key="pred_run"):
+            with st.spinner("Running prediction for focus district…"):
                 try:
                     preds = predict_many(area=area, targets=[target], year=int(year))
                     if not preds.empty:
                         row = preds.iloc[0]
-                        st.success("Prediction complete")
+                        st.success("Focus district prediction complete")
                         m1, m2, m3 = st.columns(3)
                         with m1:
                             st.metric("Predicted value", f"{float(row['prediction']):.2f}")
@@ -4124,67 +4716,101 @@ def main():
                             "value": float(row["prediction"]),
                         }
                     else:
-                        st.error("No prediction returned.")
+                        st.error("No prediction returned for focus district.")
                 except Exception as e:
                     st.error(f"Prediction failed: {e}")
                     st.info("Run full pipeline (python app.py option 1) if models are missing.")
 
-            if run_map and not ml_data.empty:
-                with st.spinner("Predicting all districts for map…"):
-                    map_rows = []
-                    areas_all = sorted(ml_data["district_city"].dropna().astype(str).unique().tolist())[
-                        :max_map_n
-                    ]
-                    for dist in areas_all:
+            if run_map:
+                with st.spinner("Populating predictions for all TN districts…"):
+                    try:
+                        from predict import populate_all_district_predictions
+
+                        map_pred = populate_all_district_predictions(
+                            target, int(year), max_districts=int(max_map_n)
+                        )
+                    except Exception as e:
+                        st.warning(f"Bulk populate helper failed ({e}); using per-district loop.")
+                        map_pred = pd.DataFrame()
                         try:
-                            r = predict_for_area(target, dist, year=int(year))
-                            if isinstance(r, dict):
-                                val = r.get("prediction", r.get("blended", r.get("value")))
-                            elif hasattr(r, "iloc"):
-                                val = r.iloc[0].get("prediction") if len(r) else None
-                            else:
-                                val = r
-                            if val is not None and pd.notna(val):
-                                map_rows.append({
-                                    "district": dist,
-                                    "prediction": float(val),
-                                })
+                            from district_entities import TN38
+                            areas_all = list(TN38)[:max_map_n]
                         except Exception:
-                            # Fallback: latest official rate from ML data
-                            latest = _latest_ml_by_district(ml_data)
-                            m = latest[
-                                latest["district_city"].astype(str).str.casefold()
-                                == dist.casefold()
-                            ]
-                            if not m.empty and target in m.columns:
-                                try:
-                                    map_rows.append({
-                                        "district": dist,
-                                        "prediction": float(m.iloc[0][target]),
-                                    })
-                                except Exception:
-                                    pass
-                    map_pred = pd.DataFrame(map_rows)
-                    if not map_pred.empty:
-                        st.markdown(f"### TN map · {selected_target_label} · {int(year)}")
-                        fig_pm = plot_tn_choropleth(
-                            map_pred,
-                            value_col="prediction",
-                            name_col="district",
-                            title=f"{selected_target_label} · {int(year)}",
-                            fill_nulls_from_media=False,
-                            color_scale=HEAT_WHITE_BLUE,
-                            colorbar_title="Predicted",
-                        )
-                        if fig_pm is not None:
-                            st.plotly_chart(fig_pm, use_container_width=True, key="pred_tn_map")
-                        st.dataframe(
-                            map_pred.sort_values("prediction", ascending=False),
-                            use_container_width=True,
-                            hide_index=True,
-                        )
-                    else:
-                        st.warning("Could not build district map predictions.")
+                            areas_all = sorted(
+                                ml_data["district_city"].dropna().astype(str).unique().tolist()
+                            )[:max_map_n]
+                        rows = []
+                        for dist in areas_all:
+                            try:
+                                r = predict_for_area(target, dist, year=int(year))
+                                rows.append({
+                                    "district": r.get("area", dist),
+                                    "prediction": float(r["prediction"]),
+                                    "source": "model",
+                                })
+                            except Exception:
+                                latest = _latest_ml_by_district(ml_data)
+                                if not latest.empty and target in latest.columns:
+                                    m = latest[
+                                        latest["district_city"].astype(str).str.casefold()
+                                        == str(dist).casefold()
+                                    ]
+                                    if not m.empty and pd.notna(m.iloc[0][target]):
+                                        rows.append({
+                                            "district": dist,
+                                            "prediction": float(m.iloc[0][target]),
+                                            "source": "official_history",
+                                        })
+                        map_pred = pd.DataFrame(rows)
+
+                if not map_pred.empty:
+                    st.session_state["pred_map_df"] = map_pred
+                    st.session_state["pred_map_meta"] = {
+                        "label": selected_target_label,
+                        "year": int(year),
+                        "target": target,
+                    }
+                    n_model = int((map_pred.get("source") == "model").sum()) if "source" in map_pred.columns else len(map_pred)
+                    st.success(
+                        f"Populated **{len(map_pred)}** districts "
+                        f"({n_model} from model; rest official/median fallback)."
+                    )
+                else:
+                    st.warning("Could not populate any district predictions.")
+
+        # Always show last populated map if present
+        map_pred = st.session_state.get("pred_map_df")
+        meta = st.session_state.get("pred_map_meta") or {}
+        if map_pred is not None and isinstance(map_pred, pd.DataFrame) and not map_pred.empty:
+            lab = meta.get("label", selected_target_label)
+            yr = meta.get("year", year)
+            st.markdown(f"### TN prediction map · {lab} · {yr}")
+            st.caption(
+                "Colours = **prediction values only** (model, or official history / median if model fails). "
+                "**No news fill.**"
+            )
+            fig_pm = plot_tn_choropleth(
+                map_pred,
+                value_col="prediction",
+                name_col="district",
+                title=f"Predicted {lab} · {yr}",
+                fill_nulls_from_media=False,
+                color_scale=HEAT_WHITE_BLUE,
+                colorbar_title="Predicted",
+            )
+            if fig_pm is not None:
+                st.plotly_chart(fig_pm, use_container_width=True, key="pred_tn_map")
+            show = map_pred.copy()
+            if "prediction" in show.columns:
+                show = show.sort_values("prediction", ascending=False)
+            st.dataframe(show, use_container_width=True, hide_index=True)
+            st.download_button(
+                "⬇️ Download populated predictions CSV",
+                data=show.to_csv(index=False).encode("utf-8"),
+                file_name=f"predictions_{meta.get('target', target)}_{yr}.csv",
+                mime="text/csv",
+                key="pred_dl_csv",
+            )
 
     # ============ SENTIMENT ANALYSIS (news → score → TN map) ============
     elif page == "💬 Sentiment":
@@ -4207,7 +4833,8 @@ def main():
 
         st.caption(
             "Uses **media harvest / news** → DistilBERT/lexicon sentiment → district **concern score** "
-            "on the TN map (white = lower concern → blue = higher). Scores cached in **SQLite**."
+            "on the TN map (white = lower concern → blue = higher). "
+            "**Word clouds** per district below. Scores cached in **SQLite**."
         )
 
         sc1, sc2, sc3 = st.columns([1, 1, 2])
@@ -4254,7 +4881,29 @@ def main():
                 dist_sent = st.session_state.get("sent_dist", dist_sent)
                 scored_hl = st.session_state.get("sent_hl", scored_hl)
 
-        # Metrics strip
+        # Metrics strip — TN38 districts only (drop junk / Other / City duplicates)
+        if not dist_sent.empty and "district" in dist_sent.columns:
+            try:
+                from district_entities import to_tn38, TN38
+
+                dist_sent = dist_sent.copy()
+                dist_sent["district"] = dist_sent["district"].map(
+                    lambda x: to_tn38(str(x), default=None)
+                )
+                dist_sent = dist_sent[dist_sent["district"].notna()]
+                if not dist_sent.empty and dist_sent["district"].duplicated().any():
+                    num_cols = [
+                        c
+                        for c in dist_sent.columns
+                        if c != "district" and pd.api.types.is_numeric_dtype(dist_sent[c])
+                    ]
+                    agg = {c: ("sum" if c == "n_headlines" else "mean") for c in num_cols}
+                    dist_sent = dist_sent.groupby("district", as_index=False).agg(agg)
+                if TN38:
+                    dist_sent = dist_sent[dist_sent["district"].isin(TN38)]
+            except Exception:
+                pass
+
         if not dist_sent.empty:
             m1, m2, m3, m4 = st.columns(4)
             with m1:
@@ -4265,7 +4914,10 @@ def main():
                 avg_pol = float(dist_sent["polarity_mean"].mean()) if "polarity_mean" in dist_sent.columns else 0
                 st.metric("Avg polarity", f"{avg_pol:.3f}")
             with m4:
-                top = dist_sent.iloc[0]
+                top = dist_sent.sort_values(
+                    "concern_score" if "concern_score" in dist_sent.columns else dist_sent.columns[0],
+                    ascending=False,
+                ).iloc[0]
                 st.metric("Highest concern", str(top.get("district", "—")))
 
             map_metric = st.radio(
@@ -4387,6 +5039,114 @@ def main():
                 "No scored news yet. Click **🔄** to refresh media, then **Score news → map**."
             )
 
+        # ---- Word clouds (per district) inside Sentiment ----
+        st.markdown("---")
+        st.markdown("### ☁️ Word clouds by district")
+        st.caption(
+            "Terms from media harvest / scored headlines. "
+            "Image cloud needs `pip install wordcloud`; frequency bars always work."
+        )
+        try:
+            from sentiment_wordclouds import (
+                collect_district_texts,
+                district_list,
+                word_freq_for_district,
+                freq_dataframe,
+                make_wordcloud_image,
+            )
+
+            _hl_for_wc = locals().get("scored_hl")
+            if not isinstance(_hl_for_wc, pd.DataFrame) or _hl_for_wc.empty:
+                _hl_for_wc = st.session_state.get("sent_hl")
+            if not isinstance(_hl_for_wc, pd.DataFrame):
+                _hl_for_wc = pd.DataFrame()
+
+            texts_df = collect_district_texts(harvest_df, news_df, _hl_for_wc)
+            wc_dists = district_list(texts_df)
+            if not texts_df.empty and wc_dists:
+                # Default to district selected above (if any)
+                focus = st.session_state.get("sent_pick_district") or "All districts"
+                default_wc = 0
+                if focus and str(focus) != "All districts":
+                    for i, d in enumerate(wc_dists):
+                        if str(d).casefold() == str(focus).casefold():
+                            default_wc = i
+                            break
+                wc1, wc2 = st.columns([2, 1])
+                with wc1:
+                    wc_dist = st.selectbox(
+                        "Word cloud district",
+                        wc_dists,
+                        index=min(default_wc, max(0, len(wc_dists) - 1)),
+                        key="sent_wc_district",
+                    )
+                with wc2:
+                    wc_topn = st.slider("Top words", 15, 80, 40, key="sent_wc_topn")
+
+                ctr = word_freq_for_district(texts_df, wc_dist, top_n=wc_topn + 20)
+                n_rows = int(
+                    (texts_df["district"].astype(str).str.casefold() == str(wc_dist).casefold()).sum()
+                )
+                st.caption(
+                    f"**{wc_dist}** · {n_rows} text rows · "
+                    f"{sum(ctr.values()) if ctr else 0} tokens"
+                )
+                if not ctr:
+                    st.info(
+                        f"No tokens for **{wc_dist}**. Refresh news or pick a district with headlines."
+                    )
+                else:
+                    img = make_wordcloud_image(ctr)
+                    wca, wcb = st.columns([1.25, 1])
+                    with wca:
+                        if img is not None:
+                            st.image(
+                                img,
+                                use_container_width=True,
+                                caption=f"Word cloud · {wc_dist}",
+                            )
+                        else:
+                            st.caption("Install `wordcloud` for image cloud · showing bars.")
+                        fdf = freq_dataframe(ctr, top_n=wc_topn)
+                        if not fdf.empty:
+                            fig_wc = px.bar(
+                                fdf.sort_values("count", ascending=True),
+                                x="count",
+                                y="word",
+                                orientation="h",
+                                template="plotly_dark",
+                                color="count",
+                                color_continuous_scale="Blues",
+                                title=f"Top terms · {wc_dist}",
+                            )
+                            fig_wc.update_layout(
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="#0e0e12",
+                                height=min(520, 22 * len(fdf) + 90),
+                                showlegend=False,
+                                margin=dict(l=8, r=8, t=40, b=8),
+                            )
+                            st.plotly_chart(
+                                fig_wc, use_container_width=True, key="sent_wc_bar"
+                            )
+                    with wcb:
+                        fdf = freq_dataframe(ctr, top_n=min(30, wc_topn))
+                        st.dataframe(fdf, use_container_width=True, hide_index=True)
+                        st.download_button(
+                            "Download word freqs CSV",
+                            fdf.to_csv(index=False).encode("utf-8"),
+                            f"sentiment_words_{str(wc_dist).replace(' ', '_')}.csv",
+                            "text/csv",
+                            key="sent_wc_dl",
+                        )
+            else:
+                st.info(
+                    "No district-linked headlines for word clouds yet. "
+                    "Click **🔄** to refresh news, then re-open Sentiment."
+                )
+        except Exception as e:
+            st.warning(f"Word cloud section unavailable: {e}")
+
         try:
             from db import db_status
 
@@ -4394,35 +5154,76 @@ def main():
         except Exception:
             pass
 
-    # ============ 2026 FORECASTS ============
+    # ============ 2026 FORECASTS (multi-target · method toggle) ============
     elif page == "📅 2026 Forecasts":
         from tn_map import plot_tn_choropleth, HEAT_WHITE_BLUE
 
-        ops_topbar(f"{t('2026 Forecasts')} — rape trend · interactive TN map")
+        ops_topbar(f"{t('2026 Forecasts')} — multi-target · method toggle · TN map")
         st.warning(
             f"**{t('Scenario only')}** — model/trend estimate for discussion. "
             "Not an official SCRB forecast and not a fact about future crime."
         )
         st.caption(
-            "District-level Section 376 scenario map · white → blue. "
+            "TN **38 districts** · **rape / murder / complaints** · methods: "
+            "**linear · last year · blend** · map = forecast only (no news fill). "
             f"{data_freshness_caption()}"
         )
 
-        if st.button("Generate / Refresh 2026 Forecasts · புதுப்பி", type="primary"):
-            with st.spinner("Running 2026 prediction (trend engine, no sklearn)..."):
+        try:
+            from forecast_engine import FORECAST_TARGETS, METHODS, forecast_districts
+        except Exception:
+            FORECAST_TARGETS = {
+                "rape_incidents": {"label": "Rape incidents (Sec 376)"},
+            }
+            METHODS = ("linear", "last_year", "blend")
+            forecast_districts = None  # type: ignore
+
+        tgt_keys = list(FORECAST_TARGETS.keys())
+        fc1, fc2, fc3 = st.columns(3)
+        with fc1:
+            f_tgt = st.selectbox(
+                "Forecast target",
+                tgt_keys,
+                format_func=lambda k: FORECAST_TARGETS[k].get("label", k),
+                key="f2026_target",
+            )
+        with fc2:
+            f_method = st.selectbox(
+                "Method",
+                list(METHODS),
+                format_func=lambda m: {
+                    "linear": "Linear trend",
+                    "last_year": "Last year carry",
+                    "blend": "Blend 50/50",
+                }.get(m, m),
+                key="f2026_method",
+            )
+        with fc3:
+            f_year = st.number_input(
+                "Horizon year", min_value=2024, max_value=2030, value=2026, key="f2026_year"
+            )
+
+        if st.button("Generate / Refresh Forecasts ", type="primary", key="f2026_gen"):
+            with st.spinner(f"Running {f_method} forecast · {f_tgt} · TN38…"):
                 preds = None
                 err_msg = None
                 try:
-                    predict_2026, generate_report = get_2026_functions()
-                    if predict_2026:
-                        preds = predict_2026()
-                        if generate_report is not None:
-                            try:
-                                generate_report(preds)
-                            except Exception:
-                                pass
+                    if forecast_districts is not None:
+                        preds = forecast_districts(
+                            f_tgt, method=f_method, target_year=int(f_year), save=True
+                        )
                     else:
-                        err_msg = "Could not import predict_2026_rape_all_districts"
+                        # Fallback rape-only engine
+                        predict_2026, generate_report = get_2026_functions()
+                        if predict_2026 and f_tgt == "rape_incidents":
+                            preds = predict_2026()
+                            if generate_report:
+                                try:
+                                    generate_report(preds)
+                                except Exception:
+                                    pass
+                        else:
+                            err_msg = "forecast_engine unavailable"
                 except Exception as e:
                     err_msg = str(e)
 
@@ -4433,149 +5234,1034 @@ def main():
                         preds = None
 
                 if preds is None or getattr(preds, "empty", True):
-                    csv_path = Path("model_outputs") / "rape_predictions_2026_all_districts.csv"
-                    if csv_path.exists():
-                        preds = pd.read_csv(csv_path)
-                        st.warning(
-                            "Live recompute had an issue; showing saved forecasts. "
-                            f"({err_msg})" if err_msg else "Showing saved forecasts."
-                        )
-                    else:
+                    # Fallback CSV by target
+                    candidates = [
+                        OUTPUT_DIR / "rape_predictions_2026_all_districts.csv",
+                        OUTPUT_DIR / f"forecast_{int(f_year)}_{f_tgt}.csv",
+                    ]
+                    try:
+                        from forecast_engine import FORECAST_TARGETS as _FT
+
+                        candidates.insert(0, OUTPUT_DIR / _FT[f_tgt]["out_csv"])
+                    except Exception:
+                        pass
+                    for csv_path in candidates:
+                        if csv_path.exists():
+                            preds = pd.read_csv(csv_path)
+                            st.warning(
+                                f"Using saved `{csv_path.name}`. "
+                                f"({err_msg})" if err_msg else ""
+                            )
+                            break
+                    if preds is None or getattr(preds, "empty", True):
                         st.error(
-                            f"Could not generate forecasts. {err_msg or ''}\n"
-                            "Run: python predict_2026_rape_all_districts.py"
+                            f"Could not generate. {err_msg or ''}\n"
+                            "Check fitted_predictions.csv / run train pipeline."
                         )
                         preds = None
 
                 if preds is not None and not preds.empty:
-                    st.success(f"Forecasts ready for {len(preds)} districts/areas")
+                    # Ensure map column
+                    if (
+                        "predicted_2026_rape_incidents" not in preds.columns
+                        and "predicted_value" in preds.columns
+                    ):
+                        preds = preds.copy()
+                        preds["predicted_2026_rape_incidents"] = preds["predicted_value"]
+                    preds = normalize_2026_forecast_df(preds)
+                    # After normalize, re-attach predicted_value if only rape col remains
+                    if "predicted_value" not in preds.columns and "predicted_2026_rape_incidents" in preds.columns:
+                        preds["predicted_value"] = preds["predicted_2026_rape_incidents"]
+                    n_hi = int(
+                        (preds.get("risk_level", pd.Series(dtype=str)).astype(str) == "HIGH").sum()
+                    ) if "risk_level" in preds.columns else 0
+                    st.success(
+                        f"**{FORECAST_TARGETS.get(f_tgt, {}).get('label', f_tgt)}** · "
+                        f"**{f_method}** · **{len(preds)}** districts · {n_hi} HIGH"
+                    )
                     rape_2026_df = preds
+                    st.session_state["f2026_df"] = preds
+                    st.session_state["f2026_meta"] = {
+                        "target": f_tgt,
+                        "method": f_method,
+                        "year": int(f_year),
+                    }
+                    try:
+                        load_rape_2026.clear()
+                    except Exception:
+                        pass
                     try:
                         from db import save_rape_2026
 
-                        save_rape_2026(preds)
+                        if f_tgt == "rape_incidents":
+                            save_rape_2026(preds)
                     except Exception:
                         pass
 
+        # Prefer session data; always normalize for map (TN38, no cities/junk)
+        if "f2026_df" in st.session_state and isinstance(st.session_state["f2026_df"], pd.DataFrame):
+            if not st.session_state["f2026_df"].empty:
+                rape_2026_df = st.session_state["f2026_df"]
         if not rape_2026_df.empty:
-            rnc = "district" if "district" in rape_2026_df.columns else "district_city"
-            map_metric_2026 = st.radio(
-                "Map metric",
-                [
+            rape_2026_df = normalize_2026_forecast_df(rape_2026_df)
+            if "predicted_value" not in rape_2026_df.columns and "predicted_2026_rape_incidents" in rape_2026_df.columns:
+                rape_2026_df = rape_2026_df.copy()
+                rape_2026_df["predicted_value"] = rape_2026_df["predicted_2026_rape_incidents"]
+            st.session_state["f2026_df"] = rape_2026_df
+
+        meta_f = st.session_state.get("f2026_meta") or {}
+        if meta_f:
+            st.caption(
+                f"Showing: **{meta_f.get('target', '—')}** · method **{meta_f.get('method', '—')}** · "
+                f"year **{meta_f.get('year', 2026)}**"
+            )
+
+        if not rape_2026_df.empty:
+            rnc = "district"
+            if rnc not in rape_2026_df.columns:
+                rnc = "district_city" if "district_city" in rape_2026_df.columns else rape_2026_df.columns[0]
+
+            metric_opts = [
+                c
+                for c in (
+                    "predicted_value",
+                    "predicted_2026_rape_incidents",
+                    "rape_risk_index",
+                    "pred_high",
+                    "pred_low",
+                )
+                if c in rape_2026_df.columns
+            ] or [
+                c for c in rape_2026_df.select_dtypes(include=[np.number]).columns
+                if c != "rank"
+            ][:3]
+
+            if not metric_opts:
+                st.warning("Forecast table has no numeric columns to map.")
+            else:
+                map_metric_2026 = st.radio(
+                    "Map metric",
+                    metric_opts,
+                    horizontal=True,
+                    key="f2026_map_metric",
+                )
+
+                n_filled = int(
+                    pd.to_numeric(rape_2026_df[map_metric_2026], errors="coerce").notna().sum()
+                )
+
+                with left:
+                    with st.spinner("Building 2026 TN map…"):
+                        fig_26 = plot_tn_choropleth(
+                            rape_2026_df,
+                            value_col=map_metric_2026,
+                            name_col=rnc,
+                            title=f"2026 forecast · {map_metric_2026}",
+                            fill_nulls_from_media=False,  # never paint news on forecast map
+                            color_scale=HEAT_WHITE_BLUE,
+                            colorbar_title="Forecast",
+                        )
+                    if fig_26 is not None:
+                        st.plotly_chart(fig_26, use_container_width=True, key="f2026_tn_map")
+                    else:
+                        st.warning("Map GeoJSON unavailable — ranking bars.")
+                        fig_b = px.bar(
+                            rape_2026_df.dropna(subset=[map_metric_2026])
+                            .sort_values(map_metric_2026, ascending=True)
+                            .tail(20),
+                            x=map_metric_2026,
+                            y=rnc,
+                            orientation="h",
+                            color=map_metric_2026,
+                            color_continuous_scale=HEAT_WHITE_BLUE,
+                            template="plotly_dark",
+                        )
+                        fig_b.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=480,
+                        )
+                        st.plotly_chart(fig_b, use_container_width=True, key="f2026_bar_fallback")
+                with right:
+                    st.markdown("**High → low ranking**")
+                    ranked = rape_2026_df.sort_values(
+                        map_metric_2026, ascending=False, na_position="last"
+                    )
+                    render_district_heat(
+                        ranked.dropna(subset=[map_metric_2026]),
+                        map_metric_2026,
+                        rnc,
+                        "risk_level" if "risk_level" in ranked.columns else None,
+                        top_n=18,
+                    )
+
+                # District picker for detail
+                dopts = ranked[rnc].dropna().astype(str).tolist()
+                pick_f = st.selectbox("District detail", dopts, key="f2026_pick_dist")
+                detail = ranked[ranked[rnc].astype(str) == pick_f]
+                if not detail.empty:
+                    st.dataframe(detail, use_container_width=True, hide_index=True)
+
+                show_cols = [
                     c
                     for c in (
-                        "predicted_2026_rape_incidents",
-                        "rape_risk_index",
-                        "pred_high",
+                        "rank", "district", "pred_low", "predicted_2026_rape_incidents", "pred_high",
+                        "uncertainty_width", "rape_risk_index", "risk_level", "confidence", "method",
                     )
                     if c in rape_2026_df.columns
                 ]
-                or [c for c in rape_2026_df.select_dtypes(include=[np.number]).columns][:3],
-                horizontal=True,
-                key="f2026_map_metric",
+                st.markdown("### Full table (high → low · TN38)")
+                st.dataframe(
+                    ranked[show_cols] if show_cols else ranked,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+                st.download_button(
+                    "Download CSV",
+                    rape_2026_df.to_csv(index=False).encode("utf-8"),
+                    "rape_2026_predictions.csv",
+                    "text/csv",
+                    key="f2026_dl",
+                )
+
+                mid_col = (
+                    "predicted_value"
+                    if "predicted_value" in rape_2026_df.columns
+                    else (
+                        "predicted_2026_rape_incidents"
+                        if "predicted_2026_rape_incidents" in rape_2026_df.columns
+                        else None
+                    )
+                )
+                if mid_col and {"pred_low", "pred_high", rnc}.issubset(set(rape_2026_df.columns)):
+                    st.markdown("#### Uncertainty bands (top 15)")
+                    top = ranked.dropna(subset=[mid_col]).head(15).copy()
+                    if not top.empty:
+                        top["err_minus"] = (top[mid_col] - top["pred_low"]).clip(lower=0)
+                        top["err_plus"] = (top["pred_high"] - top[mid_col]).clip(lower=0)
+                        fig_u = go.Figure()
+                        fig_u.add_trace(
+                            go.Bar(
+                                name="forecast mid",
+                                x=top[rnc],
+                                y=top[mid_col],
+                                error_y=dict(
+                                    type="data",
+                                    symmetric=False,
+                                    array=top["err_plus"],
+                                    arrayminus=top["err_minus"],
+                                    color="#38bdf8",
+                                ),
+                                marker_color="#0284c7",
+                            )
+                        )
+                        fig_u.update_layout(
+                            template="plotly_dark",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=400,
+                            title="Top 15 · forecast with uncertainty",
+                            xaxis_tickangle=-35,
+                            yaxis_title="Value",
+                            showlegend=False,
+                        )
+                        st.plotly_chart(fig_u, use_container_width=True, key="rape2026_uncertainty")
+        else:
+            st.info(
+                "No forecasts loaded yet. Click **Generate / Refresh Forecasts** "
+                "or run: `python predict_2026_rape_all_districts.py` / forecast_engine."
             )
-            left, right = st.columns([1.35, 1], gap="medium")
-            with left:
-                with st.spinner("Building 2026 TN map…"):
-                    fig_26 = plot_tn_choropleth(
-                        rape_2026_df,
-                        value_col=map_metric_2026,
-                        name_col=rnc,
-                        title=f"2026 forecast · {map_metric_2026}",
-                        fill_nulls_from_media=False,
-                        color_scale=HEAT_WHITE_BLUE,
-                        colorbar_title="Forecast",
-                    )
-                if fig_26 is not None:
-                    st.plotly_chart(fig_26, use_container_width=True, key="f2026_tn_map")
-                else:
-                    st.warning("Map GeoJSON unavailable — ranking bars.")
-                    fig_b = px.bar(
-                        rape_2026_df.sort_values(map_metric_2026, ascending=True).tail(20),
-                        x=map_metric_2026,
-                        y=rnc,
-                        orientation="h",
-                        color=map_metric_2026,
-                        color_continuous_scale=HEAT_WHITE_BLUE,
-                        template="plotly_dark",
-                    )
-                    fig_b.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="#0e0e12",
-                        height=480,
-                    )
-                    st.plotly_chart(fig_b, use_container_width=True, key="f2026_bar_fallback")
-            with right:
-                st.markdown("**High → low ranking**")
-                ranked = rape_2026_df.sort_values(
-                    map_metric_2026, ascending=False, na_position="last"
-                )
-                render_district_heat(ranked, map_metric_2026, rnc, "risk_level" if "risk_level" in ranked.columns else None, top_n=18)
 
-            # District picker for detail
-            dopts = ranked[rnc].dropna().astype(str).tolist()
-            pick_f = st.selectbox("District detail", dopts, key="f2026_pick_dist")
-            detail = ranked[ranked[rnc].astype(str) == pick_f]
-            if not detail.empty:
-                st.dataframe(detail, use_container_width=True, hide_index=True)
+    # ============ DISTRICT COMPARE (merged map carve + full metrics) ============
+    elif page == "⚖️ District Compare":
+        # Palette + carve maps (from former Map → Compare tab)
+        try:
+            import tn_map as _tn_cmp
 
-            show_cols = [
-                c
-                for c in (
-                    "rank", "district", "pred_low", "predicted_2026_rape_incidents", "pred_high",
-                    "uncertainty_width", "rape_risk_index", "risk_level", "confidence", "method",
+            COMPARE_PALETTE = getattr(
+                _tn_cmp, "COMPARE_PALETTE", ["#ef4444", "#3b82f6", "#22c55e", "#a855f7"]
+            )
+            plot_district_carved_out = getattr(_tn_cmp, "plot_district_carved_out", None)
+        except Exception:
+            COMPARE_PALETTE = ["#ef4444", "#3b82f6", "#22c55e", "#a855f7"]
+            plot_district_carved_out = None
+
+        ops_topbar(
+            f"{t('District Compare')} — carve maps · rates · per-lakh · 2026 · ML"
+        )
+        st.caption(
+            "Merged from **Map → Compare** + full scorecard. Pick **2–4** districts: "
+            "outline maps, official rates, per-lakh, news, sentiment, 2026, optional ML."
+        )
+        try:
+            from district_entities import TN38
+
+            area_opts = list(TN38)
+        except Exception:
+            area_opts = []
+            if not ml_data.empty and "district_city" in ml_data.columns:
+                area_opts = sorted(
+                    ml_data["district_city"].dropna().astype(str).unique().tolist()
                 )
-                if c in rape_2026_df.columns
+            if not area_opts and not rape_2026_df.empty:
+                ncol = "district" if "district" in rape_2026_df.columns else "district_city"
+                area_opts = sorted(rape_2026_df[ncol].dropna().astype(str).unique().tolist())
+
+        default_pick = [
+            d for d in ("Thoothukudi", "Madurai", "Chennai", "Salem") if d in area_opts
+        ][:2]
+        if len(default_pick) < 2:
+            default_pick = [d for d in ("Chennai", "Madurai", "Coimbatore") if d in area_opts][:2]
+        if not default_pick and area_opts:
+            default_pick = area_opts[:2]
+
+        picks = st.multiselect(
+            "Districts to compare (2–4)",
+            area_opts,
+            default=default_pick,
+            max_selections=4,
+            key="cmp_districts",
+        )
+        if len(picks) < 2:
+            st.info("Select at least **two** districts.")
+        else:
+            cards = [
+                build_district_scorecard(
+                    d, ml_data, news_df, harvest_df, rape_2026_df, sentiment_df
+                )
+                for d in picks
             ]
-            st.markdown("### Full table (high → low)")
-            st.dataframe(
-                ranked[show_cols] if show_cols else ranked,
-                use_container_width=True,
-                hide_index=True,
-            )
-            st.download_button(
-                "Download CSV",
-                rape_2026_df.to_csv(index=False),
-                "rape_2026_predictions.csv",
-                "text/csv",
-            )
 
-            if {"pred_low", "predicted_2026_rape_incidents", "pred_high", rnc}.issubset(
-                set(rape_2026_df.columns)
-            ):
-                st.markdown("#### Uncertainty bands (top 15)")
-                top = ranked.head(15).copy()
-                top["err_minus"] = top["predicted_2026_rape_incidents"] - top["pred_low"]
-                top["err_plus"] = top["pred_high"] - top["predicted_2026_rape_incidents"]
-                fig_u = go.Figure()
-                fig_u.add_trace(
-                    go.Bar(
-                        name="2026 mid",
-                        x=top[rnc],
-                        y=top["predicted_2026_rape_incidents"],
-                        error_y=dict(
-                            type="data",
-                            symmetric=False,
-                            array=top["err_plus"],
-                            arrayminus=top["err_minus"],
-                            color="#38bdf8",
-                        ),
-                        marker_color="#0284c7",
-                    )
+            # ---- Carved map shapes (from Map Compare) ----
+            st.markdown("### District outlines")
+            if plot_district_carved_out is not None:
+                n_map = len(picks)
+                map_cols = st.columns(n_map)
+                for i, (col, d) in enumerate(zip(map_cols, picks)):
+                    with col:
+                        color = COMPARE_PALETTE[i % len(COMPARE_PALETTE)]
+                        fig_c = plot_district_carved_out(
+                            d, color=color, title=d, height=300
+                        )
+                        if fig_c is not None:
+                            st.plotly_chart(
+                                fig_c,
+                                use_container_width=True,
+                                key=f"cmp_carve_{i}_{d}",
+                            )
+                        else:
+                            st.caption(f"Map outline unavailable for {d}")
+            else:
+                st.caption("Carved outlines unavailable (GeoJSON / tn_map helper).")
+
+            # Optional live ML predictions
+            pc1, pc2, pc3 = st.columns([1.4, 1, 1])
+            with pc1:
+                pred_target_label = st.selectbox(
+                    "ML prediction target",
+                    [
+                        "Murder rate",
+                        "Rape rate",
+                        "Rape incidents",
+                        "Murder incidence",
+                        "Total complaints",
+                        "Cognizable crime rate",
+                    ],
+                    key="cmp_pred_target",
                 )
-                fig_u.update_layout(
+            with pc2:
+                pred_year = st.number_input(
+                    "Prediction year",
+                    min_value=2022,
+                    max_value=2030,
+                    value=2026,
+                    key="cmp_pred_year",
+                )
+            with pc3:
+                st.write("")
+                st.write("")
+                run_ml = st.button("Run ML for selected", type="primary", key="cmp_run_pred")
+
+            _label_to_target = {
+                "Murder rate": "murder_homicide_murder_rate",
+                "Rape rate": "women_crimes_rape_r",
+                "Rape incidents": "women_crimes_rape_sec_376_i",
+                "Murder incidence": "murder_homicide_murder_incidence",
+                "Total complaints": "complaints_total_complaints",
+                "Cognizable crime rate": "complaints_rate_of_cognizable_crime_ipc_sll",
+            }
+            tgt = _label_to_target[pred_target_label]
+            if run_ml:
+                with st.spinner("Predicting…"):
+                    try:
+                        from predict import predict_for_area
+
+                        for i, d in enumerate(picks):
+                            try:
+                                r = predict_for_area(tgt, d, year=int(pred_year))
+                                cards[i]["ml_prediction"] = float(r["prediction"])
+                                cards[i]["ml_model_raw"] = r.get("model_raw")
+                                cards[i]["ml_history"] = r.get("history_baseline")
+                            except Exception as ex:
+                                cards[i]["ml_prediction"] = None
+                                cards[i]["ml_error"] = str(ex)
+                        st.session_state["cmp_cards"] = cards
+                        st.session_state["cmp_picks"] = picks
+                        st.session_state["cmp_target_label"] = pred_target_label
+                    except Exception as e:
+                        st.error(f"Predict failed: {e}")
+
+            if st.session_state.get("cmp_picks") == picks and st.session_state.get("cmp_cards"):
+                # Keep ML fields from session if same picks
+                saved = st.session_state["cmp_cards"]
+                if len(saved) == len(cards):
+                    for i in range(len(cards)):
+                        for k in ("ml_prediction", "ml_model_raw", "ml_history", "ml_error"):
+                            if k in saved[i]:
+                                cards[i][k] = saved[i][k]
+
+            metric_keys = [
+                ("population_lakhs", "Pop. (lakhs)"),
+                ("murder_rate", "Murder rate"),
+                ("rape_rate", "Rape rate"),
+                ("murder_per_lakh", "Murder / lakh"),
+                ("rape_per_lakh", "Rape / lakh"),
+                ("news_90d", "News 90d"),
+                ("news_per_lakh", "News / lakh"),
+                ("complaints", "Complaints"),
+                ("complaints_per_lakh", "Complaints / lakh"),
+                ("sentiment_polarity", "Sentiment polarity"),
+                ("forecast_2026_rape", "2026 rape forecast"),
+                ("rape_risk_index", "2026 risk index"),
+                ("ml_prediction", f"ML · {pred_target_label}"),
+            ]
+
+            # Side-by-side metric cards + brief download
+            st.markdown("### Side-by-side metrics")
+            cols = st.columns(len(picks))
+            for i, (col, d, card) in enumerate(zip(cols, picks, cards)):
+                with col:
+                    accent = COMPARE_PALETTE[i % len(COMPARE_PALETTE)]
+                    st.markdown(
+                        f"<div style='height:3px;width:48px;background:{accent};"
+                        f"border-radius:2px;margin:0 0 8px 0;'></div>",
+                        unsafe_allow_html=True,
+                    )
+                    risk = str(card.get("risk_level") or "—")
+                    st.markdown(f"### {d}")
+                    st.caption(f"Risk: **{risk}**")
+                    for k, lab in metric_keys:
+                        v = card.get(k)
+                        if v is None:
+                            st.metric(lab, "—")
+                        else:
+                            try:
+                                st.metric(lab, f"{float(v):.2f}")
+                            except Exception:
+                                st.metric(lab, str(v))
+                    drivers = explain_prediction_drivers(
+                        d, "murder_homicide_murder_rate", ml_data, news_df, harvest_df, None
+                    )
+                    html = district_brief_html(card, drivers)
+                    st.download_button(
+                        f"⬇️ Brief HTML · {d}",
+                        data=html.encode("utf-8"),
+                        file_name=f"CRIMECAST_{str(d).replace(' ', '_')}_brief.html",
+                        mime="text/html",
+                        key=f"cmp_dl_brief_{i}_{d}",
+                    )
+
+            # Comparison table
+            rows = []
+            for k, lab in metric_keys:
+                row = {"Metric": lab}
+                for d, card in zip(picks, cards):
+                    v = card.get(k)
+                    try:
+                        row[d] = None if v is None else float(v)
+                    except Exception:
+                        row[d] = v
+                rows.append(row)
+            cmp_df = pd.DataFrame(rows)
+            st.markdown("### Comparison table")
+            st.dataframe(cmp_df, use_container_width=True, hide_index=True)
+
+            # Grouped bars
+            chart_rows = []
+            for k, lab in metric_keys:
+                if k in ("population_lakhs",):
+                    continue
+                for d, card in zip(picks, cards):
+                    v = card.get(k)
+                    try:
+                        if v is not None and pd.notna(v):
+                            chart_rows.append(
+                                {"Metric": lab, "District": d, "Value": float(v)}
+                            )
+                    except Exception:
+                        pass
+            if chart_rows:
+                cdf = pd.DataFrame(chart_rows)
+                rate_labs = {
+                    "Murder rate",
+                    "Rape rate",
+                    "Murder / lakh",
+                    "Rape / lakh",
+                    "News / lakh",
+                    "Complaints / lakh",
+                    "Sentiment polarity",
+                    "2026 risk index",
+                }
+                fig1 = px.bar(
+                    cdf[cdf["Metric"].isin(rate_labs)],
+                    x="Metric",
+                    y="Value",
+                    color="District",
+                    barmode="group",
                     template="plotly_dark",
+                    color_discrete_sequence=COMPARE_PALETTE,
+                    title="Rates & per-lakh (side-by-side)",
+                )
+                fig1.update_layout(
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="#0e0e12",
-                    height=400,
-                    title="Top 15 · forecast with uncertainty",
-                    xaxis_tickangle=-35,
-                    yaxis_title="Incidents",
-                    showlegend=False,
+                    height=380,
                 )
-                st.plotly_chart(fig_u, use_container_width=True, key="rape2026_uncertainty")
+                st.plotly_chart(fig1, use_container_width=True, key="cmp_rates")
+                fig2 = px.bar(
+                    cdf[~cdf["Metric"].isin(rate_labs)],
+                    x="Metric",
+                    y="Value",
+                    color="District",
+                    barmode="group",
+                    template="plotly_dark",
+                    color_discrete_sequence=COMPARE_PALETTE,
+                    title="Counts & volumes (side-by-side)",
+                )
+                fig2.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="#0e0e12",
+                    height=380,
+                )
+                st.plotly_chart(fig2, use_container_width=True, key="cmp_counts")
+
+            # Murder rate history (from Map Compare)
+            if not ml_data.empty and "murder_homicide_murder_rate" in ml_data.columns:
+                st.markdown("### Murder rate over years")
+                pair_cf = {str(d).casefold() for d in picks}
+                hist = ml_data[
+                    ml_data["district_city"].astype(str).str.casefold().isin(pair_cf)
+                    & ml_data["year"].notna()
+                ].copy()
+                if not hist.empty:
+                    hist["murder_homicide_murder_rate"] = pd.to_numeric(
+                        hist["murder_homicide_murder_rate"], errors="coerce"
+                    )
+                    fig_h = px.line(
+                        hist.sort_values("year"),
+                        x="year",
+                        y="murder_homicide_murder_rate",
+                        color="district_city",
+                        markers=True,
+                        template="plotly_dark",
+                        color_discrete_sequence=COMPARE_PALETTE,
+                        title="Murder rate history (official / ML-ready rows)",
+                    )
+                    fig_h.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="#0e0e12",
+                        height=320,
+                    )
+                    st.plotly_chart(fig_h, use_container_width=True, key="cmp_murder_hist")
+                else:
+                    st.caption("No multi-year murder-rate rows for these districts.")
+
+            # Radar
+            st.markdown("### Normalized profile (0–1 within selection)")
+            radar_keys = [
+                k
+                for k, _ in metric_keys
+                if k not in ("population_lakhs", "sentiment_polarity")
+            ]
+            vals_by_key = {k: [] for k in radar_keys}
+            for card in cards:
+                for k in radar_keys:
+                    try:
+                        vals_by_key[k].append(
+                            float(card[k]) if card.get(k) is not None else np.nan
+                        )
+                    except Exception:
+                        vals_by_key[k].append(np.nan)
+            fig_r = go.Figure()
+            for d, card in zip(picks, cards):
+                rvals = []
+                labs = []
+                for k, lab in metric_keys:
+                    if k not in radar_keys:
+                        continue
+                    series = np.array(vals_by_key[k], dtype=float)
+                    lo, hi = np.nanmin(series), np.nanmax(series)
+                    try:
+                        v = float(card.get(k)) if card.get(k) is not None else np.nan
+                    except Exception:
+                        v = np.nan
+                    if np.isnan(v) or not np.isfinite(hi - lo) or hi <= lo:
+                        norm = 0.0
+                    else:
+                        norm = (v - lo) / (hi - lo)
+                    rvals.append(norm)
+                    labs.append(lab)
+                if rvals:
+                    fig_r.add_trace(
+                        go.Scatterpolar(
+                            r=rvals + [rvals[0]],
+                            theta=labs + [labs[0]],
+                            fill="toself",
+                            name=d,
+                        )
+                    )
+            fig_r.update_layout(
+                polar=dict(bgcolor="#0e0e12", radialaxis=dict(visible=True, range=[0, 1])),
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=480,
+                title="Relative profile within selection (1 = highest among picks)",
+            )
+            st.plotly_chart(fig_r, use_container_width=True, key="cmp_radar")
+
+            st.download_button(
+                "Download comparison CSV",
+                cmp_df.to_csv(index=False).encode("utf-8"),
+                "district_compare.csv",
+                "text/csv",
+                key="cmp_dl",
+            )
+
+            with st.expander("Recent headlines by district"):
+                for d, card in zip(picks, cards):
+                    st.markdown(f"**{d}**")
+                    hls = card.get("headlines") or []
+                    if hls:
+                        for h in hls[:5]:
+                            st.markdown(f"- {h}")
+                    else:
+                        st.caption("No headlines cached for this district.")
+
+    # ============ RISK EXPLAIN (SHAP / LIME) ============
+    elif page == "🔍 Risk Explain":
+        ops_topbar(
+            f"{t('Risk Explain')} — why a district has high risk (SHAP / LIME-style)"
+        )
+        st.warning(
+            "Explanations are **model-based / analytical**, not legal determinations. "
+            "SHAP uses the `shap` package when installed; otherwise a transparent proxy "
+            "and LIME-style local linear model are used."
+        )
+        try:
+            from district_entities import TN38
+
+            dist_opts = list(TN38)
+        except Exception:
+            dist_opts = sorted(
+                ml_data["district_city"].dropna().astype(str).unique().tolist()
+            ) if not ml_data.empty else ["Chennai", "Madurai", "Salem"]
+
+        # Suggest high-risk from 2026 if available
+        default_ix = 0
+        if not rape_2026_df.empty:
+            rnc = "district" if "district" in rape_2026_df.columns else "district_city"
+            mcol = (
+                "predicted_2026_rape_incidents"
+                if "predicted_2026_rape_incidents" in rape_2026_df.columns
+                else None
+            )
+            if mcol and rnc in rape_2026_df.columns:
+                top = (
+                    rape_2026_df.dropna(subset=[mcol])
+                    .sort_values(mcol, ascending=False)
+                )
+                if not top.empty:
+                    top_d = str(top.iloc[0][rnc])
+                    if top_d in dist_opts:
+                        default_ix = dist_opts.index(top_d)
+
+        c1, c2, c3 = st.columns([1.4, 1.2, 1])
+        with c1:
+            area = st.selectbox(
+                "District",
+                dist_opts,
+                index=default_ix,
+                key="explain_district",
+            )
+        with c2:
+            exp_label = st.selectbox(
+                "Model target",
+                [
+                    "Rape incidents",
+                    "Rape rate",
+                    "Murder rate",
+                    "Murder incidence",
+                    "Total complaints",
+                    "Cognizable crime rate",
+                ],
+                key="explain_target",
+            )
+        with c3:
+            exp_year = st.number_input(
+                "Year", min_value=2022, max_value=2030, value=2026, key="explain_year"
+            )
+
+        _lt = {
+            "Rape incidents": "women_crimes_rape_sec_376_i",
+            "Rape rate": "women_crimes_rape_r",
+            "Murder rate": "murder_homicide_murder_rate",
+            "Murder incidence": "murder_homicide_murder_incidence",
+            "Total complaints": "complaints_total_complaints",
+            "Cognizable crime rate": "complaints_rate_of_cognizable_crime_ipc_sll",
+        }
+        exp_target = _lt[exp_label]
+
+        run_exp = st.button("Explain risk drivers", type="primary", key="explain_run")
+
+        card = build_district_scorecard(
+            area, ml_data, news_df, harvest_df, rape_2026_df, sentiment_df
+        )
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.metric("District", area)
+        with m2:
+            st.metric("Risk level", str(card.get("risk_level") or "—"))
+        with m3:
+            st.metric(
+                "2026 rape forecast",
+                f"{card['forecast_2026_rape']:.1f}" if card.get("forecast_2026_rape") is not None else "—",
+            )
+        with m4:
+            st.metric(
+                "Murder rate",
+                f"{card['murder_rate']:.2f}" if card.get("murder_rate") is not None else "—",
+            )
+
+        # Narrative drivers (existing)
+        drivers = explain_prediction_drivers(
+            area, exp_target, ml_data, news_df, harvest_df, pred_row=None
+        )
+        st.markdown("#### Quick narrative drivers")
+        for line in drivers:
+            st.markdown(f"- {line}")
+
+        if run_exp or st.session_state.get("explain_done"):
+            st.session_state["explain_done"] = True
+            try:
+                from risk_explain import (
+                    composite_risk_factors,
+                    global_feature_importances,
+                    lime_local_explain,
+                    shap_or_proxy_explain,
+                )
+            except Exception as e:
+                st.error(f"Could not import risk_explain: {e}")
+                composite_risk_factors = None  # type: ignore
+
+            if composite_risk_factors is not None:
+                # State medians for composite
+                latest = _latest_ml_by_district(ml_data)
+                meds: dict[str, float] = {}
+                if not latest.empty:
+                    for key, col in [
+                        ("murder_rate", "murder_homicide_murder_rate"),
+                        ("rape_rate", "women_crimes_rape_r"),
+                        ("rape_incidents", "women_crimes_rape_sec_376_i"),
+                        ("complaints", "complaints_total_complaints"),
+                    ]:
+                        if col in latest.columns:
+                            s = pd.to_numeric(latest[col], errors="coerce").dropna()
+                            if len(s):
+                                meds[key] = float(s.median())
+                if not rape_2026_df.empty and "predicted_2026_rape_incidents" in rape_2026_df.columns:
+                    s = pd.to_numeric(
+                        rape_2026_df["predicted_2026_rape_incidents"], errors="coerce"
+                    ).dropna()
+                    if len(s):
+                        meds["forecast_2026_rape"] = float(s.median())
+
+                st.markdown("### Multi-source risk push (why this district looks high-risk)")
+                comp = composite_risk_factors(area, card, state_medians=meds)
+                if not comp.empty:
+                    fig_c = px.bar(
+                        comp,
+                        x="risk_push",
+                        y="factor",
+                        orientation="h",
+                        color="risk_push",
+                        color_continuous_scale="Reds",
+                        template="plotly_dark",
+                        title="Composite risk factors (vs state medians)",
+                        hover_data=["value", "state_median", "vs_median"],
+                    )
+                    fig_c.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="#0e0e12",
+                        height=360,
+                        yaxis=dict(autorange="reversed"),
+                    )
+                    st.plotly_chart(fig_c, use_container_width=True, key="explain_composite")
+                    st.dataframe(comp, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Not enough scorecard fields for composite factors.")
+
+                tab_shap, tab_lime, tab_glob = st.tabs(
+                    ["SHAP / proxy", "LIME-style local", "Global model importance"]
+                )
+
+                with tab_shap:
+                    with st.spinner("Computing SHAP or importance×z proxy…"):
+                        try:
+                            res = shap_or_proxy_explain(
+                                exp_target, area, year=int(exp_year), top_n=12
+                            )
+                        except Exception as e:
+                            res = {
+                                "method": "error",
+                                "base_prediction": None,
+                                "contributions": pd.DataFrame(),
+                                "note": str(e),
+                            }
+                    st.caption(res.get("note") or "")
+                    if res.get("base_prediction") is not None:
+                        st.metric(
+                            f"Model prediction · {exp_label}",
+                            f"{float(res['base_prediction']):.3f}",
+                        )
+                    contr = res.get("contributions")
+                    if isinstance(contr, pd.DataFrame) and not contr.empty:
+                        ycol = "feature"
+                        vcol = "contribution" if "contribution" in contr.columns else contr.columns[-1]
+                        fig_s = px.bar(
+                            contr.sort_values(
+                                "abs_contribution" if "abs_contribution" in contr.columns else vcol,
+                                ascending=True,
+                            ),
+                            x=vcol,
+                            y=ycol,
+                            orientation="h",
+                            color=vcol,
+                            color_continuous_scale="RdBu_r",
+                            template="plotly_dark",
+                            title=f"{res.get('method', 'explain')} · top drivers for {area}",
+                        )
+                        fig_s.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=420,
+                        )
+                        st.plotly_chart(fig_s, use_container_width=True, key="explain_shap")
+                        st.dataframe(contr, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("No SHAP/proxy contributions returned.")
+
+                with tab_lime:
+                    with st.spinner("LIME-style local linear model (perturbations)…"):
+                        try:
+                            lime = lime_local_explain(
+                                exp_target, area, year=int(exp_year), top_n=12
+                            )
+                        except Exception as e:
+                            lime = {
+                                "contributions": pd.DataFrame(),
+                                "note": str(e),
+                                "base_prediction": None,
+                            }
+                    st.caption(lime.get("note") or "")
+                    if lime.get("base_prediction") is not None:
+                        st.metric("Base model prediction", f"{float(lime['base_prediction']):.3f}")
+                    lcontr = lime.get("contributions")
+                    if isinstance(lcontr, pd.DataFrame) and not lcontr.empty:
+                        fig_l = px.bar(
+                            lcontr.sort_values("abs_contribution", ascending=True),
+                            x="contribution",
+                            y="feature",
+                            orientation="h",
+                            color="contribution",
+                            color_continuous_scale="RdBu_r",
+                            template="plotly_dark",
+                            title=f"LIME-style local contributions · {area}",
+                        )
+                        fig_l.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=420,
+                        )
+                        st.plotly_chart(fig_l, use_container_width=True, key="explain_lime")
+                        st.dataframe(lcontr, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("LIME-style explanation unavailable for this target/area.")
+
+                with tab_glob:
+                    with st.spinner("Global feature importances…"):
+                        try:
+                            gimp = global_feature_importances(exp_target, top_n=15)
+                        except Exception as e:
+                            gimp = pd.DataFrame()
+                            st.warning(str(e))
+                    if not gimp.empty:
+                        fig_g = px.bar(
+                            gimp.sort_values("importance", ascending=True),
+                            x="importance",
+                            y="feature",
+                            orientation="h",
+                            template="plotly_dark",
+                            color="importance",
+                            color_continuous_scale="Blues",
+                            title=f"Global model importance · {exp_label}",
+                        )
+                        fig_g.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="#0e0e12",
+                            height=420,
+                        )
+                        st.plotly_chart(fig_g, use_container_width=True, key="explain_global")
+                        st.dataframe(gimp, use_container_width=True, hide_index=True)
+                        st.caption(f"Method: `{gimp['method'].iloc[0]}`")
+                    else:
+                        st.info("No global importances extracted.")
+
+                if card.get("headlines"):
+                    st.markdown("#### Supporting headlines")
+                    for h in card["headlines"][:6]:
+                        st.markdown(f"- {h}")
         else:
-            st.warning("No 2026 forecasts yet. Click **Generate / Refresh** or run option 7.")
+            st.info("Click **Explain risk drivers** to run SHAP/proxy + LIME-style analysis.")
+
+    # ============ HEALTH CHECK ============
+    elif page == "🩺 Health":
+        ops_topbar(f"{t('Health')} — demo readiness · files · models · news · DB")
+        st.caption(
+            "Green = OK · Yellow = usable with gaps · Red = fix before demo. "
+            "CLI: `python health_check.py`"
+        )
+        hc1, hc2 = st.columns(2)
+        with hc1:
+            if st.button("Re-run health check", type="primary", key="health_rerun"):
+                try:
+                    st.cache_data.clear()
+                except Exception:
+                    pass
+                st.rerun()
+        with hc2:
+            if st.button("Migrate CSVs → SQLite DB", type="secondary", key="health_migrate_csv"):
+                with st.spinner("Loading CSVs into data/crimecast.db…"):
+                    try:
+                        from db import migrate_csvs_to_db
+
+                        stats = migrate_csvs_to_db(also_structured=True)
+                        ok_n = sum(
+                            1
+                            for v in stats.get("datasets", {}).values()
+                            if v.get("status") == "ok"
+                        )
+                        st.success(
+                            f"Migrated **{ok_n}** datasets into `{stats.get('db_path')}`"
+                        )
+                        try:
+                            st.cache_data.clear()
+                        except Exception:
+                            pass
+                        st.session_state["last_migrate_stats"] = stats
+                    except Exception as e:
+                        st.error(f"Migrate failed: {e}")
+
+        if st.session_state.get("last_migrate_stats"):
+            with st.expander("Last migrate report", expanded=False):
+                st.json(st.session_state["last_migrate_stats"])
+
+        try:
+            from health_check import run_health_check
+
+            report = run_health_check()
+        except Exception as e:
+            report = {
+                "overall": "blocked",
+                "blocking": 1,
+                "warnings": 0,
+                "checks": [{"name": "health_check", "status": "fail", "detail": str(e), "blocking": True}],
+                "generated_at": "",
+            }
+
+        overall = report.get("overall", "?")
+        ocolor = {
+            "ready": "🟢",
+            "ready_with_warnings": "🟡",
+            "blocked": "🔴",
+        }.get(overall, "⚪")
+        h1, h2, h3, h4 = st.columns(4)
+        with h1:
+            st.metric("Overall", f"{ocolor} {overall}")
+        with h2:
+            st.metric("Blocking", int(report.get("blocking") or 0))
+        with h3:
+            st.metric("Warnings", int(report.get("warnings") or 0))
+        with h4:
+            st.metric("Checks", len(report.get("checks") or []))
+
+        rows = []
+        for c in report.get("checks") or []:
+            rows.append(
+                {
+                    "status": c.get("status"),
+                    "name": c.get("name"),
+                    "detail": c.get("detail"),
+                    "blocking": c.get("blocking"),
+                }
+            )
+        hdf = pd.DataFrame(rows)
+        if not hdf.empty:
+            # Colour-ish display via emoji column
+            def _em(s):
+                return {"ok": "🟢 OK", "warn": "🟡 WARN", "fail": "🔴 FAIL"}.get(str(s), s)
+
+            show_h = hdf.copy()
+            show_h["status"] = show_h["status"].map(_em)
+            st.dataframe(show_h, use_container_width=True, hide_index=True)
+
+        # Alert log + DB status + dataset registry
+        st.markdown("### SQLite / datasets / alert log")
+        try:
+            from db import db_status, load_alert_log, list_datasets
+
+            st.json(db_status())
+            reg = list_datasets()
+            if not reg.empty:
+                st.markdown("#### CSV datasets in DB")
+                st.dataframe(reg, use_container_width=True, hide_index=True)
+            else:
+                st.caption(
+                    "No dataset tables yet — click **Migrate CSVs → SQLite DB** "
+                    "or run `python migrate_csv_to_db.py`"
+                )
+            alog = load_alert_log(limit=25)
+            if not alog.empty:
+                st.markdown("#### Recent alert log")
+                st.dataframe(alog, use_container_width=True, hide_index=True)
+            else:
+                st.caption("Alert log empty — open Live Feed once to persist alerts.")
+        except Exception as e:
+            st.caption(f"DB status unavailable: {e}")
+
+        st.markdown("### How it works (short)")
+        st.markdown(
+            """
+1. Official tables → clean → **ML-ready**  
+2. Train on official years ≤2023 → **models/**  
+3. News harvest → Live heat / sentiment  
+4. Predict + 2026 scenario (linear / last-year / blend)  
+5. Explain + compare for viva  
+
+Full path: `docs/DEMO_SCRIPT.md` · screenshots: `docs/REPORTS_SCREENSHOTS_README.md`
+"""
+        )
+        if report.get("generated_at"):
+            st.caption(f"Generated at {report['generated_at']}")
 
     # ============ VISUALIZATIONS ============
     elif page == "📊 Visualizations":

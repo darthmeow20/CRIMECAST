@@ -1,64 +1,101 @@
-# CRIMECAST — 3-minute demo script
+# CRIMECAST — 5-minute demo script (viva)
 
-Use this path for viva / project demo.
-
-## Setup (once)
+Use this path for viva / project demo. **Restart Streamlit** before demos so BUILD_ID matches.
 
 ```powershell
 cd CRIMECAST
 streamlit run dashboard.py
 ```
 
-Optional (if models old):
-
-```powershell
-python train_model.py
-```
+Optional: `python health_check.py` then `python train_model.py` if models missing.
 
 ---
 
-## Minute 1 — Live Feed (current affairs)
+## Opening (30s) — How it works
 
 1. Open **🔴 Live Feed**.
-2. Point to **alert banners** (e.g. Thoothukudi murder rate > Madurai, news spikes).
-3. Show **Map metric** toggle:
-   - News (time window)
-   - Murder rate
-   - Rape rate
-   - 2026 rape forecast
-4. Show **time window**: 30d / 90d / YTD / All time.
-5. Show **Tamil vs English** pie (dual media pipeline).
-6. Click small **🔄** to refresh **new** news only.
+2. Expand **How CRIMECAST works**.
+3. Point to **health strip** (models · ML data · news age · GeoJSON · DB).
 
 **Say:**  
-“Live heat is news volume in a chosen window, not the 2026 model. Forecasts are a separate metric.”
+“Pipeline: official SCRB-style tables + Tamil/English news → clean → train on official years ≤2023 → predict rates → map. Media is support, not training labels. 2026 is a scenario, not an official forecast.”
 
 ---
 
-## Minute 2 — Scorecard + accuracy
+## Minute 1 — Live Feed + alerts
 
-1. Open **📋 District Scorecard**.
-2. Select **Thoothukudi**, compare with **Madurai**.
-3. Highlight murder rate higher in Thoothukudi; news + 2026 forecast on one page.
-4. Download **district brief HTML** → “print to PDF for the report.”
-5. Open **✅ Accuracy Check** → Build table → show **official vs model raw vs blend**.
-6. Spotlight rows: blend closer to official history.
+1. **HIGH alerts** banners.
+2. News **time window** 30d / 90d / YTD.
+3. **Alert log** expander — SQLite persistence over time.
+4. Feed controls → language split (Tamil vs English).
 
 **Say:**  
-“We train only on official years ≤2023. Media proxies fill maps/news, not training labels. Blend keeps high-rate districts ranked correctly.”
+“Live heat is news volume in a window — not FIRs. Alerts are rule-based and logged.”
 
 ---
 
-## Minute 3 — Predict + 2026 + Tier-3
+## Minute 2 — Map, scoreboard, brief
 
-1. **🔮 Predict** → Thoothukudi → Murder rate → year 2026 → Predict.
-2. Read **Why this prediction?** drivers.
-3. **📅 2026 Forecasts** → regenerate if needed → show **uncertainty bands** chart.
-4. Optional: **🗺️ Geographic** choropleth.
-5. Mention weekly news: `SCHEDULE_NEWS_REFRESH.bat` / Task Scheduler (`docs/TIER3_OPS.md`).
+1. **🗺️ District Map & Scoreboard**.
+2. Choropleth · colour by **murder rate** or density.
+3. **Scoreboard** tab — rank by **murder_per_lakh** or **news_per_lakh** (fair compare).
+4. Compare tab · pick Thoothukudi vs Madurai.
+5. Download **district brief HTML** → “print to PDF for the report.”
 
 **Say:**  
-“End-to-end: Tamil+English news with entity cleanup, official-trained ML, explainable risk, uncertainty bands, and district briefs.”
+“Per-lakh metrics avoid Chennai always looking highest just because it is large.”
+
+---
+
+## Minute 3 — Accuracy + claims
+
+1. **✅ Accuracy Check**.
+2. Show **training metrics** (test R² / MAE) for best models.
+3. **What we claim / don’t claim**.
+4. **Build accuracy** table → blend vs raw error chart.
+5. Optional **Backtest** (linear trend holdout).
+
+**Say:**  
+“We train on official years. Blend keeps sticky rates ranked realistically. Temporal R² can be weak — we show it honestly.”
+
+---
+
+## Minute 4 — Predict, 2026, multi-target
+
+1. **🔮 Predict** → district → Murder rate → 2026 → drivers.
+2. **📅 2026 Forecasts**:
+   - Target: rape / murder / complaints  
+   - Method: **linear · last year · blend**  
+   - Map (no news fill) · uncertainty bands  
+3. **⚖️ District Compare** side-by-side.
+
+**Say:**  
+“Three simple methods — no black-box Prophet. Uncertainty bands widen as we go further out.”
+
+---
+
+## Minute 5 — Sentiment + explain + health
+
+1. **💬 Sentiment** → map + **word cloud** for one district.
+2. **🔍 Risk Explain** → composite + SHAP proxy / LIME-style.
+3. **🩺 Health** tab → green/yellow/red checks.
+
+**Say:**  
+“Sentiment is media narrative. Explainability shows *why* a district looks elevated. Health proves the demo is reproducible.”
+
+---
+
+## Screenshot checklist (3 fixed)
+
+Save under `reports/screenshots/` or `report_materials/screenshots/`:
+
+| # | File idea | Tab |
+|---|-----------|-----|
+| 1 | `01_live_feed.png` | Live Feed + HIGH alerts + map |
+| 2 | `02_accuracy_or_scoreboard.png` | Accuracy metrics or Map scoreboard |
+| 3 | `03_forecast_2026.png` | 2026 map + uncertainty |
+
+See `docs/REPORTS_SCREENSHOTS_README.md`.
 
 ---
 
@@ -66,18 +103,21 @@ python train_model.py
 
 | Question | Answer |
 |----------|--------|
-| Why not only social media? | News/e-papers only; social not primary. |
-| Why 2024–26 numbers? | Media proxies for gaps; train on official ≤2023. |
-| Why blend? | Rates sticky by district; improves ranking (Thoothukudi > Madurai). |
-| What is Live map? | Current affairs news heat, not crime FIR map. |
+| Why not only social media? | News/e-papers only. |
+| Why 2024–26 numbers? | Media proxies for maps; train on official ≤2023. |
+| Why blend? | Rates sticky by district. |
+| What is Live map? | News heat, not FIR map. |
+| Prophet? | Skipped — annual series too short; linear/last-year/blend is honest. |
+| SHAP? | Optional package; we always ship importance×z + LIME-style. |
 
 ---
 
-## CLI backup (if Streamlit fails)
+## CLI backup
 
 ```powershell
-python app.py --news          # or n → mode 2 for new only
+python health_check.py
+python app.py --news
 python train_model.py
-python app.py --rape-2026
-python app.py --predict --area Thoothukudi --target murder_rate --year 2026
+python predict_2026_rape_all_districts.py
+streamlit run dashboard.py
 ```

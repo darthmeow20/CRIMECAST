@@ -78,26 +78,62 @@ def resolve_target(target: str) -> str:
     return resolved
 
 
+def _match_area_rows(df: pd.DataFrame, area: str) -> pd.DataFrame:
+    """Find district rows by exact name, TN38 parent, or fuzzy contains."""
+    if df is None or df.empty or "district_city" not in df.columns:
+        return pd.DataFrame()
+    normalized_area = str(area).strip().casefold()
+    dcol = df["district_city"].astype(str)
+    matches = df[dcol.str.casefold() == normalized_area]
+    if not matches.empty:
+        return matches
+
+    # Madurai City ↔ Madurai, Kanniyakumari ↔ Kanyakumari, etc.
+    try:
+        from district_entities import to_tn38, parent_district
+
+        want = to_tn38(area, default=None) or parent_district(area)
+        want_cf = str(want).casefold()
+        for _, row in df.drop_duplicates(subset=["district_city"]).iterrows():
+            raw = str(row["district_city"])
+            mapped = to_tn38(raw, default=None) or parent_district(raw)
+            if str(mapped).casefold() == want_cf or raw.casefold() == want_cf:
+                matches = df[dcol.str.casefold() == raw.casefold()]
+                if not matches.empty:
+                    return matches
+    except Exception:
+        pass
+
+    # Prefix / contains (min 5 chars to avoid false hits)
+    if len(normalized_area) >= 5:
+        matches = df[dcol.str.casefold().str.contains(normalized_area[:8], na=False, regex=False)]
+        if not matches.empty:
+            return matches
+    return pd.DataFrame()
+
+
 def resolve_area(df: pd.DataFrame, area: str, year: int | None = None) -> pd.Series:
-    normalized_area = area.strip().casefold()
-    matches = df[df["district_city"].astype(str).str.casefold() == normalized_area]
+    matches = _match_area_rows(df, area)
 
     if matches.empty:
-        available = ", ".join(df["district_city"].sort_values().head(12).to_list())
+        available = ", ".join(
+            sorted(df["district_city"].astype(str).unique().tolist())[:12]
+        )
         raise ValueError(f"Area '{area}' was not found. Example available areas: {available}")
 
+    area_all = matches.copy()
     if year is not None:
-        matches = matches[matches["year"].astype(int) == year]
-        if matches.empty:
-            # For future years (e.g. 2026), fall back to most recent data as template
-            # We will override the year feature below
-            if year > int(matches["year"].max() if not matches.empty else 0):
-                matches = df[df["district_city"].astype(str).str.casefold() == normalized_area]
-            else:
-                raise ValueError(f"Area '{area}' was found, but not for year {year}")
+        year_matches = matches[matches["year"].astype(int) == int(year)]
+        if year_matches.empty:
+            # Future / missing year → use most recent row as feature template
+            matches = area_all
+        else:
+            matches = year_matches
 
-    if year is None or year <= int(df["year"].max()):
-        matches = matches[matches["year"] == matches["year"].max()]
+    max_year_in_data = int(df["year"].max()) if "year" in df.columns and not df.empty else 2024
+    if year is None or (year is not None and int(year) <= max_year_in_data):
+        if "year" in matches.columns and not matches.empty:
+            matches = matches[matches["year"] == matches["year"].max()]
 
     row = matches.sort_values("year").iloc[-1].copy()
 
@@ -436,19 +472,104 @@ def predict_for_area(
     prediction = _blend_with_history(model_pred, history, resolved_target)
 
     actual = source_row.get(resolved_target, pd.NA)
+    # Prefer TN38 display name for maps
+    display_area = str(source_row.get("district_city", area))
+    try:
+        from district_entities import to_tn38
+
+        display_area = to_tn38(display_area, default=display_area) or display_area
+    except Exception:
+        pass
     return {
-        "area": source_row["district_city"],
-        "year": int(source_row["year"]) if year is None else int(year),
-        "area_type": source_row["area_type"],
+        "area": display_area,
+        "year": int(year) if year is not None else int(source_row["year"]),
+        "area_type": source_row.get("area_type", "district"),
         "target": resolved_target,
         "target_label": artifact.get("target_label", TARGET_CONFIGS[resolved_target]["label"]),
         "model_name": artifact["metrics"]["model_name"],
-        "prediction": prediction,
-        "model_raw": round(model_pred, 4),
-        "history_baseline": None if history is None else round(history, 4),
+        "prediction": float(prediction),
+        "model_raw": round(float(model_pred), 4),
+        "history_baseline": None if history is None else round(float(history), 4),
         "actual": None if pd.isna(actual) else float(actual),
         "overrides": overrides or {},
     }
+
+
+def populate_all_district_predictions(
+    target: str,
+    year: int,
+    *,
+    data_path: Path = ML_READY_FILE,
+    best_models_file: Path = BEST_MODELS_FILE,
+    max_districts: int = 40,
+) -> pd.DataFrame:
+    """
+    Run prediction for every TN district and return a full table for maps.
+    Always tries to fill all 38 districts (model → official history → statewide median).
+    """
+    resolved = resolve_target(target)
+    df = load_dataset(data_path)
+
+    # District list: TN38 first, then any other names in data
+    districts: list[str] = []
+    try:
+        from district_entities import TN38
+
+        districts = list(TN38)[:max_districts]
+    except Exception:
+        districts = sorted(df["district_city"].astype(str).unique().tolist())[:max_districts]
+
+    rows: list[dict[str, Any]] = []
+    statewide_hist: float | None = None
+    if resolved in df.columns:
+        s = pd.to_numeric(df[resolved], errors="coerce").dropna()
+        if len(s):
+            statewide_hist = float(s.median())
+
+    for dist in districts:
+        val = None
+        source = "none"
+        model_name = ""
+        try:
+            r = predict_for_area(
+                resolved, dist, data_path=data_path,
+                best_models_file=best_models_file, year=year,
+            )
+            val = float(r["prediction"])
+            source = "model"
+            model_name = str(r.get("model_name") or "")
+            dist = str(r.get("area") or dist)
+        except Exception:
+            # Official history for that district
+            try:
+                hist = _official_history_baseline(df, dist, resolved)
+                if hist is not None and pd.notna(hist):
+                    val = float(hist)
+                    source = "official_history"
+            except Exception:
+                pass
+        if val is None and statewide_hist is not None:
+            val = float(statewide_hist)
+            source = "statewide_median"
+        if val is not None and pd.notna(val):
+            rows.append({
+                "district": dist,
+                "prediction": float(val),
+                "year": int(year),
+                "target": resolved,
+                "source": source,
+                "model_name": model_name,
+            })
+
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out = out.drop_duplicates(subset=["district"], keep="first")
+        out_path = OUTPUT_DIR / f"prediction_map_{resolved}_{year}.csv"
+        try:
+            out.to_csv(out_path, index=False)
+        except Exception:
+            pass
+    return out
 
 
 def compute_risk_index(

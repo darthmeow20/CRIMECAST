@@ -1,17 +1,29 @@
-# Reference / UI Screenshots
+# Screenshots for report / viva
 
-Drop PNG/JPG screenshots here for:
+## Where to save
 
-1. **Project report** (`report_materials/` links here)
-2. **Dashboard gallery** — open `streamlit run dashboard.py` → **🖼️ UI Reference**
+- Preferred: `reports/screenshots/`
+- Also OK: `report_materials/screenshots/`
 
-## Suggested filenames
-| File | Description |
-|------|-------------|
-| `overview_ref.png` | Main dashboard / home |
-| `prediction_ref.png` | Prediction screen |
-| `risk_map_ref.png` | Risk / map style UI |
-| `sentiment_ref.png` | Sentiment panel |
-| `forecast_ref.png` | 2026 forecast view |
+## Minimum set (3)
 
-After adding files, refresh the Streamlit dashboard to see them under **UI Reference**.
+| File | Capture |
+|------|---------|
+| `01_live_feed.png` | Live Feed: HIGH alerts + TN news heat map + health strip |
+| `02_accuracy_scoreboard.png` | Accuracy Check training metrics **or** District Map scoreboard (per-lakh rank) |
+| `03_forecast_2026.png` | 2026 Forecasts: TN map + uncertainty bands (no news fill) |
+
+## Optional extras
+
+- `04_sentiment_wordcloud.png` — Sentiment tab word cloud  
+- `05_risk_explain.png` — Risk Explain composite + LIME bars  
+- `06_district_compare.png` — District Compare radar  
+- `07_health.png` — Health check page  
+
+## Tips
+
+1. Dark theme as default (dashboard CSS).  
+2. Full browser width; hide personal bookmarks.  
+3. Use **EN** language for English report; optional second set in **TA**.  
+4. Before capture: `python health_check.py` and refresh news once.  
+5. Paste into Word/PPT with captions matching the demo script minutes.  

@@ -466,6 +466,230 @@ def load_alert_log(limit: int = 40) -> pd.DataFrame:
         conn.close()
 
 
+def clear_alert_log() -> int:
+    """Delete all alert_log rows (demo reset). Returns deleted count."""
+    init_db()
+    conn = connect()
+    try:
+        n = conn.execute("SELECT COUNT(*) AS n FROM alert_log").fetchone()["n"]
+        conn.execute("DELETE FROM alert_log")
+        conn.commit()
+        return int(n or 0)
+    except Exception:
+        return 0
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Generic CSV → SQLite dataset store (dashboard prefers DB, falls back to CSV)
+# ---------------------------------------------------------------------------
+# Logical name → SQLite table name
+DATASET_TABLES: dict[str, str] = {
+    "ml_ready": "ds_ml_ready",
+    "media_harvest": "ds_media_harvest",
+    "news_signals": "ds_news_signals",
+    "sentiment_scores": "ds_sentiment_scores",
+    "crime_predictions": "ds_crime_predictions",
+    "rape_2026": "ds_rape_2026_full",
+    "training_metrics": "ds_training_metrics",
+    "fitted_predictions": "ds_fitted_predictions",
+    "forecast_murder": "ds_forecast_murder",
+    "forecast_complaints": "ds_forecast_complaints",
+}
+
+# Logical name → default CSV path (relative to PROJECT_ROOT)
+def _dataset_csv_paths() -> dict[str, Path]:
+    cleaned = PROJECT_ROOT / "dataset" / "cleaned"
+    out = OUTPUT_DIR
+    harvest = out / "media_harvest_tn_crime_latest.csv"
+    if not harvest.exists():
+        cands = sorted(out.glob("media_harvest_tn_crime_*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+        harvest = cands[0] if cands else harvest
+    return {
+        "ml_ready": cleaned / "crimecast_ml_ready.csv",
+        "media_harvest": harvest,
+        "news_signals": out / "news_signals.csv",
+        "sentiment_scores": out / "sentiment_scores.csv",
+        "crime_predictions": out / "crime_predictions.csv",
+        "rape_2026": out / "rape_predictions_2026_all_districts.csv",
+        "training_metrics": out / "training_metrics.csv",
+        "fitted_predictions": out / "fitted_predictions.csv",
+        "forecast_murder": out / "forecast_2026_murder_incidence.csv",
+        "forecast_complaints": out / "forecast_2026_total_complaints.csv",
+    }
+
+
+def _safe_table(name: str) -> str:
+    """Map logical dataset name → safe SQL table name."""
+    if name in DATASET_TABLES:
+        return DATASET_TABLES[name]
+    # allow only alnum + underscore
+    safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in str(name))
+    return f"ds_{safe}"[:60]
+
+
+def save_dataset_table(name: str, df: pd.DataFrame) -> int:
+    """
+    Replace a full dataset table from a DataFrame.
+    Returns row count written.
+    """
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return 0
+    init_db()
+    table = _safe_table(name)
+    conn = connect()
+    try:
+        # SQLite: write via pandas
+        work = df.copy()
+        # Flatten awkward dtypes for SQLite
+        for c in work.columns:
+            if work[c].dtype == object:
+                work[c] = work[c].astype(str).where(work[c].notna(), None)
+        work.to_sql(table, conn, if_exists="replace", index=False)
+        n = len(work)
+        set_meta(f"ds_{name}_rows", str(n), conn)
+        set_meta(f"ds_{name}_updated", datetime.now().isoformat(timespec="seconds"), conn)
+        # Registry of known datasets
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dataset_registry (
+                name TEXT PRIMARY KEY,
+                table_name TEXT,
+                n_rows INTEGER,
+                n_cols INTEGER,
+                source_csv TEXT,
+                updated_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO dataset_registry(name, table_name, n_rows, n_cols, source_csv, updated_at)
+            VALUES (?,?,?,?,?,?)
+            ON CONFLICT(name) DO UPDATE SET
+                table_name=excluded.table_name,
+                n_rows=excluded.n_rows,
+                n_cols=excluded.n_cols,
+                source_csv=excluded.source_csv,
+                updated_at=excluded.updated_at
+            """,
+            (
+                name,
+                table,
+                n,
+                len(work.columns),
+                str(_dataset_csv_paths().get(name, "")),
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+        return n
+    finally:
+        conn.close()
+
+
+def load_dataset_table(name: str) -> pd.DataFrame:
+    """Load a dataset table; empty DataFrame if missing."""
+    init_db()
+    table = _safe_table(name)
+    conn = connect()
+    try:
+        # Check table exists
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        ).fetchone()
+        if not row:
+            return pd.DataFrame()
+        return pd.read_sql_query(f'SELECT * FROM "{table}"', conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+def list_datasets() -> pd.DataFrame:
+    init_db()
+    conn = connect()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dataset_registry (
+                name TEXT PRIMARY KEY,
+                table_name TEXT,
+                n_rows INTEGER,
+                n_cols INTEGER,
+                source_csv TEXT,
+                updated_at TEXT
+            )
+            """
+        )
+        return pd.read_sql_query(
+            "SELECT * FROM dataset_registry ORDER BY name",
+            conn,
+        )
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+def migrate_csvs_to_db(*, also_structured: bool = True) -> dict[str, Any]:
+    """
+    Load known CSVs into SQLite dataset tables.
+    Keeps original CSV files (does not delete).
+    Also refreshes structured news/sentiment/rape tables when also_structured=True.
+    """
+    init_db()
+    stats: dict[str, Any] = {"datasets": {}, "errors": [], "db_path": str(get_sqlite_path())}
+    paths = _dataset_csv_paths()
+    for name, path in paths.items():
+        if not path.exists():
+            stats["datasets"][name] = {"status": "skip", "reason": f"missing {path.name}"}
+            continue
+        try:
+            df = pd.read_csv(path)
+            n = save_dataset_table(name, df)
+            stats["datasets"][name] = {
+                "status": "ok",
+                "rows": n,
+                "cols": int(df.shape[1]),
+                "csv": str(path),
+            }
+        except Exception as e:
+            stats["datasets"][name] = {"status": "error", "error": str(e)}
+            stats["errors"].append(f"{name}: {e}")
+
+    if also_structured:
+        try:
+            structured = sync_from_csv_outputs()
+            stats["structured"] = structured
+        except Exception as e:
+            stats["structured_error"] = str(e)
+
+    set_meta("last_csv_migrate", datetime.now().isoformat(timespec="seconds"))
+    stats["last_csv_migrate"] = get_meta("last_csv_migrate")
+    stats["backend"] = "sqlite"
+    return stats
+
+
+def load_dataset_or_csv(name: str, csv_path: Path | None = None) -> pd.DataFrame:
+    """
+    Prefer SQLite dataset table; fall back to CSV path.
+    """
+    df = load_dataset_table(name)
+    if df is not None and not df.empty:
+        return df
+    path = csv_path or _dataset_csv_paths().get(name)
+    if path is not None and Path(path).exists():
+        try:
+            return pd.read_csv(path)
+        except Exception:
+            pass
+    return pd.DataFrame()
+
+
 def db_status() -> dict[str, Any]:
     init_db()
     conn = connect()
@@ -478,6 +702,10 @@ def db_status() -> dict[str, Any]:
             alert_n = conn.execute("SELECT COUNT(*) AS n FROM alert_log").fetchone()["n"]
         except Exception:
             alert_n = 0
+        try:
+            ds_n = conn.execute("SELECT COUNT(*) AS n FROM dataset_registry").fetchone()["n"]
+        except Exception:
+            ds_n = 0
     finally:
         conn.close()
     return {
@@ -488,6 +716,8 @@ def db_status() -> dict[str, Any]:
         "district_sentiment_rows": int(dist_n),
         "rape_2026_rows": int(rape_n),
         "alert_log_rows": int(alert_n),
+        "dataset_tables": int(ds_n),
         "last_sync": get_meta("last_full_sync"),
+        "last_csv_migrate": get_meta("last_csv_migrate"),
         "last_sentiment": get_meta("last_district_sentiment"),
     }

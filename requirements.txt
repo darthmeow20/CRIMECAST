@@ -59,6 +59,10 @@ torch==2.1.0
 torchvision==0.16.0
 streamlit==1.35.0
 plotly==5.22.0
+# Optional: prettier word clouds on ☁️ Word Clouds tab (freq bars work without it)
+wordcloud>=1.9.0
+# Optional: true SHAP values on 🔍 Risk Explain tab (proxy/LIME always work)
+# shap>=0.44.0
 
 # Optional for enhanced net data pulling (Google News RSS works without it)
 # requests>=2.31.0
