@@ -1,0 +1,5 @@
+district,predicted_2026_rape_incidents,pred_low,pred_high,rape_risk_index,risk_level
+Salem,43.0,36.0,49.0,0.7,HIGH
+Tiruvannamalai,40.0,34.0,46.0,0.7,HIGH
+Madurai,17.0,14.0,20.0,0.48,MEDIUM
+Chennai,6.0,5.0,8.0,0.17,LOW

@@ -3102,43 +3102,6 @@ def _main_impl():
         open_alerts = 0
         high_alerts: list = []
 
-        # ---- How it works + health strip (demo / viva) ----
-        with st.expander(f"📘 {t('How it works')} · pipeline", expanded=False):
-            st.markdown(
-                """
-**CRIMECAST data → model → map**
-
-1. **Official tables** (SCRB-style complaints / murder / women crimes) → `clean_data` → ML-ready CSV  
-2. **Train** only on **official-era years (≤2023)** — media years are not training labels  
-3. **News harvest** (Tamil + English) → Live heat, sentiment, word clouds (support layer)  
-4. **Predict** district rates/counts · **blend** with history for sticky rates  
-5. **2026 scenarios** — linear / last-year / blend trends (not SCRB forecasts)  
-6. **Explain** — composite risk + LIME-style / SHAP-proxy  
-
-| Layer | Is it “fact”? |
-|-------|----------------|
-| Official rates (≤2023) | Best available stats in this prototype |
-| News heat / sentiment | Media volume & tone — **not FIRs** |
-| 2026 forecast | **Scenario only** for discussion |
-
-Demo path: Live → Map → Accuracy → Predict → 2026 → Sentiment → Explain · see `docs/DEMO_SCRIPT.md`
-"""
-            )
-        try:
-            from health_check import run_health_check
-
-            _hc = run_health_check()
-            _bits = []
-            for c in _hc.get("checks", [])[:6]:
-                mark = {"ok": "🟢", "warn": "🟡", "fail": "🔴"}.get(c["status"], "⚪")
-                _bits.append(f"{mark} **{c['name']}**")
-            st.caption(
-                " · ".join(_bits)
-                + f"  · overall **{_hc.get('overall', '?')}** · full page: **🩺 Health**"
-            )
-        except Exception:
-            st.caption("Health strip unavailable — open **🩺 Health** or run `python health_check.py`")
-
         _live_subs = [t("Live view"), t("Feed controls")]
         live_sub_ix = st.radio(
             "Live Feed section",
@@ -5349,7 +5312,12 @@ Demo path: Live → Map → Accuracy → Predict → 2026 → Sentiment → Expl
                 n_filled = int(
                     pd.to_numeric(rape_2026_df[map_metric_2026], errors="coerce").notna().sum()
                 )
+                st.caption(
+                    f"Populated **{n_filled} / {len(rape_2026_df)}** districts with forecast values · "
+                    "**no news fill** · TN38 only."
+                )
 
+                left, right = st.columns([1.35, 1], gap="medium")
                 with left:
                     with st.spinner("Building 2026 TN map…"):
                         fig_26 = plot_tn_choropleth(

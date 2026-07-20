@@ -35,10 +35,10 @@ def main() -> int:
         fail(f"Missing {ENGINE}")
         return 1
     src = ENGINE.read_text(encoding="utf-8")
-    if "FIXED-NO-SKLEARN-v4" not in src:
-        fail("Engine missing FIXED-NO-SKLEARN-v4 marker")
+    if "FIXED-NO-SKLEARN-v" not in src and "TN38" not in src:
+        fail("Engine missing FIXED-NO-SKLEARN / TN38 version marker")
     else:
-        ok("Version marker FIXED-NO-SKLEARN-v4 present")
+        ok("Version marker present (FIXED-NO-SKLEARN / TN38)")
 
     banned = ["import sklearn", "import joblib", "from sklearn", "from joblib", "joblib.load"]
     for b in banned:
@@ -72,10 +72,11 @@ def main() -> int:
         del sys.modules["predict_2026_rape_all_districts"]
     import predict_2026_rape_all_districts as eng
 
-    if getattr(eng, "SCRIPT_VERSION", "") != "FIXED-NO-SKLEARN-v4":
-        fail(f"SCRIPT_VERSION={getattr(eng, 'SCRIPT_VERSION', None)}")
+    ver = str(getattr(eng, "SCRIPT_VERSION", "") or "")
+    if "FIXED-NO-SKLEARN" not in ver and "TN38" not in ver:
+        fail(f"SCRIPT_VERSION={ver!r}")
     else:
-        ok(f"Imported SCRIPT_VERSION={eng.SCRIPT_VERSION}")
+        ok(f"Imported SCRIPT_VERSION={ver}")
 
     df = eng.predict_2026_rape_all_districts()
     n = len(df)

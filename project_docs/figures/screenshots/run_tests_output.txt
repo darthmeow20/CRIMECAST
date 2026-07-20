@@ -1,0 +1,144 @@
+============================================================
+CRIMECAST tests  P0�P4
+============================================================
+Root:  C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST
+Tests: C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests
+
+======================================================================
+  CRIMECAST OPTION-7 ENGINE: FIXED-NO-SKLEARN-v5-TN38
+  sklearn model.predict: DISABLED
+  Output: TN38 only (cities rolled into parents)
+======================================================================
+
+------------------------------------------------------------
+Ran 69 test(s)  |  failures=0  errors=12  skipped=5
+RESULT: FAILED
+------------------------------------------------------------
+Manual UI checklist: docs/MANUAL_UI_CHECKLIST.md
+============================================================
+
+...sssEEEEE......Es...EEE..................s................EEE......
+======================================================================
+ERROR: test_blend_count_weights_model_more (tests.test_p1_unit_clean_blend_alerts.TestBlendHistoryP1.test_blend_count_weights_model_more)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p1_unit_clean_blend_alerts.py", line 99, in test_blend_count_weights_model_more
+    from predict import _blend_with_history
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_blend_non_negative (tests.test_p1_unit_clean_blend_alerts.TestBlendHistoryP1.test_blend_non_negative)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p1_unit_clean_blend_alerts.py", line 115, in test_blend_non_negative
+    from predict import _blend_with_history
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_blend_none_history (tests.test_p1_unit_clean_blend_alerts.TestBlendHistoryP1.test_blend_none_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p1_unit_clean_blend_alerts.py", line 82, in test_blend_none_history
+    from predict import _blend_with_history
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_blend_rape_r_is_rate (tests.test_p1_unit_clean_blend_alerts.TestBlendHistoryP1.test_blend_rape_r_is_rate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p1_unit_clean_blend_alerts.py", line 108, in test_blend_rape_r_is_rate
+    from predict import _blend_with_history
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_blend_rate_weights_history_more (tests.test_p1_unit_clean_blend_alerts.TestBlendHistoryP1.test_blend_rate_weights_history_more)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p1_unit_clean_blend_alerts.py", line 88, in test_blend_rate_weights_history_more
+    from predict import _blend_with_history
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_aliases (tests.test_p1_unit_clean_blend_alerts.TestTnMapNormalizeP1.test_aliases)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p1_unit_clean_blend_alerts.py", line 192, in test_aliases
+    from tn_map import _normalize_name
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tn_map.py", line 16, in <module>
+    import plotly.express as px
+ModuleNotFoundError: No module named 'plotly'
+
+======================================================================
+ERROR: test_populate_all_districts_shape (tests.test_p2_integration.TestPredictIntegrationP2.test_populate_all_districts_shape)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p2_integration.py", line 62, in test_populate_all_districts_shape
+    from predict import populate_all_district_predictions
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_predict_for_area_murder_rate (tests.test_p2_integration.TestPredictIntegrationP2.test_predict_for_area_murder_rate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p2_integration.py", line 32, in test_predict_for_area_murder_rate
+    from predict import predict_for_area
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_predict_for_area_rape_incidents (tests.test_p2_integration.TestPredictIntegrationP2.test_predict_for_area_rape_incidents)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_p2_integration.py", line 49, in test_predict_for_area_rape_incidents
+    from predict import predict_for_area
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_resolve_target_aliases (tests.test_unit_core.TestPredictHelpers.test_resolve_target_aliases)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_unit_core.py", line 252, in test_resolve_target_aliases
+    from predict import resolve_target
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_resolve_target_invalid (tests.test_unit_core.TestPredictHelpers.test_resolve_target_invalid)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_unit_core.py", line 259, in test_resolve_target_invalid
+    from predict import resolve_target
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+======================================================================
+ERROR: test_series_to_feature_frame (tests.test_unit_core.TestPredictHelpers.test_series_to_feature_frame)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\tests\test_unit_core.py", line 266, in test_series_to_feature_frame
+    from predict import series_to_feature_frame
+  File "C:\Users\ya allah\python_visual_code\machine_learning\CRIMECAST\predict.py", line 8, in <module>
+    import joblib
+ModuleNotFoundError: No module named 'joblib'
+
+----------------------------------------------------------------------
+Ran 69 tests in 0.339s
+
+FAILED (errors=12, skipped=5)

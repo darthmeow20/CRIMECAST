@@ -1,0 +1,10 @@
+year,district_city,area_type,murder_homicide_murder_rate,murder_homicide_murder_incidence,women_crimes_rape_sec_376_i,women_crimes_rape_r,complaints_total_complaints,is_official_year,is_media_proxy_year,population_lakhs
+2022,Chennai,district,1.5,50,20,0.8,30000,1,0,60
+2023,Chennai,district,1.6,52,22,0.9,31000,1,0,60
+2022,Madurai,district,2.0,40,15,0.7,12000,1,0,30
+2023,Madurai,district,2.1,42,16,0.75,12500,1,0,30
+2022,Thoothukudi,district,4.0,30,10,0.6,8000,1,0,18
+2023,Thoothukudi,district,4.2,32,11,0.65,8200,1,0,18
+2022,Salem,district,1.8,35,18,0.9,9000,1,0,25
+2023,Salem,district,1.9,36,19,0.95,9100,1,0,25
+2024,Chennai,district,1.7,53,23,0.92,32000,0,1,60
