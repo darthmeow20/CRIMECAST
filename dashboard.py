@@ -13,12 +13,28 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import plotly.express as px
-import plotly.graph_objects as go
-from PIL import Image
 import os
 import warnings
 import logging
+
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+except ImportError as _plotly_err:
+    st.set_page_config(page_title="CRIMECAST", page_icon="🔺", layout="wide")
+    st.error(
+        "**plotly is not installed** in this environment. "
+        "Streamlit Cloud must install it from `requirements.txt`.\n\n"
+        f"Detail: `{_plotly_err}`\n\n"
+        "Fix: ensure `requirements.txt` contains `plotly==5.24.1`, "
+        "`runtime.txt` is `python-3.11`, push to GitHub, then **Reboot** the app."
+    )
+    st.stop()
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None  # type: ignore
 
 
 def _safe_live_status(n_models, n_media, n_harvest, high_count, metric, window) -> None:

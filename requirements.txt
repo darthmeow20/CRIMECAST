@@ -1,17 +1,16 @@
-# Streamlit Community Cloud — lean install (use with runtime.txt → python-3.11)
-# Avoid frozen Windows/Jupyter/torch pins (they break Linux + Python 3.14).
+# Streamlit Cloud (Python 3.11 via runtime.txt)
+# Keep this list short and explicit so install cannot skip plotly.
 
-streamlit>=1.32.0,<1.45.0
-plotly>=5.18.0,<6
-pandas>=2.0.0,<3
-numpy>=1.26.0,<2.3
-scikit-learn>=1.5.0
-scipy>=1.11.0
-joblib>=1.3.0
-matplotlib>=3.7.0
-seaborn>=0.13.0
-pillow>=10.0.0
-python-dateutil>=2.8.0
-requests>=2.31.0
-textblob>=0.17.1
-wordcloud>=1.9.0
+streamlit==1.39.0
+plotly==5.24.1
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+scipy==1.13.1
+joblib==1.4.2
+matplotlib==3.9.2
+seaborn==0.13.2
+Pillow==10.4.0
+python-dateutil==2.9.0.post0
+requests==2.32.3
+textblob==0.18.0.post0

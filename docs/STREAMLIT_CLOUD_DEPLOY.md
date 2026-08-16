@@ -68,8 +68,15 @@ Local full stack: `pip install -r requirements-local-full.txt` (optional).
 
 1. Confirm **runtime.txt** is `python-3.11` (not 3.14).  
 2. In Streamlit Cloud app settings, Advanced → Python version **3.11** if available.  
-3. Temporarily drop `wordcloud` from `requirements.txt`.  
-4. Logs → clear “Could not find a version that satisfies…” package and loosen that pin.
+3. Confirm GitHub file `requirements.txt` includes **`plotly==5.24.1`** (open raw file on github.com).  
+4. Delete **`packages.txt`** if it has any comments (apt treats words as package names).  
+5. Logs → clear “Could not find a version that satisfies…” package and loosen that pin.  
+6. **Manage app → Reboot** after every push so deps reinstall.  
+
+### `ImportError: plotly`
+
+Means the previous install step failed or `requirements.txt` on GitHub is still the old frozen file.  
+Push the lean `requirements.txt`, then reboot.
 
 ## Smoke check after deploy
 
