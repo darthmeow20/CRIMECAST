@@ -180,17 +180,55 @@ def apply_overrides(row: pd.Series, overrides: dict[str, str], feature_columns: 
     return updated
 
 
+def resolve_model_path(raw: str | Path) -> Path:
+    """
+    Resolve model_path from best_models.json on any machine.
+
+    Absolute Windows paths from local training fail on Streamlit Cloud / Linux;
+    fall back to models/<basename> under the project root.
+    """
+    p = Path(str(raw))
+    if p.exists():
+        return p
+    # basename under models/
+    by_name = MODEL_DIR / p.name
+    if by_name.exists():
+        return by_name
+    # relative path from project root
+    rel = Path(__file__).resolve().parent / p
+    if rel.exists():
+        return rel
+    # strip drive / leading junk and try models/
+    parts = p.parts
+    if "models" in parts:
+        idx = parts.index("models")
+        cand = Path(__file__).resolve().parent.joinpath(*parts[idx:])
+        if cand.exists():
+            return cand
+    return by_name if by_name.exists() else p
+
+
 def load_model_for_target(target: str, best_models: dict[str, dict[str, Any]]) -> dict[str, Any]:
     metadata = best_models.get(target)
     if metadata is None:
         raise ValueError(f"No trained model metadata found for target '{target}'")
 
-    model_path = Path(metadata["model_path"])
+    model_path = resolve_model_path(metadata["model_path"])
     if not model_path.exists():
-        train_models(targets=[target])
-        best_models = load_best_models()
-        metadata = best_models[target]
-        model_path = Path(metadata["model_path"])
+        # try retrain only if local training is available (may be heavy on cloud)
+        try:
+            train_models(targets=[target])
+            best_models = load_best_models()
+            metadata = best_models[target]
+            model_path = resolve_model_path(metadata["model_path"])
+        except Exception:
+            pass
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Model file not found for '{target}'. "
+            f"Expected under models/ (resolved: {model_path}). "
+            f"Commit the .joblib files and relative paths in best_models.json."
+        )
 
     return joblib.load(model_path)
 

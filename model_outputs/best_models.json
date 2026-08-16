@@ -6,10 +6,7 @@
     "rows": 99,
     "feature_count": 39,
     "official_label_max_year": 2023,
-    "training_years": [
-      2022,
-      2023
-    ],
+    "training_years": [2022, 2023],
     "official_filter": true,
     "cv_mae": 9836.549455064727,
     "cv_rmse": 24900.60880974824,
@@ -21,7 +18,7 @@
     "temporal_rmse": 62541.12123689722,
     "temporal_r2": -0.8660669906665066,
     "is_best": true,
-    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\complaints_total_complaints_gradient_boosting_log.joblib"
+    "model_path": "models/complaints_total_complaints_gradient_boosting_log.joblib"
   },
   {
     "target": "murder_homicide_murder_incidence",
@@ -30,14 +27,11 @@
     "rows": 99,
     "feature_count": 51,
     "official_label_max_year": 2023,
-    "training_years": [
-      2022,
-      2023
-    ],
+    "training_years": [2022, 2023],
     "official_filter": true,
     "cv_mae": 9.536813868528498,
     "cv_rmse": 12.734973843958425,
-    "cv_r2": 0.6225966286884832,
+    "cv_r2": 0.6225966286906122,
     "test_mae": 7.817245539509399,
     "test_rmse": 9.865950949840151,
     "test_r2": 0.7038075384906868,
@@ -45,7 +39,7 @@
     "temporal_rmse": 15.200584799958634,
     "temporal_r2": 0.4375906609341218,
     "is_best": true,
-    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\murder_homicide_murder_incidence_gradient_boosting_log.joblib"
+    "model_path": "models/murder_homicide_murder_incidence_gradient_boosting_log.joblib"
   },
   {
     "target": "women_crimes_rape_sec_376_i",
@@ -54,10 +48,7 @@
     "rows": 99,
     "feature_count": 38,
     "official_label_max_year": 2023,
-    "training_years": [
-      2022,
-      2023
-    ],
+    "training_years": [2022, 2023],
     "official_filter": true,
     "cv_mae": 3.262018679503813,
     "cv_rmse": 4.851129735540159,
@@ -69,7 +60,7 @@
     "temporal_rmse": 3.682923308742594,
     "temporal_r2": 0.3568551873836181,
     "is_best": true,
-    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\women_crimes_rape_sec_376_i_random_forest_log.joblib"
+    "model_path": "models/women_crimes_rape_sec_376_i_random_forest_log.joblib"
   },
   {
     "target": "murder_homicide_murder_rate",
@@ -78,10 +69,7 @@
     "rows": 91,
     "feature_count": 51,
     "official_label_max_year": 2023,
-    "training_years": [
-      2022,
-      2023
-    ],
+    "training_years": [2022, 2023],
     "official_filter": true,
     "cv_mae": 0.709874929227463,
     "cv_rmse": 1.2215557767012535,
@@ -93,7 +81,7 @@
     "temporal_rmse": 1.3836444735437046,
     "temporal_r2": 0.5020303655625313,
     "is_best": true,
-    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\murder_homicide_murder_rate_gradient_boosting_log.joblib"
+    "model_path": "models/murder_homicide_murder_rate_gradient_boosting_log.joblib"
   },
   {
     "target": "women_crimes_rape_r",
@@ -102,10 +90,7 @@
     "rows": 91,
     "feature_count": 38,
     "official_label_max_year": 2023,
-    "training_years": [
-      2022,
-      2023
-    ],
+    "training_years": [2022, 2023],
     "official_filter": true,
     "cv_mae": 0.5439570342205828,
     "cv_rmse": 0.6863062364723548,
@@ -117,7 +102,7 @@
     "temporal_rmse": 0.5136497929955924,
     "temporal_r2": 0.5630676451563864,
     "is_best": true,
-    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\women_crimes_rape_r_ridge_log.joblib"
+    "model_path": "models/women_crimes_rape_r_ridge_log.joblib"
   },
   {
     "target": "complaints_rate_of_cognizable_crime_ipc_sll",
@@ -126,9 +111,7 @@
     "rows": 49,
     "feature_count": 42,
     "official_label_max_year": 2023,
-    "training_years": [
-      2022
-    ],
+    "training_years": [2022],
     "official_filter": true,
     "cv_mae": 203.99816190124847,
     "cv_rmse": 362.81266978991357,
@@ -137,6 +120,6 @@
     "test_rmse": 121.26602237012335,
     "test_r2": 0.7475436898772932,
     "is_best": true,
-    "model_path": "C:\\Users\\ya allah\\python_visual_code\\machine_learning\\CRIMECAST\\models\\complaints_rate_of_cognizable_crime_ipc_sll_gradient_boosting_log.joblib"
+    "model_path": "models/complaints_rate_of_cognizable_crime_ipc_sll_gradient_boosting_log.joblib"
   }
 ]

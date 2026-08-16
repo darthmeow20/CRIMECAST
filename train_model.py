@@ -510,7 +510,11 @@ def fit_target_model(
     )
 
     best_row["is_best"] = True
-    best_row["model_path"] = str(model_path)
+    # Relative path so Streamlit Cloud / other machines can load models
+    try:
+        best_row["model_path"] = str(model_path.relative_to(PROJECT_ROOT)).replace("\\", "/")
+    except Exception:
+        best_row["model_path"] = f"models/{model_path.name}"
     best_row["official_label_max_year"] = official_max_year
     best_row["training_years"] = label_meta.get("years_used", [])
     for row in evaluated_rows:

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>CRIMECAST — Viva Preparation Guide</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Calibri, Arial, sans-serif;
+    color: #111;
+    line-height: 1.45;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    font-size: 11pt;
+  }
+  h1 {
+    color: #991b1b;
+    font-size: 1.45rem;
+    margin: 1.2em 0 0.4em;
+    border-bottom: 2px solid #991b1b;
+    padding-bottom: 4px;
+  }
+  h1.cover {
+    border: none;
+    text-align: center;
+    font-size: 1.7rem;
+    margin-top: 2rem;
+  }
+  h2 {
+    color: #1e3a5f;
+    font-size: 1.1rem;
+    margin: 1em 0 0.35em;
+  }
+  .sub { text-align: center; color: #4b5563; margin: 0.25em 0; }
+  .pitch {
+    background: #f8fafc;
+    border-left: 4px solid #991b1b;
+    padding: 12px 14px;
+    margin: 16px 0;
+    font-size: 10.5pt;
+  }
+  .say {
+    color: #0f766e;
+    font-style: italic;
+    margin: 4px 0 12px 8px;
+    font-size: 10pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 8px 0 14px;
+  }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    vertical-align: top;
+    text-align: left;
+  }
+  th { background: #1e293b; color: #fff; }
+  tr:nth-child(even) td { background: #f1f5f9; }
+  ul, ol { margin: 6px 0 12px 1.2em; padding: 0; }
+  li { margin: 3px 0; }
+  .muted { color: #6b7280; font-size: 9.5pt; }
+  .page-break { page-break-before: always; }
+  @media print {
+    body { padding: 0; max-width: none; }
+    h1 { page-break-after: avoid; }
+    table, .pitch { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="cover">CRIMECAST</h1>
+<p class="sub"><b>Crime Analysis, Prediction &amp; Sentiment Analysis<br/>Using Machine Learning (Tamil Nadu Districts)</b></p>
+<p class="sub">VIVA PREPARATION GUIDE</p>
+<p class="sub">How the project works · Expected examiner questions</p>
+<p class="sub muted">College prototype · Not a live police system · Not an official SCRB forecast</p>
+
+<div class="pitch">
+  <b>Elevator pitch (memorise):</b><br/>
+  “CRIMECAST cleans multi-table Tamil Nadu crime stats, trains classical ML for district rates
+  and counts with honest temporal metrics, adds news sentiment for live context, and shows 2026
+  as a <b>scenario</b> with maps, compare, and explainability — not as official SCRB output.”
+</div>
+
+<h1>1. How it works — block by block</h1>
+<p><b>Pipeline:</b> Data → Clean → Train → Predict → News/Sentiment → Dashboard<br/>
+(+ parallel <b>2026 trend scenario</b> branch)</p>
+
+<h2>Block 1 — Data (inputs)</h2>
+<table>
+  <tr><th>Source</th><th>Role</th></tr>
+  <tr><td>Official-style CSVs (complaints, murder, women crimes)</td><td>Numbers for ML; train mainly on official-era years ≤2023</td></tr>
+  <tr><td>News harvest (Tamil + English)</td><td>Live heat, sentiment, word clouds — <b>not FIRs</b></td></tr>
+  <tr><td>SQLite (<code>data/crimecast.db</code>)</td><td>Headlines, alerts, optional migrated tables</td></tr>
+</table>
+<p class="say">Say: We separate official labels used for training from media used for live awareness.</p>
+
+<h2>Block 2 — Clean (<code>clean_data.py</code>)</h2>
+<ul>
+  <li>Discover yearly CSVs; fix headers (e.g. muder → murder)</li>
+  <li>Drop TOTAL aggregate rows (no double counting)</li>
+  <li>Merge into <code>crimecast_ml_ready.csv</code> (district × year)</li>
+  <li>Map cities to 38 TN districts (Madurai City→Madurai, Avadi→Chennai)</li>
+</ul>
+<p class="say">Say: One ML-ready table, consistent districts.</p>
+
+<h2>Block 3 — Train (<code>train_model.py</code>)</h2>
+<ul>
+  <li>Targets: complaints, murder count/rate, rape count/rate, cognizable rate</li>
+  <li>Models: Dummy, Ridge, Random Forest, Gradient Boosting (often log targets)</li>
+  <li>Select best via CV + temporal holdout where possible</li>
+  <li>Save <code>models/*.joblib</code> + <code>training_metrics.csv</code></li>
+</ul>
+<p class="say">Say: We don’t claim perfect forecasting; we show temporal metrics honestly.</p>
+
+<h2>Block 4 — Predict (<code>predict.py</code>)</h2>
+<ul>
+  <li>Resolve district (TN38) → build features for year</li>
+  <li>Model raw prediction → blend with district history</li>
+  <li>Rates lean more on history so rankings stay realistic</li>
+  <li>Optional: populate all 38 districts; map has <b>no news fill</b></li>
+</ul>
+<p class="say">Say: Blend keeps sticky rates from going wild.</p>
+
+<h2>Block 5 — 2026 scenario</h2>
+<ul>
+  <li>Per-district trend on history (not Prophet / LSTM)</li>
+  <li>Methods: linear · last year · blend</li>
+  <li>Uncertainty bands (low–mid–high)</li>
+  <li><b>Scenario only</b> — not SCRB official</li>
+</ul>
+<p class="say">Say: Short time series → simple trend + bands.</p>
+
+<h2>Block 6 — News + sentiment</h2>
+<ul>
+  <li>Harvest headlines → DistilBERT if available, else lexicon</li>
+  <li>District concern score + word clouds</li>
+  <li>Live Feed = news volume in a time window</li>
+</ul>
+<p class="say">Say: Media tone and volume, not crime registration.</p>
+
+<h2>Block 7 — Dashboard</h2>
+<table>
+  <tr><th>Tab</th><th>One line</th></tr>
+  <tr><td>Live Feed</td><td>News heat + alerts</td></tr>
+  <tr><td>District Map</td><td>Choropleth / heat / per-lakh scoreboard</td></tr>
+  <tr><td>Accuracy</td><td>Metrics, claim/don’t claim, blend check</td></tr>
+  <tr><td>Predict</td><td>One district + all-district map</td></tr>
+  <tr><td>Sentiment</td><td>Map + word cloud</td></tr>
+  <tr><td>2026</td><td>Multi-target scenario map + bands</td></tr>
+  <tr><td>District Compare</td><td>Side-by-side + carve maps + brief</td></tr>
+  <tr><td>Risk Explain</td><td>Why high risk (composite + LIME-style)</td></tr>
+  <tr><td>Health</td><td>Files/models ready?</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>2. Five-minute demo path</h1>
+<ol>
+  <li><b>Live</b> — “This is news heat, not FIRs.”</li>
+  <li><b>Map</b> — official rates / density; per-lakh ranking.</li>
+  <li><b>Accuracy</b> — test R², temporal limits, what we claim.</li>
+  <li><b>Predict</b> — one district + drivers.</li>
+  <li><b>2026</b> — scenario + uncertainty.</li>
+  <li><b>Compare</b> — e.g. Thoothukudi vs Madurai.</li>
+  <li><b>Explain</b> — risk factors.</li>
+</ol>
+
+<h1>3. Expected examiner questions</h1>
+
+<h2>A. Problem &amp; scope</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>What is CRIMECAST?</td><td>TN district crime analysis + ML prediction + news sentiment + Streamlit demo.</td></tr>
+  <tr><td>Is this a police system?</td><td><b>No</b> — academic prototype only.</td></tr>
+  <tr><td>Out of scope?</td><td>Real-time FIR system, causal policy proof, official 2026 SCRB authority.</td></tr>
+</table>
+
+<h2>B. Data</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>Data sources?</td><td>SCRB/NCRB-style tables + news harvest.</td></tr>
+  <tr><td>Why remove TOTAL rows?</td><td>Avoid double counting state aggregates.</td></tr>
+  <tr><td>What is TN38?</td><td>38 official districts; cities rolled into parents.</td></tr>
+  <tr><td>News = crime?</td><td><b>No.</b> Volume/tone support only.</td></tr>
+  <tr><td>Training years?</td><td>Mainly official-era ≤2023; later years thinner/proxy for maps.</td></tr>
+</table>
+
+<h2>C. Machine learning</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>Which algorithms?</td><td>Ridge, RF, GB (+ dummy); best per target.</td></tr>
+  <tr><td>Evaluation?</td><td>CV MAE/RMSE/R² + temporal holdout.</td></tr>
+  <tr><td>Why weak temporal R²?</td><td>Few official years → hard year-to-year generalisation (we show it).</td></tr>
+  <tr><td>What is blend?</td><td>Model + district history; rates weight history more.</td></tr>
+  <tr><td>Why not LSTM/Prophet?</td><td>Short yearly series; simple models more honest.</td></tr>
+  <tr><td>Leakage control?</td><td>Exclude target’s own source family from features.</td></tr>
+</table>
+
+<h2>D. 2026 forecast</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>How is 2026 made?</td><td>District trend: linear / last-year / blend + bands.</td></tr>
+  <tr><td>Official SCRB?</td><td><b>No</b> — scenario for discussion.</td></tr>
+  <tr><td>Uncertainty?</td><td>Residual/horizon-style low–mid–high band.</td></tr>
+</table>
+
+<h2>E. Sentiment &amp; explainability</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>DistilBERT role?</td><td>Headline polarity when available; lexicon fallback.</td></tr>
+  <tr><td>Word cloud?</td><td>Frequent terms in district headlines.</td></tr>
+  <tr><td>SHAP/LIME?</td><td>Importance×z or local linear (LIME-style); optional real SHAP.</td></tr>
+</table>
+
+<h2>F. Engineering &amp; testing</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>Why Streamlit?</td><td>Fast interactive maps/tables for demo.</td></tr>
+  <tr><td>Why SQLite?</td><td>Zero-server local store; CSVs remain backup.</td></tr>
+  <tr><td>Postgres?</td><td>Future only — not full production path yet.</td></tr>
+  <tr><td>Testing?</td><td>Unit + integration + data quality + UI checklist; <code>py -3 run_tests.py</code>.</td></tr>
+  <tr><td>No news fill on predict/2026 maps?</td><td>Colours mean model/forecast, not media volume.</td></tr>
+</table>
+
+<h2>G. Ethics &amp; limits</h2>
+<table>
+  <tr><th>Question</th><th>Short answer</th></tr>
+  <tr><td>Bias?</td><td>Under-reporting, media bias, uneven district reporting.</td></tr>
+  <tr><td>Misuse?</td><td>Must not drive arrests/policing automatically.</td></tr>
+  <tr><td>Limitations?</td><td>Short series; media ≠ crime; scenario forecasts.</td></tr>
+  <tr><td>Future work?</td><td>More official years, monthly data, multi-user DB, deeper Tamil NLP.</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>4. If stuck — safe lines</h1>
+<ul>
+  <li>“That’s a <b>scenario</b>, not an official forecast.”</li>
+  <li>“That’s <b>news volume</b>, not registered crime.”</li>
+  <li>“With only a few official years we prefer <b>simple, interpretable</b> methods.”</li>
+  <li>“We <b>blend</b> with history so rate rankings stay realistic.”</li>
+  <li>“We report temporal metrics <b>honestly</b> — even when they are weak.”</li>
+</ul>
+
+<h1>5. Day-of checklist</h1>
+<ul>
+  <li>Restart Streamlit → <code>http://localhost:8501</code></li>
+  <li>Walk demo path (~5 min)</li>
+  <li>Know one Accuracy number if asked</li>
+  <li>Know unit vs integration vs UI testing</li>
+  <li>Stay calm on limitations — honesty scores well</li>
+</ul>
+
+<h1>6. Quick commands</h1>
+<p><b>Dashboard:</b> <code>py -3 -m streamlit run dashboard.py --server.port 8501</code><br/>
+<b>Tests:</b> <code>py -3 run_tests.py</code><br/>
+<b>Health:</b> <code>py -3 health_check.py</code><br/>
+<b>PDF (this guide as PDF via reportlab):</b> <code>py -3 project_docs/generate_viva_pdf.py</code></p>
+
+<p class="muted" style="margin-top:2rem;text-align:center">
+  — End of viva prep — · CRIMECAST academic prototype<br/>
+  Print: Ctrl+P → Destination “Microsoft Print to PDF” or “Save as PDF”
+</p>
+
+</body>
+</html>
