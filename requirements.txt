@@ -1,16 +1,17 @@
-# Streamlit Cloud (Python 3.11 via runtime.txt)
-# Keep this list short and explicit so install cannot skip plotly.
+# Streamlit Community Cloud — prefer binary wheels (no compile from source)
+# runtime.txt must be: python-3.11
 
-streamlit==1.39.0
-plotly==5.24.1
-pandas==2.2.3
-numpy==1.26.4
-scikit-learn==1.5.2
-scipy==1.13.1
-joblib==1.4.2
-matplotlib==3.9.2
-seaborn==0.13.2
-Pillow==10.4.0
-python-dateutil==2.9.0.post0
-requests==2.32.3
-textblob==0.18.0.post0
+streamlit>=1.32.0,<1.42.0
+plotly>=5.18.0,<6
+pandas>=2.0.0,<2.3
+numpy>=1.26.0,<2.1
+scikit-learn>=1.4.0,<1.6
+scipy>=1.11.0,<1.14
+joblib>=1.3.0
+matplotlib>=3.8.0,<3.10
+seaborn>=0.13.0
+# Pillow: do NOT pin 10.4.0 (can fail to build on Cloud). Let pip pick a wheel.
+Pillow>=10.0.0,<11.1
+python-dateutil>=2.8.0
+requests>=2.31.0
+textblob>=0.17.1
