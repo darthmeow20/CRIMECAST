@@ -46,6 +46,19 @@ py -3 project_docs\generate_full_report_docx.py
 
 Legacy `model_outputs/figures/*` is only used if a new file is missing.
 
+## Simple English explain (viva PDF)
+
+```powershell
+py -3 project_docs\generate_simple_explain_pdf.py
+```
+
+Or double-click `MAKE_SIMPLE_EXPLAIN_PDF.bat`.
+
+| Output | |
+|--------|--|
+| `CRIMECAST_SIMPLE_EXPLAIN.html` | Open → Ctrl+P → **Save as PDF** |
+| `CRIMECAST_SIMPLE_EXPLAIN.pdf` | If reportlab is installed |
+
 ## Testing evidence (formal cases + terminal)
 
 ```powershell

@@ -142,6 +142,16 @@ class TestSentimentWordclouds(unittest.TestCase):
         self.assertNotIn("in", toks)
         self.assertTrue(any(t in toks for t in ("police", "arrested", "thief", "city")))
 
+    def test_tokenize_keeps_tamil(self):
+        from sentiment_wordclouds import tokenize, has_tamil
+
+        text = "சென்னையில் போலீஸ் கைது — police arrest case"
+        toks = tokenize(text)
+        self.assertTrue(any(has_tamil(t) for t in toks), f"expected Tamil tokens, got {toks}")
+        self.assertIn("police", toks)
+        self.assertIn("arrest", toks)
+        self.assertNotIn("ஒரு", toks)  # stopword if present alone only
+
     def test_word_freq(self):
         from sentiment_wordclouds import word_freq_for_district, collect_district_texts
         import pandas as pd

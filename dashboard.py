@@ -5089,7 +5089,7 @@ def _main_impl():
         st.markdown("---")
         st.markdown("### ☁️ Word clouds by district")
         st.caption(
-            "Terms from media harvest / scored headlines. "
+            "Terms from media harvest / scored headlines (English + Tamil). "
             "Image cloud needs `pip install wordcloud`; frequency bars always work."
         )
         try:
@@ -5099,6 +5099,9 @@ def _main_impl():
                 word_freq_for_district,
                 freq_dataframe,
                 make_wordcloud_image,
+                font_for_plotly,
+                tamil_font_status,
+                has_tamil,
             )
 
             _hl_for_wc = locals().get("scored_hl")
@@ -5142,7 +5145,21 @@ def _main_impl():
                         f"No tokens for **{wc_dist}**. Refresh news or pick a district with headlines."
                     )
                 else:
+                    sample_words = " ".join(ctr.keys())
+                    # Build image first so ensure_tamil_font() can copy/download a face
                     img = make_wordcloud_image(ctr)
+                    _ta_font = tamil_font_status()
+                    if has_tamil(sample_words) and not _ta_font.get("ok"):
+                        st.warning(
+                            "Tamil words found, but no Tamil font is available — "
+                            "cloud may show □ boxes. "
+                            "Local: run `python assets/fonts/fetch_noto_tamil.py` once. "
+                            "Cloud: keep `packages.txt` (`fonts-lohit-taml`) and redeploy."
+                        )
+                    elif has_tamil(sample_words) and _ta_font.get("font_path"):
+                        st.caption(
+                            f"Tamil font: `{Path(_ta_font['font_path']).name}`"
+                        )
                     wca, wcb = st.columns([1.25, 1])
                     with wca:
                         if img is not None:
@@ -5165,12 +5182,15 @@ def _main_impl():
                                 color_continuous_scale="Blues",
                                 title=f"Top terms · {wc_dist}",
                             )
+                            _pf = font_for_plotly()
                             fig_wc.update_layout(
                                 paper_bgcolor="rgba(0,0,0,0)",
                                 plot_bgcolor="#0e0e12",
                                 height=min(520, 22 * len(fdf) + 90),
                                 showlegend=False,
                                 margin=dict(l=8, r=8, t=40, b=8),
+                                font=dict(family=_pf),
+                                yaxis=dict(tickfont=dict(family=_pf, size=12)),
                             )
                             st.plotly_chart(
                                 fig_wc, use_container_width=True, key="sent_wc_bar"

@@ -13,7 +13,7 @@
 | `requirements.txt` | Lean, flexible pins for cloud (no torch/jupyter) |
 | `requirements-local-full.txt` | Old full freeze for local Windows reference |
 | `runtime.txt` | `python-3.11` (supported on Streamlit Cloud) |
-| `packages.txt` | **Do not put comments** — Streamlit treats every word as an `apt` package. Prefer **no packages.txt** unless you need system libs. |
+| `packages.txt` | **Only real apt names, no comments.** Currently `fonts-lohit-taml` so Tamil word clouds are not □ boxes. |
 | `predict.py` | Resolves `models/<name>.joblib` if absolute path missing |
 | `best_models.json` | Relative `models/...` paths |
 | `train_model.py` | Saves relative model paths |
