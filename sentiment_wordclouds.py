@@ -201,8 +201,43 @@ def resolve_wordcloud_font() -> str | None:
     return ensure_tamil_font(force_download=False)
 
 
+def ensure_latin_font() -> str | None:
+    """Latin-only face for English word clouds (never Lohit Tamil)."""
+    paths: list[Path] = []
+    if sys.platform == "win32":
+        fonts = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+        for name in (
+            "arial.ttf", "calibri.ttf", "tahoma.ttf", "segoeui.ttf",
+            "Nirmala.ttc", "Nirmala.ttf",
+        ):
+            paths.append(fonts / name)
+    paths.extend(
+        [
+            _FONTS_DIR / "DejaVuSans.ttf",
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
+            Path("/usr/share/fonts/truetype/freefont/FreeSans.ttf"),
+            Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"),
+        ]
+    )
+    for p in paths:
+        if "lohit" in str(p).lower():
+            continue
+        if _renders(p, _PROBE_EN):
+            return str(p.resolve())
+    try:
+        from matplotlib import font_manager as fm
+
+        path = fm.findfont(fm.FontProperties(family="DejaVu Sans"))
+        if path and _renders(path, _PROBE_EN):
+            return str(Path(path).resolve())
+    except Exception:
+        pass
+    return None
+
+
 def font_for_plotly() -> str:
-    return "Nirmala UI, Noto Sans Tamil, Latha, Segoe UI, sans-serif"
+    return "DejaVu Sans, Arial, Segoe UI, sans-serif"
 
 
 def tamil_font_status() -> dict[str, Any]:
@@ -447,100 +482,119 @@ def _draw_column(
         y += th + 6
 
 
-def make_wordcloud_image(
+def make_english_wordcloud_image(
     ctr: Counter,
-    width: int = 960,
-    height: int = 520,
+    width: int = 900,
+    height: int = 420,
     *,
     return_error: bool = False,
 ):
     """
-    Bilingual word panel:
-      left  = English (blue)
-      right = Tamil  (teal)
+    English-only word cloud (safe on Streamlit Cloud — no Tamil fonts).
 
-    Always uses Pillow + a verified font (never the wordcloud package for mixed text).
+    Uses `wordcloud` + DejaVu/Arial when available; otherwise a simple PIL layout.
     """
     if not ctr:
         return (None, "empty") if return_error else None
 
-    freqs = {str(k): float(v) for k, v in ctr.items() if str(k).strip() and float(v) > 0}
+    # Force English tokens only
+    freqs = {
+        str(k).lower(): float(v)
+        for k, v in ctr.items()
+        if is_english_token(str(k)) and float(v) > 0
+    }
     if not freqs:
-        return (None, "no frequencies") if return_error else None
+        return (None, "no English tokens in headlines") if return_error else None
 
-    resolve_wordcloud_font.cache_clear()
-    font_path = ensure_tamil_font(force_download=False)
-    if not font_path:
-        font_path = ensure_tamil_font(force_download=True)
-    if not font_path:
-        msg = "No Tamil/English font found (need Nirmala UI or Noto Sans Tamil)"
-        return (None, msg) if return_error else None
+    font_path = ensure_latin_font()
+    last_err: str | None = None
 
-    en_items = sorted(
-        [(w, c) for w, c in freqs.items() if is_english_token(w)],
-        key=lambda x: -x[1],
-    )[:30]
-    ta_items = sorted(
-        [(w, c) for w, c in freqs.items() if is_tamil_token(w)],
-        key=lambda x: -x[1],
-    )[:30]
-    other_items = sorted(
-        [
-            (w, c)
-            for w, c in freqs.items()
-            if not is_english_token(w) and not is_tamil_token(w)
-        ],
-        key=lambda x: -x[1],
-    )[:10]
+    # 1) Classic wordcloud library (English + Latin font)
+    try:
+        from wordcloud import WordCloud
+        import matplotlib
 
-    # If one side empty, put all into one full-width column
+        matplotlib.use("Agg")
+        kwargs: dict[str, Any] = dict(
+            width=width,
+            height=height,
+            background_color="#0e0e12",
+            colormap="Blues",
+            max_words=min(80, max(15, len(freqs))),
+            prefer_horizontal=0.9,
+            relative_scaling=0.45,
+            min_font_size=11,
+            collocations=False,
+            regexp=r"[A-Za-z']+",
+        )
+        if font_path:
+            kwargs["font_path"] = font_path
+        img = WordCloud(**kwargs).generate_from_frequencies(freqs).to_image()
+        if img is not None:
+            return (img, None) if return_error else img
+    except ImportError as e:
+        last_err = f"wordcloud not installed ({e})"
+    except Exception as e:
+        last_err = f"wordcloud failed: {type(e).__name__}: {e}"
+
+    # 2) PIL fallback — frequency-sized list (always works with Arial/DejaVu)
     try:
         from PIL import Image, ImageDraw
 
-        bg = (14, 14, 18)
-        img = Image.new("RGB", (width, height), bg)
-        draw = ImageDraw.Draw(img)
+        if not font_path:
+            last_err = (last_err or "") + "; no Latin font"
+            return (None, last_err.strip("; ")) if return_error else None
 
-        # Header
+        items = sorted(freqs.items(), key=lambda x: -x[1])[:40]
+        max_c = max(c for _, c in items) or 1.0
+        img = Image.new("RGB", (width, height), (14, 14, 18))
+        draw = ImageDraw.Draw(img)
         try:
-            hf = _pil_font(font_path, 15)
             draw.text(
                 (12, 8),
-                "English (left)  ·  Tamil (right)  ·  same headlines",
+                "English terms only",
                 fill=(160, 160, 170),
-                font=hf,
+                font=_pil_font(font_path, 14),
             )
         except Exception:
             pass
 
-        mid = width // 2
-        # divider
-        draw.line([(mid, 32), (mid, height - 8)], fill=(50, 50, 60), width=1)
+        y = 36
+        for word, count in items:
+            t = float(count) / max_c
+            size = int(12 + t * 22)
+            try:
+                font = _pil_font(font_path, size)
+            except Exception:
+                continue
+            tw, th = _text_size(draw, word, font)
+            if y + th > height - 8:
+                break
+            draw.text((16, y), word, fill=(96, 165, 250), font=font)
+            try:
+                cf = _pil_font(font_path, 11)
+                draw.text((20 + tw, y + 3), f" {int(count)}", fill=(120, 120, 130), font=cf)
+            except Exception:
+                pass
+            y += th + 5
 
-        body_top = 36
-        body_h = height - body_top - 8
-
-        if en_items or ta_items:
-            _draw_column(
-                draw, en_items, font_path, 0, body_top, mid - 4, body_h,
-                color=(96, 165, 250), title="English", title_color=(147, 197, 253),
-            )
-            _draw_column(
-                draw, ta_items, font_path, mid, body_top, width - mid - 4, body_h,
-                color=(45, 212, 191), title="தமிழ் / Tamil", title_color=(94, 234, 212),
-            )
-        else:
-            # only "other" tokens — single column
-            _draw_column(
-                draw, other_items or list(freqs.items())[:30],
-                font_path, 0, body_top, width - 8, body_h,
-                color=(200, 200, 210), title="Words", title_color=(220, 220, 230),
-            )
-
-        return (img, None) if return_error else img
+        return (img, last_err) if return_error else img
     except Exception as e:
-        msg = f"draw failed: {type(e).__name__}: {e}"
+        msg = f"{last_err}; PIL: {e}" if last_err else str(e)
         return (None, msg) if return_error else None
+
+
+def make_wordcloud_image(
+    ctr: Counter,
+    width: int = 900,
+    height: int = 420,
+    *,
+    return_error: bool = False,
+):
+    """Alias → English-only cloud (Tamil disabled in UI to avoid font boxes)."""
+    return make_english_wordcloud_image(
+        ctr, width=width, height=height, return_error=return_error
+    )
 
 
 def make_freq_bar_image(
