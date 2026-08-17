@@ -398,27 +398,57 @@ def is_high_negative(score: float, text: str = "") -> bool:
     return score >= 4.0
 
 
+def _parse_feed_datetime(df: pd.DataFrame) -> pd.Series:
+    """Best-effort publish time for Live Feed (newest-first)."""
+    if df is None or df.empty:
+        return pd.Series(dtype="datetime64[ns]")
+    show = df
+    dt = pd.Series(pd.NaT, index=show.index, dtype="datetime64[ns]")
+    for col in ("date", "published", "published_at", "pub_date", "datetime", "time"):
+        if col in show.columns:
+            parsed = pd.to_datetime(show[col], errors="coerce", utc=False)
+            dt = dt.fillna(parsed)
+    # year-only fallback (mid-year) so rows still sort somewhat
+    if "year" in show.columns:
+        y = pd.to_numeric(show["year"], errors="coerce")
+        y_dt = pd.to_datetime(
+            y.apply(lambda v: f"{int(v)}-06-15" if pd.notna(v) and 2000 <= int(v) <= 2100 else pd.NaT),
+            errors="coerce",
+        )
+        dt = dt.fillna(y_dt)
+    return dt
+
+
 def build_negative_news_feed(
     feed: pd.DataFrame,
     *,
     top_n: int = 14,
     high_n: int = 3,
+    recent_days: int | None = None,
 ) -> pd.DataFrame:
     """
-    Live Feed order:
-      1–3  → high negative news (worst first)
-      4+   → other negative news (newest first)
-    Positive/neutral items are excluded when enough negative rows exist.
+    Live Feed order (latest first):
+      • Sort by publish date/time descending (newest on top).
+      • Prefer crime/negative items when scores exist, but never bury fresh news.
+      • Optional recent_days window filters out older rows.
     """
     if feed is None or feed.empty:
         return feed if feed is not None else pd.DataFrame()
 
     show = feed.copy()
     hcol = next((c for c in ("headline", "text", "source_text") if c in show.columns), None)
-    if "date" in show.columns:
-        show["_dt"] = pd.to_datetime(show["date"], errors="coerce")
-    else:
-        show["_dt"] = pd.NaT
+    show["_dt"] = _parse_feed_datetime(show)
+
+    # Optional time window (Live Feed control: 30d / 90d / …)
+    if recent_days is not None and recent_days > 0:
+        from datetime import datetime, timedelta
+
+        cutoff = datetime.now() - timedelta(days=int(recent_days))
+        in_window = show["_dt"].isna() | (show["_dt"] >= pd.Timestamp(cutoff))
+        # Keep undated rows only if we would otherwise go empty
+        filtered = show.loc[in_window]
+        if not filtered.empty:
+            show = filtered
 
     def _row_score(row) -> float:
         text = _headline_text(row, hcol)
@@ -444,41 +474,18 @@ def build_negative_news_feed(
     show["_neg_score"] = show.apply(_row_score, axis=1)
     show["_text"] = show.apply(lambda r: _headline_text(r, hcol), axis=1)
 
-    # Negative = score above floor (keyword/sentiment hit)
+    # Prefer crime/negative when we have enough; still newest-first
     neg = show[show["_neg_score"] > 0.4].copy()
-    if neg.empty:
-        # fallback: newest items if nothing scores negative
-        return show.sort_values("_dt", ascending=False, na_position="last").head(top_n)
+    pool = neg if len(neg) >= max(5, top_n // 2) else show
 
-    neg["_high"] = neg.apply(
-        lambda r: is_high_negative(float(r["_neg_score"]), str(r.get("_text") or "")),
-        axis=1,
+    # Primary sort: newest first; secondary: higher severity
+    out = pool.sort_values(
+        by=["_dt", "_neg_score"],
+        ascending=[False, False],
+        na_position="last",
     )
 
-    high = neg[neg["_high"]].sort_values(
-        by=["_neg_score", "_dt"], ascending=[False, False], na_position="last"
-    )
-    other = neg[~neg["_high"]].sort_values(
-        by=["_dt", "_neg_score"], ascending=[False, False], na_position="last"
-    )
-
-    # If fewer than high_n "high" rows, pull next-worst negatives into the top block
-    high_pick = high.head(high_n)
-    if len(high_pick) < high_n:
-        need = high_n - len(high_pick)
-        filler = other.head(need)
-        other = other.iloc[need:]
-        high_pick = pd.concat([high_pick, filler], ignore_index=True)
-
-    # Remaining high (beyond top 3) join the "other negative" section by date
-    high_rest = high.iloc[high_n:] if len(high) > high_n else high.iloc[0:0]
-    other_block = pd.concat([high_rest, other], ignore_index=True)
-    other_block = other_block.sort_values(
-        by=["_dt", "_neg_score"], ascending=[False, False], na_position="last"
-    )
-
-    out = pd.concat([high_pick, other_block], ignore_index=True)
-    # Dedupe by headline if present
+    # Dedupe by headline (keep newest)
     if hcol and hcol in out.columns:
         out = out.drop_duplicates(subset=[hcol], keep="first")
     elif "headline" in out.columns:
@@ -759,21 +766,67 @@ def load_news_signals():
 
 @st.cache_data
 def load_media_harvest():
-    path = _latest_media_harvest_path()
-    try:
-        from db import load_dataset_or_csv
+    """
+    Load media headlines for Live Feed — newest articles first.
+    Merges recent harvest CSVs so the feed is not stuck on an old file order.
+    """
+    frames: list[pd.DataFrame] = []
+    # Newest harvest files first (by mtime)
+    harvests = sorted(
+        OUTPUT_DIR.glob("media_harvest_tn_crime_*.csv"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    latest = _latest_media_harvest_path()
+    paths: list[Path] = []
+    if latest is not None:
+        paths.append(latest)
+    for p in harvests[:6]:
+        if p not in paths:
+            paths.append(p)
 
-        df = load_dataset_or_csv("media_harvest", path)
-        if not df.empty:
-            return df
-    except Exception:
-        pass
-    if path is not None and path.exists():
-        return pd.read_csv(path)
-    raw = OUTPUT_DIR / "news_signals_raw.csv"
-    if raw.exists():
-        return pd.read_csv(raw)
-    return pd.DataFrame()
+    for path in paths:
+        try:
+            part = pd.read_csv(path)
+            if not part.empty:
+                frames.append(part)
+        except Exception:
+            continue
+
+    # DB / registry fallback
+    if not frames:
+        try:
+            from db import load_dataset_or_csv
+
+            df = load_dataset_or_csv("media_harvest", latest)
+            if not df.empty:
+                frames.append(df)
+        except Exception:
+            pass
+    if not frames:
+        raw = OUTPUT_DIR / "news_signals_raw.csv"
+        if raw.exists():
+            try:
+                frames.append(pd.read_csv(raw))
+            except Exception:
+                pass
+
+    if not frames:
+        return pd.DataFrame()
+
+    out = pd.concat(frames, ignore_index=True, sort=False)
+    hcol = next((c for c in ("headline", "text", "source_text") if c in out.columns), None)
+    if hcol:
+        # keep first occurrence after newest-date sort
+        out["_dt"] = _parse_feed_datetime(out)
+        out = out.sort_values("_dt", ascending=False, na_position="last")
+        out = out.drop_duplicates(subset=[hcol], keep="first")
+        out = out.drop(columns=["_dt"], errors="ignore")
+    elif "date" in out.columns:
+        out["_dt"] = pd.to_datetime(out["date"], errors="coerce")
+        out = out.sort_values("_dt", ascending=False, na_position="last")
+        out = out.drop(columns=["_dt"], errors="ignore")
+    return out.reset_index(drop=True)
 
 
 @st.cache_data(show_spinner=False)
@@ -3238,7 +3291,13 @@ def _main_impl():
                 )
                 feed = harvest_df if not harvest_df.empty else sentiment_df
                 if not feed.empty:
-                    feed_show = build_negative_news_feed(feed, top_n=14, high_n=3)
+                    # Always newest first within the selected news time window
+                    feed_show = build_negative_news_feed(
+                        feed, top_n=16, high_n=3, recent_days=int(recent_days)
+                    )
+                    st.caption(
+                        f"Showing **latest** headlines (newest first) · window **{time_window}**"
+                    )
                     for _, r in feed_show.iterrows():
                         headline = str(
                             r.get("headline") or r.get("text") or r.get("source_text") or "—"
@@ -3255,7 +3314,15 @@ def _main_impl():
                         )
                         if isinstance(crime, str) and len(crime) > 24:
                             crime = crime[:24] + "…"
-                        date_s = str(r.get("date") or "")[:10]
+                        # Prefer parsed _dt for display
+                        date_s = ""
+                        if "_dt" in r.index and pd.notna(r.get("_dt")):
+                            try:
+                                date_s = pd.Timestamp(r["_dt"]).strftime("%Y-%m-%d")
+                            except Exception:
+                                date_s = str(r.get("date") or "")[:10]
+                        else:
+                            date_s = str(r.get("date") or "")[:10]
                         if date_s and date_s != "nan":
                             source = f"{source} · {date_s}"
                         render_feed_card(
