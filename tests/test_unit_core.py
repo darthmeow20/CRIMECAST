@@ -199,10 +199,9 @@ class TestSentimentWordclouds(unittest.TestCase):
 
         font = ensure_tamil_font(force_download=False)
         img, err = make_wordcloud_image(
-            Counter({"police": 5, "arrest": 3, "கைது": 4}),
+            Counter({"police": 5, "arrest": 3, "murder": 2, "கைது": 4, "போலீஸ்": 3}),
             return_error=True,
         )
-        # On Windows, Nirmala should produce an image; elsewhere download/system may apply
         if font:
             self.assertIsNotNone(img, msg=f"expected image with font={font}, err={err}")
             self.assertTrue(hasattr(img, "size"))

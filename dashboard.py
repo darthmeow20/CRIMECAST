@@ -5112,13 +5112,12 @@ def _main_impl():
                 "No scored news yet. Click **🔄** to refresh media, then **Score news → map**."
             )
 
-        # ---- Word clouds (per district) inside Sentiment ----
+        # ---- Word clouds (per district) — simple EN | TA panel ----
         st.markdown("---")
         st.markdown("### ☁️ Word clouds by district")
         st.caption(
-            "Mixed **English + Tamil** word clouds (default). "
-            "Frequencies are balanced so one language does not hide the other. "
-            "Blue = English · teal/gold = Tamil. Font embeds both scripts."
+            "English (left, blue) and Tamil (right, teal) from the same headlines. "
+            "Uses system font Nirmala / Noto — not browser fonts."
         )
         try:
             from sentiment_wordclouds import (
@@ -5128,9 +5127,7 @@ def _main_impl():
                 freq_dataframe,
                 make_wordcloud_image,
                 make_freq_bar_image,
-                font_for_plotly,
                 tamil_font_status,
-                has_tamil,
                 lang_counts,
             )
 
@@ -5142,8 +5139,12 @@ def _main_impl():
 
             texts_df = collect_district_texts(harvest_df, news_df, _hl_for_wc)
             wc_dists = district_list(texts_df)
-            if not texts_df.empty and wc_dists:
-                # Default to district selected above (if any)
+            if texts_df.empty or not wc_dists:
+                st.info(
+                    "No district-linked headlines for word clouds yet. "
+                    "Click **🔄** to refresh news, then re-open Sentiment."
+                )
+            else:
                 focus = st.session_state.get("sent_pick_district") or "All districts"
                 default_wc = 0
                 if focus and str(focus) != "All districts":
@@ -5151,157 +5152,64 @@ def _main_impl():
                         if str(d).casefold() == str(focus).casefold():
                             default_wc = i
                             break
-                wc1, wc2, wc3 = st.columns([2, 1.1, 1])
-                with wc1:
+
+                c1, c2 = st.columns([2.2, 1])
+                with c1:
                     wc_dist = st.selectbox(
-                        "Word cloud district",
+                        "District",
                         wc_dists,
                         index=min(default_wc, max(0, len(wc_dists) - 1)),
                         key="sent_wc_district",
                     )
-                with wc2:
-                    _lang_labels = {
-                        "Both (English + Tamil)": "both",
-                        "English only": "english",
-                        "Tamil only": "tamil",
-                    }
-                    _lang_ui = st.selectbox(
-                        "Language",
-                        list(_lang_labels.keys()),
-                        index=0,
-                        key="sent_wc_lang",
-                        help="Both keeps English and Tamil words in the cloud (balanced).",
-                    )
-                    wc_lang = _lang_labels[_lang_ui]
-                with wc3:
-                    wc_topn = st.slider("Top words", 15, 80, 40, key="sent_wc_topn")
+                with c2:
+                    wc_topn = st.slider("Top words (each language)", 10, 40, 20, key="sent_wc_topn")
 
-                # Pull a wider raw pool, then balance EN/TA inside word_freq
+                # Always bilingual (English + Tamil)
                 ctr = word_freq_for_district(
-                    texts_df,
-                    wc_dist,
-                    top_n=wc_topn + 20,
-                    lang_mode=wc_lang,
+                    texts_df, wc_dist, top_n=max(wc_topn * 2, 30), lang_mode="both"
                 )
                 n_rows = int(
                     (texts_df["district"].astype(str).str.casefold() == str(wc_dist).casefold()).sum()
                 )
                 lc = lang_counts(ctr)
                 st.caption(
-                    f"**{wc_dist}** · {n_rows} text rows · "
-                    f"{sum(ctr.values()) if ctr else 0} tokens · "
-                    f"EN words **{lc['english']}** · TA words **{lc['tamil']}** · "
-                    f"mode `{wc_lang}`"
+                    f"**{wc_dist}** · {n_rows} headlines · "
+                    f"English words: **{lc['english']}** · Tamil words: **{lc['tamil']}**"
                 )
+
                 if not ctr:
-                    st.info(
-                        f"No tokens for **{wc_dist}**. Refresh news or pick a district with headlines."
-                    )
+                    st.info(f"No words for **{wc_dist}**. Try another district or refresh news.")
                 else:
-                    sample_words = " ".join(ctr.keys())
-                    ta_mix = has_tamil(sample_words)
-                    en_mix = lc["english"] > 0
-                    # PIL cloud with bilingual font (EN + TA)
-                    img, wc_err = make_wordcloud_image(ctr, return_error=True)
-                    _ta_font = tamil_font_status()
-                    if ta_mix and not _ta_font.get("ok"):
+                    _fs = tamil_font_status()
+                    if not _fs.get("ok"):
                         st.warning(
-                            "Tamil words found, but no working Tamil font. "
-                            "Local: Windows should use Nirmala UI automatically. "
+                            "Tamil font missing. On Windows, Nirmala UI is used automatically. "
                             "Or run: `python assets/fonts/fetch_noto_tamil.py`"
                         )
-                    elif _ta_font.get("font_path"):
-                        st.caption(
-                            f"Font (EN + TA): `{Path(_ta_font['font_path']).name}` · "
-                            "Cloud colors: **blue = English**, **teal/gold = Tamil**"
-                        )
-                    if wc_lang == "both" and en_mix and not ta_mix:
-                        st.info(
-                            "Only English tokens found for this district. "
-                            "Tamil will appear when media harvest includes தமிழ் headlines."
-                        )
-                    if wc_lang == "both" and ta_mix and not en_mix:
-                        st.info(
-                            "Only Tamil tokens found for this district. "
-                            "English will appear when English headlines are linked here."
-                        )
-                    wca, wcb = st.columns([1.25, 1])
-                    with wca:
-                        if img is not None:
-                            _st_image(
-                                img,
-                                caption=f"Word cloud · {wc_dist} · {wc_lang}",
-                            )
-                        else:
-                            st.warning(
-                                "Image cloud unavailable"
-                                + (f": {wc_err}" if wc_err else "")
-                                + ". Showing frequency list below."
-                            )
-                        fdf = freq_dataframe(ctr, top_n=wc_topn)
-                        if not fdf.empty:
-                            # Embedded-font bar image whenever Tamil is present or
-                            # bilingual mode is on (Plotly cannot paint TA glyphs).
-                            if ta_mix or wc_lang in ("both", "tamil"):
-                                bar_img = make_freq_bar_image(
-                                    ctr,
-                                    top_n=wc_topn,
-                                    title=f"Top terms · {wc_dist}",
-                                )
-                                if bar_img is not None:
-                                    _st_image(
-                                        bar_img,
-                                        caption=(
-                                            f"Top terms · {wc_dist} · "
-                                            "blue=English · teal=Tamil"
-                                        ),
-                                    )
-                                else:
-                                    st.dataframe(
-                                        fdf, use_container_width=True, hide_index=True
-                                    )
-                            else:
-                                fig_wc = px.bar(
-                                    fdf.sort_values("count", ascending=True),
-                                    x="count",
-                                    y="word",
-                                    orientation="h",
-                                    template="plotly_dark",
-                                    color="count",
-                                    color_continuous_scale="Blues",
-                                    title=f"Top terms · {wc_dist}",
-                                )
-                                _pf = font_for_plotly()
-                                fig_wc.update_layout(
-                                    paper_bgcolor="rgba(0,0,0,0)",
-                                    plot_bgcolor="#0e0e12",
-                                    height=min(520, 22 * len(fdf) + 90),
-                                    showlegend=False,
-                                    margin=dict(l=8, r=8, t=40, b=8),
-                                    font=dict(family=_pf),
-                                    yaxis=dict(tickfont=dict(family=_pf, size=12)),
-                                )
-                                st.plotly_chart(
-                                    fig_wc,
-                                    use_container_width=True,
-                                    key="sent_wc_bar",
-                                )
-                    with wcb:
-                        fdf = freq_dataframe(ctr, top_n=min(30, wc_topn))
-                        st.dataframe(fdf, use_container_width=True, hide_index=True)
-                        st.caption("lang: en = English · ta = Tamil")
-                        st.download_button(
-                            "Download word freqs CSV",
-                            fdf.to_csv(index=False).encode("utf-8"),
-                            f"sentiment_words_{str(wc_dist).replace(' ', '_')}.csv",
-                            "text/csv",
-                            key="sent_wc_dl",
-                        )
-            else:
-                st.info(
-                    "No district-linked headlines for word clouds yet. "
-                    "Click **🔄** to refresh news, then re-open Sentiment."
-                )
+                    else:
+                        st.caption(f"Font: `{Path(_fs['font_path']).name}`")
+
+                    img, wc_err = make_wordcloud_image(ctr, return_error=True)
+                    if img is not None:
+                        _st_image(img, caption=f"English | Tamil · {wc_dist}")
+                    else:
+                        st.warning(f"Could not draw word panel: {wc_err}")
+
+                    bar_img = make_freq_bar_image(
+                        ctr, top_n=min(30, max(10, wc_topn * 2)), title=f"Top terms · {wc_dist}"
+                    )
+                    if bar_img is not None:
+                        _st_image(bar_img, caption="Frequency (blue=English, teal=Tamil)")
+
+                    fdf = freq_dataframe(ctr, top_n=30)
+                    st.dataframe(fdf, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Download word list CSV",
+                        fdf.to_csv(index=False).encode("utf-8"),
+                        f"words_{str(wc_dist).replace(' ', '_')}.csv",
+                        "text/csv",
+                        key="sent_wc_dl",
+                    )
         except Exception as e:
             st.warning(f"Word cloud section unavailable: {e}")
 
