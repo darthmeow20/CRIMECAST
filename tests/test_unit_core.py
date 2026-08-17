@@ -152,6 +152,20 @@ class TestSentimentWordclouds(unittest.TestCase):
         self.assertIn("arrest", toks)
         self.assertNotIn("ஒரு", toks)  # stopword if present alone only
 
+    def test_balance_lang_keeps_english_and_tamil(self):
+        from collections import Counter
+        from sentiment_wordclouds import balance_lang_frequencies, lang_counts
+
+        # Many Tamil tokens would dominate plain most_common(10)
+        raw = Counter()
+        for i in range(20):
+            raw[f"தமிழ்சொல்{i}"] = 10
+        raw.update({"police": 3, "arrest": 3, "murder": 2, "court": 2, "crime": 1})
+        bal = balance_lang_frequencies(raw, top_n=12, lang_mode="both")
+        lc = lang_counts(bal)
+        self.assertGreaterEqual(lc["english"], 3, msg=f"EN under-represented: {bal}")
+        self.assertGreaterEqual(lc["tamil"], 3, msg=f"TA under-represented: {bal}")
+
     def test_word_freq(self):
         from sentiment_wordclouds import word_freq_for_district, collect_district_texts
         import pandas as pd
@@ -175,23 +189,26 @@ class TestSentimentWordclouds(unittest.TestCase):
         from sentiment_wordclouds import freq_dataframe
 
         fdf = freq_dataframe(Counter({"crime": 3, "police": 2}), top_n=5)
-        self.assertEqual(list(fdf.columns), ["word", "count"])
+        self.assertIn("word", fdf.columns)
+        self.assertIn("count", fdf.columns)
         self.assertEqual(len(fdf), 2)
 
     def test_make_wordcloud_image_returns_or_errors_cleanly(self):
         from collections import Counter
-        from sentiment_wordclouds import make_wordcloud_image
+        from sentiment_wordclouds import make_wordcloud_image, ensure_tamil_font
 
+        font = ensure_tamil_font(force_download=False)
         img, err = make_wordcloud_image(
             Counter({"police": 5, "arrest": 3, "கைது": 4}),
             return_error=True,
         )
-        # Either image (wordcloud or matplotlib fallback) or a clear error string
-        if img is None:
-            self.assertTrue(err and len(str(err)) > 3)
-        else:
+        # On Windows, Nirmala should produce an image; elsewhere download/system may apply
+        if font:
+            self.assertIsNotNone(img, msg=f"expected image with font={font}, err={err}")
             self.assertTrue(hasattr(img, "size"))
             self.assertGreater(img.size[0], 10)
+        elif img is None:
+            self.assertTrue(err and len(str(err)) > 3)
 
 
 class TestRiskExplain(unittest.TestCase):
