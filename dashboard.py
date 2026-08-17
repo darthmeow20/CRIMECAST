@@ -5090,7 +5090,8 @@ def _main_impl():
         st.markdown("### ☁️ Word clouds by district")
         st.caption(
             "Terms from media harvest / scored headlines (English + Tamil). "
-            "Image cloud needs `pip install wordcloud`; frequency bars always work."
+            "Image uses `wordcloud` when installed; otherwise a matplotlib layout "
+            "with the Tamil font. Frequency bars always work."
         )
         try:
             from sentiment_wordclouds import (
@@ -5147,7 +5148,7 @@ def _main_impl():
                 else:
                     sample_words = " ".join(ctr.keys())
                     # Build image first so ensure_tamil_font() can copy/download a face
-                    img = make_wordcloud_image(ctr)
+                    img, wc_err = make_wordcloud_image(ctr, return_error=True)
                     _ta_font = tamil_font_status()
                     if has_tamil(sample_words) and not _ta_font.get("ok"):
                         st.warning(
@@ -5163,13 +5164,21 @@ def _main_impl():
                     wca, wcb = st.columns([1.25, 1])
                     with wca:
                         if img is not None:
+                            _cap = f"Word cloud · {wc_dist}"
+                            if wc_err and not _ta_font.get("wordcloud_installed"):
+                                _cap += " (matplotlib layout)"
                             st.image(
                                 img,
                                 use_container_width=True,
-                                caption=f"Word cloud · {wc_dist}",
+                                caption=_cap,
                             )
                         else:
-                            st.caption("Install `wordcloud` for image cloud · showing bars.")
+                            st.warning(
+                                "Image cloud unavailable"
+                                + (f": {wc_err}" if wc_err else "")
+                                + ". Showing frequency bars. "
+                                "Fix: `pip install wordcloud` (already in requirements.txt)."
+                            )
                         fdf = freq_dataframe(ctr, top_n=wc_topn)
                         if not fdf.empty:
                             fig_wc = px.bar(

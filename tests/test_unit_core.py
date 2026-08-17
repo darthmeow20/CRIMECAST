@@ -178,6 +178,21 @@ class TestSentimentWordclouds(unittest.TestCase):
         self.assertEqual(list(fdf.columns), ["word", "count"])
         self.assertEqual(len(fdf), 2)
 
+    def test_make_wordcloud_image_returns_or_errors_cleanly(self):
+        from collections import Counter
+        from sentiment_wordclouds import make_wordcloud_image
+
+        img, err = make_wordcloud_image(
+            Counter({"police": 5, "arrest": 3, "கைது": 4}),
+            return_error=True,
+        )
+        # Either image (wordcloud or matplotlib fallback) or a clear error string
+        if img is None:
+            self.assertTrue(err and len(str(err)) > 3)
+        else:
+            self.assertTrue(hasattr(img, "size"))
+            self.assertGreater(img.size[0], 10)
+
 
 class TestRiskExplain(unittest.TestCase):
     def test_composite_risk_factors(self):

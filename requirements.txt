@@ -11,6 +11,7 @@ joblib==1.4.2
 matplotlib==3.9.2
 seaborn==0.13.2
 Pillow==10.4.0
+wordcloud==1.9.3
 python-dateutil==2.9.0.post0
 requests==2.32.3
 textblob==0.18.0.post0

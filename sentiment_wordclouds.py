@@ -330,29 +330,141 @@ def freq_dataframe(ctr: Counter, top_n: int = 40) -> pd.DataFrame:
     return pd.DataFrame(items, columns=["word", "count"])
 
 
-def make_wordcloud_image(ctr: Counter, width: int = 900, height: int = 450):
-    """
-    Return PIL Image if wordcloud+matplotlib available, else None.
+def _resolve_font_for_cloud(freqs: dict[str, float]) -> str | None:
+    sample = " ".join(str(k) for k in freqs.keys())
+    if has_tamil(sample):
+        resolve_wordcloud_font.cache_clear()
+        return ensure_tamil_font(force_download=False)
+    return resolve_wordcloud_font()
 
-    Uses a Tamil-capable font when any token contains Tamil script so glyphs
-    render instead of □ boxes (common on cloud with default DejaVu fonts).
+
+def _matplotlib_word_image(
+    freqs: dict[str, float],
+    font_path: str | None,
+    width: int = 900,
+    height: int = 450,
+):
+    """
+    Fallback image when `wordcloud` package is missing or fails.
+    Uses matplotlib + Tamil font so Tamil glyphs still render.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib import font_manager as fm
+    from matplotlib import colors as mcolors
+
+    if not freqs:
+        return None
+
+    items = sorted(freqs.items(), key=lambda x: -float(x[1]))[:50]
+    max_c = max(float(c) for _, c in items) or 1.0
+    min_c = min(float(c) for _, c in items) or 1.0
+
+    fig_w, fig_h = width / 100.0, height / 100.0
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=100)
+    fig.patch.set_facecolor("#0e0e12")
+    ax.set_facecolor("#0e0e12")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    fp = None
+    if font_path:
+        try:
+            fp = fm.FontProperties(fname=font_path)
+        except Exception:
+            fp = None
+
+    # Soft blue colormap (similar to WordCloud Blues)
+    cmap = plt.get_cmap("Blues")
+    rng = np.random.default_rng(42)
+
+    # Place larger words first near center; smaller words fill edges
+    n = len(items)
+    for i, (word, count) in enumerate(items):
+        weight = float(count)
+        # Font size 10–36 pt scaled by frequency
+        if max_c > min_c:
+            t = (weight - min_c) / (max_c - min_c)
+        else:
+            t = 1.0
+        size = 10 + t * 26
+        # Prefer center for high-frequency terms
+        spread = 0.12 + 0.38 * (i / max(n - 1, 1))
+        x = 0.5 + float(rng.normal(0, spread))
+        y = 0.5 + float(rng.normal(0, spread * 0.85))
+        x = float(np.clip(x, 0.04, 0.96))
+        y = float(np.clip(y, 0.06, 0.94))
+        color = mcolors.to_hex(cmap(0.45 + 0.5 * t))
+        ax.text(
+            x,
+            y,
+            str(word),
+            fontproperties=fp,
+            fontsize=size,
+            color=color,
+            ha="center",
+            va="center",
+            alpha=0.95,
+            rotation=0 if rng.random() < 0.85 else 90,
+        )
+
+    fig.tight_layout(pad=0.15)
+    # Render to PIL without requiring a display
+    try:
+        from PIL import Image as PILImage
+        import io
+
+        buf = io.BytesIO()
+        fig.savefig(
+            buf,
+            format="png",
+            facecolor=fig.get_facecolor(),
+            edgecolor="none",
+            bbox_inches="tight",
+            pad_inches=0.08,
+        )
+        plt.close(fig)
+        buf.seek(0)
+        return PILImage.open(buf).convert("RGB")
+    except Exception:
+        plt.close(fig)
+        return None
+
+
+def make_wordcloud_image(
+    ctr: Counter,
+    width: int = 900,
+    height: int = 450,
+    *,
+    return_error: bool = False,
+):
+    """
+    Return PIL Image for the frequency cloud.
+
+    Tries `wordcloud` package first; on ImportError/failure uses matplotlib
+    + Tamil font so the UI still shows a cloud (not only bars).
+
+    If return_error=True, returns (image|None, err_msg|None).
     """
     if not ctr:
-        return None
+        return (None, "empty frequencies") if return_error else None
+
+    freqs = {str(k): float(v) for k, v in ctr.items() if str(k).strip() and float(v) > 0}
+    if not freqs:
+        return (None, "no positive frequencies") if return_error else None
+
+    font_path = _resolve_font_for_cloud(freqs)
+    last_err: str | None = None
+
+    # 1) Preferred: wordcloud library
     try:
         from wordcloud import WordCloud
         import matplotlib
 
         matplotlib.use("Agg")
-        freqs = dict(ctr)
-        sample = " ".join(freqs.keys())
-        # Force ensure when Tamil present (copy/download if first run)
-        if has_tamil(sample):
-            resolve_wordcloud_font.cache_clear()
-            font_path = ensure_tamil_font(force_download=False)
-        else:
-            font_path = resolve_wordcloud_font()
-
         kwargs: dict[str, Any] = dict(
             width=width,
             height=height,
@@ -364,26 +476,47 @@ def make_wordcloud_image(ctr: Counter, width: int = 900, height: int = 450):
             min_font_size=12,
             margin=4,
             collocations=False,
-            # Latin + full Tamil Unicode block (prevents drop of TA tokens)
             regexp=r"[A-Za-z']+|[\u0B80-\u0BFF]+",
         )
         if font_path:
             kwargs["font_path"] = font_path
-
         wc = WordCloud(**kwargs).generate_from_frequencies(freqs)
-        return wc.to_image()
-    except Exception:
-        return None
+        img = wc.to_image()
+        if img is not None:
+            return (img, None) if return_error else img
+    except ImportError as e:
+        last_err = f"wordcloud not installed ({e})"
+    except Exception as e:
+        last_err = f"wordcloud failed: {type(e).__name__}: {e}"
+
+    # 2) Fallback: matplotlib text layout (works with only matplotlib + Pillow)
+    try:
+        img = _matplotlib_word_image(freqs, font_path, width=width, height=height)
+        if img is not None:
+            return (img, last_err) if return_error else img
+        last_err = (last_err or "") + "; matplotlib fallback returned empty"
+    except Exception as e:
+        last_err = (last_err or "wordcloud unavailable") + f"; matplotlib fallback: {e}"
+
+    return (None, last_err) if return_error else None
 
 
 def tamil_font_status() -> dict[str, Any]:
     """Diagnostics for UI captions / health."""
     path = resolve_wordcloud_font()
+    wordcloud_ok = False
+    try:
+        import wordcloud  # noqa: F401
+
+        wordcloud_ok = True
+    except ImportError:
+        wordcloud_ok = False
     return {
         "font_path": path,
         "ok": bool(path),
         "bundled_dir": str(_FONTS_DIR),
         "bundled_exists": _FONTS_DIR.is_dir(),
+        "wordcloud_installed": wordcloud_ok,
     }
 
 
