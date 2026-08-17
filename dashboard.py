@@ -52,6 +52,33 @@ def _safe_live_status(n_models, n_media, n_harvest, high_count, metric, window) 
         f"{metric} · {window}"
     )
 
+
+def _st_image(image, caption: str | None = None, width: int | None = None) -> None:
+    """
+    st.image compatible across Streamlit versions.
+
+    Older builds reject use_container_width on ImageMixin; they use use_column_width.
+    Newer builds prefer use_container_width and may deprecate use_column_width.
+    """
+    kwargs: dict = {}
+    if caption is not None:
+        kwargs["caption"] = caption
+    if width is not None:
+        kwargs["width"] = width
+        st.image(image, **kwargs)
+        return
+    try:
+        st.image(image, use_container_width=True, **kwargs)
+        return
+    except TypeError:
+        pass
+    try:
+        st.image(image, use_column_width=True, **kwargs)
+        return
+    except TypeError:
+        pass
+    st.image(image, **kwargs)
+
 # Suppress the common "missing ScriptRunContext" warning when running in bare mode
 # or during certain import/caching phases. This is harmless.
 warnings.filterwarnings("ignore", message=".*ScriptRunContext.*")
@@ -5167,11 +5194,7 @@ def _main_impl():
                             _cap = f"Word cloud · {wc_dist}"
                             if wc_err and not _ta_font.get("wordcloud_installed"):
                                 _cap += " (matplotlib layout)"
-                            st.image(
-                                img,
-                                use_container_width=True,
-                                caption=_cap,
-                            )
+                            _st_image(img, caption=_cap)
                         else:
                             st.warning(
                                 "Image cloud unavailable"
@@ -6356,7 +6379,7 @@ Full path: `docs/DEMO_SCRIPT.md` · screenshots: `docs/REPORTS_SCREENSHOTS_READM
             selected = st.selectbox("Choose visualization", [f.name for f in fig_files])
             img_path = FIGURES_DIR / selected
             if img_path.exists():
-                st.image(str(img_path), use_container_width=True, caption=selected)
+                _st_image(str(img_path), caption=selected)
         else:
             st.warning("No figures found. Run the full pipeline or visualizations first.")
 
