@@ -1,18 +1,16 @@
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+# Render / cloud sets PORT; local default still works in Streamlit CLI
+maxUploadSize = 50
+
+[browser]
+gatherUsageStats = false
+
 [theme]
-
-# Dark OPS COMMAND theme (matches report_materials/screenshots reference)
 base = "dark"
-
-# Crimson accent
-primaryColor = "#dc2626"
-
-# Pure black main background
+primaryColor = "#ef4444"
 backgroundColor = "#0a0a0c"
-
-# Sidebar / secondary panels
 secondaryBackgroundColor = "#0c0c0f"
-
-# Light text
 textColor = "#e8e8ed"
-
-font = "sans serif"

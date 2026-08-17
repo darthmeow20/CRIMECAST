@@ -1,0 +1,23 @@
+# Render Blueprint — CRIMECAST Streamlit
+# https://render.com/docs/python-version
+
+services:
+  - type: web
+    name: crimecast
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    # Force 3.11 so pip uses wheels (pandas/numpy do not build well on 3.14)
+    buildCommand: |
+      python -V
+      pip install --upgrade pip setuptools wheel
+      pip install -r requirements.txt
+    startCommand: streamlit run dashboard.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: "true"
+      - key: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+        value: "false"
